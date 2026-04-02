@@ -1,108 +1,88 @@
-﻿import { useState } from 'react';
-import { Layout, Menu, Avatar, Typography, Badge, Flex, Tooltip } from 'antd';
+import { useState } from 'react';
+import { Layout, Menu, Avatar, Typography, Flex, Tooltip } from 'antd';
 import {
-  AppstoreOutlined, ThunderboltOutlined, BellOutlined, WifiOutlined,
-  CalendarOutlined, UnorderedListOutlined, EditOutlined,
-  RobotOutlined, FileTextOutlined, DatabaseOutlined, SettingOutlined,
+  AppstoreOutlined, EnvironmentOutlined, ThunderboltOutlined,
+  SettingOutlined, UnorderedListOutlined, EditOutlined,
+  FileTextOutlined, BarChartOutlined, ApartmentOutlined,
+  BulbOutlined, FundOutlined,
 } from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
+import logoSmall from '../../assets/img/1.png';
+import logoFull from '../../assets/img/logoHP.png';
 
-interface NavItem {
-  label: string;
-  icon: string;
-  badge?: number;
-}
+const { Sider } = Layout;
+const { Text }  = Typography;
 
-interface NavGroup {
-  title: string;
-  items: NavItem[];
-}
+type NavItem = { key: string; label: string; icon: React.ReactNode };
+type NavGroup = { title: string; items: NavItem[] };
 
 const NAV_GROUPS: NavGroup[] = [
   {
     title: 'TỔNG QUAN',
     items: [
-      { label: 'Dashboard', icon: '⊞' },
-      { label: 'Cảnh báo', icon: '🔔', badge: 5 },
-      { label: 'Trạng thái thiết bị', icon: '📡' },
+      { key: '/dashboard',            label: 'Dashboard',              icon: <AppstoreOutlined /> },
     ],
   },
   {
-    title: 'GIÁM SÁT',
+    title: 'QUẢN LÝ THIẾT BỊ',
     items: [
-      { label: 'Lịch sử sự kiện', icon: '📅' },
-      { label: 'Danh sách thiết bị', icon: '📋' },
-      { label: 'Báo cáo', icon: '📄' },
+      { key: '/quan-ly/khu-vuc',      label: 'Khu vực',                icon: <EnvironmentOutlined /> },
+      { key: '/quan-ly/tram-dien',    label: 'Trạm điện',              icon: <ThunderboltOutlined /> },
+      { key: '/quan-ly/thiet-bi',     label: 'Thiết bị',               icon: <ApartmentOutlined /> },
     ],
   },
   {
-    title: 'VẬN HÀNH',
+    title: 'CẤU HÌNH CBM',
     items: [
-      { label: 'Lập lịch bảo trì', icon: '✏️' },
-      { label: 'AI phân tích', icon: '🤖', badge: 2 },
+      { key: '/cau-hinh/loai-thiet-bi', label: 'Loại thiết bị',       icon: <UnorderedListOutlined /> },
+      { key: '/cau-hinh/nhom-chi-tieu', label: 'Nhóm chỉ tiêu',       icon: <BulbOutlined /> },
+      { key: '/cau-hinh/chi-tieu',      label: 'Chỉ tiêu & Ngưỡng',   icon: <SettingOutlined /> },
+    ],
+  },
+  {
+    title: 'NHẬP LIỆU',
+    items: [
+      { key: '/nhap-lieu',            label: 'Nhập liệu kiểm tra',     icon: <EditOutlined /> },
+    ],
+  },
+  {
+    title: 'KẾT QUẢ & BÁO CÁO',
+    items: [
+      { key: '/ket-qua',              label: 'Kết quả phân hạng',      icon: <FundOutlined /> },
+      { key: '/bao-cao',              label: 'Báo cáo',                icon: <FileTextOutlined /> },
     ],
   },
   {
     title: 'HỆ THỐNG',
     items: [
-      { label: 'Dữ liệu lịch sử', icon: '🗂️' },
-      { label: 'Cài đặt', icon: '⚙️' },
-      { label: 'Nguồn điện', icon: '⚡' },
+      { key: '/thong-ke',             label: 'Thống kê',               icon: <BarChartOutlined /> },
     ],
   },
 ];
 
-const { Sider } = Layout;
-const { Text } = Typography;
-
-const ICON_MAP: Record<string, React.ReactNode> = {
-  '⊞': <AppstoreOutlined />,
-  '⚡': <ThunderboltOutlined />,
-  '🔔': <BellOutlined />,
-  '📡': <WifiOutlined />,
-  '📅': <CalendarOutlined />,
-  '📋': <UnorderedListOutlined />,
-  '✏️': <EditOutlined />,
-  '🤖': <RobotOutlined />,
-  '📄': <FileTextOutlined />,
-  '🗂️': <DatabaseOutlined />,
-  '⚙️': <SettingOutlined />,
-};
-
 interface SidebarProps {
   collapsed: boolean;
-  onCollapse: (collapsed: boolean) => void;
+  onCollapse: (c: boolean) => void;
 }
 
 export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarProps) {
-  const menuItems: MenuProps['items'] = NAV_GROUPS.map(({ title, items }: NavGroup) => ({
+  const navigate    = useNavigate();
+  const { pathname } = useLocation();
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+
+  const menuItems: MenuProps['items'] = NAV_GROUPS.map(({ title, items }) => ({
     type: 'group' as const,
-    label: collapsed ? null : title,
-    children: items.map((item: NavItem) => ({
-      key: item.label,
-      icon: item.badge ? (
-        <Badge count={item.badge} size="small" offset={[4, -2]}
-          styles={{ indicator: { background: item.badge === 5 ? '#0096D6' : '#005EB8' } }}
-        >
-          {ICON_MAP[item.icon]}
-        </Badge>
-      ) : ICON_MAP[item.icon],
-      label: collapsed ? null : (
-        <Flex align="center" justify="space-between">
-          <span>{item.label}</span>
-          {item.badge && (
-            <Badge
-              count={item.badge}
-              style={{
-                background: item.badge === 5 ? '#0096D6' : '#005EB8',
-                color: '#fff',
-                fontSize: 10,
-                fontWeight: 700,
-              }}
-            />
-          )}
-        </Flex>
-      ),
+    label: collapsed ? null : (
+      <Text style={{ color: '#374151', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>
+        {title}
+      </Text>
+    ),
+    children: items.map(item => ({
+      key: item.key,
+      icon: <span style={{ fontSize: 15 }}>{item.icon}</span>,
+      label: collapsed ? null : item.label,
+      onClick: () => navigate(item.key),
     })),
   }));
 
@@ -124,39 +104,20 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
       <Flex vertical style={{ height: '100%' }}>
 
         {/* ── Logo ── */}
-        <Flex
-          align="center"
-          justify="center"
-          style={{
-            padding: collapsed ? '18px 0' : '14px 20px',
-            borderBottom: '1px solid #1f2937',
-            flexShrink: 0,
-            minHeight: 80,
-            transition: 'padding 0.25s ease',
-          }}
-        >
+        <Flex align="center" justify="center" style={{
+          padding: collapsed ? '18px 0' : '14px 20px',
+          borderBottom: '1px solid #1f2937',
+          flexShrink: 0, minHeight: 80,
+          transition: 'padding 0.25s ease',
+        }}>
           {collapsed ? (
             <Tooltip title="CBM Platform" placement="right">
-              <img
-                src="/src/assets/img/logoHP.png"
-                alt="CBM Platform"
-                style={{
-                  width: 52, height: 52,
-                  objectFit: 'contain',
-                  cursor: 'default', flexShrink: 0,
-                }}
-              />
+              <img src={logoSmall} alt="CBM"
+                style={{ width: 52, height: 52, objectFit: 'contain', cursor: 'default' }} />
             </Tooltip>
           ) : (
-            <img
-              src="/src/assets/img/logoHP.png"
-              alt="CBM Platform"
-              style={{
-                width: 200, height: 50,
-                objectFit: 'contain',
-                flexShrink: 0,
-              }}
-            />
+            <img src={logoFull} alt="CBM Platform"
+              style={{ width: 200, height: 50, objectFit: 'contain' }} />
           )}
         </Flex>
 
@@ -164,10 +125,12 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           <Menu
             mode="inline"
-            defaultSelectedKeys={['Dashboard']}
+            selectedKeys={[pathname]}
+            openKeys={openKeys}
+            onOpenChange={setOpenKeys}
             items={menuItems}
             inlineCollapsed={collapsed}
-            style={{ background: 'transparent', border: 'none' }}
+            style={{ background: 'transparent', border: 'none', padding: '8px 0' }}
           />
         </div>
 
@@ -183,17 +146,17 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
             transition: 'padding 0.25s ease',
           }}
         >
-          <Tooltip title={collapsed ? 'Nguyễn Văn A · engineer' : ''} placement="right">
+          <Tooltip title={collapsed ? 'Kỹ sư vận hành' : ''} placement="right">
             <Avatar style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', flexShrink: 0, cursor: 'default' }}>
               KS
             </Avatar>
           </Tooltip>
           {!collapsed && (
             <Flex vertical gap={0} style={{ overflow: 'hidden' }}>
-              <Text strong style={{ color: '#e5e7eb', fontSize: 13, lineHeight: '20px', whiteSpace: 'nowrap' }}>
+              <Text strong style={{ color: '#e5e7eb', fontSize: 13, whiteSpace: 'nowrap' }}>
                 Nguyễn Văn A
               </Text>
-              <Text style={{ color: '#6b7280', fontSize: 11, lineHeight: '16px' }}>engineer</Text>
+              <Text style={{ color: '#6b7280', fontSize: 11 }}>Kỹ sư vận hành</Text>
             </Flex>
           )}
         </Flex>
