@@ -9,6 +9,7 @@ import { thietBiApi }     from '../../api/thietBi';
 import { tramDienApi }    from '../../api/tramDien';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
 import type { ThietBi, TramDien, LoaiThietBi } from '../../types/entities';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
@@ -25,6 +26,8 @@ const trangThaiTag = (v: number) => {
 };
 
 export default function ThietBiPage() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [data, setData]               = useState<ThietBi[]>([]);
   const [trams, setTrams]             = useState<TramDien[]>([]);
   const [loais, setLoais]             = useState<LoaiThietBi[]>([]);
@@ -135,7 +138,7 @@ export default function ThietBiPage() {
       title: 'Tên thiết bị', dataIndex: 'TenThietBi', key: 'name', width: 220,
       render: (v, r) => (
         <div>
-          <Text strong style={{ color: '#e5e7eb', display: 'block' }}>{v ?? 'Chưa có tên'}</Text>
+          <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827', display: 'block' }}>{v ?? 'Chưa có tên'}</Text>
           {r.SoHieu && <Text style={{ color: '#6b7280', fontSize: 11 }}>Số hiệu: {r.SoHieu}</Text>}
         </div>
       ),
@@ -197,13 +200,13 @@ export default function ThietBiPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Quản lý thiết bị</Title>
+        <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Quản lý thiết bị</Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
           Danh sách thiết bị điện trong hệ thống CBM · {data.length} thiết bị
         </Text>
       </div>
 
-      <Card style={{ background: '#0d1117', border: '1px solid #1f2937' }}
+      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
           <Space wrap>
@@ -330,13 +333,13 @@ export default function ThietBiPage() {
               ['Trạng thái',    trangThaiTag(detail.TrangThai)],
               ['Ghi chú',       detail.GhiChu ?? '—'],
             ].map(([label, value]) => (
-              <Row key={String(label)} style={{ marginBottom: 10, borderBottom: '1px solid #1f2937', paddingBottom: 10 }}>
+              <Row key={String(label)} style={{ marginBottom: 10, borderBottom: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`, paddingBottom: 10 }}>
                 <Col span={10}>
                   <Text style={{ color: '#6b7280', fontSize: 13 }}>{label}</Text>
                 </Col>
                 <Col span={14}>
                   {typeof value === 'string' || typeof value === 'number'
-                    ? <Text style={{ color: '#e5e7eb', fontSize: 13 }}>{value}</Text>
+                    ? <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 13 }}>{value}</Text>
                     : value}
                 </Col>
               </Row>

@@ -6,6 +6,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/common/StatCard';
+import { useThemeMode } from '../theme/ThemeModeContext';
 import { khuVucApi }      from '../api/khuVuc';
 import { tramDienApi }    from '../api/tramDien';
 import { thietBiApi }     from '../api/thietBi';
@@ -44,6 +45,8 @@ const WORKFLOW_STEPS = [
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [stats, setStats]     = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,14 +76,21 @@ export default function DashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const panelBg = isDark ? '#0d1117' : '#ffffff';
+  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
+  const itemBg = isDark ? '#111827' : '#f9fafb';
+  const titleColor = isDark ? '#f9fafb' : '#111827';
+  const dimText = isDark ? '#6b7280' : '#6b7280';
+  const formulaBoxBg = isDark ? '#111827' : '#eff6ff';
+
   return (
-    <div style={{ color: '#f9fafb' }}>
+    <div style={{ color: titleColor }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>
+          <Title level={4} style={{ color: titleColor, margin: 0 }}>
             Hệ thống CBM — Chỉ số sức khỏe thiết bị điện
           </Title>
-          <Text style={{ color: '#6b7280', fontSize: 13 }}>
+          <Text style={{ color: dimText, fontSize: 13 }}>
             Phần mềm tính toán CSSK theo phương pháp CBM của EVN
           </Text>
         </div>
@@ -117,8 +127,8 @@ export default function DashboardPage() {
         {/* ── Quy trình nghiệp vụ ── */}
         <Col xs={24} lg={14}>
           <Card title="Quy trình thiết lập & sử dụng CBM"
-            style={{ background: '#0d1117', border: '1px solid #1f2937' }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937' }, body: { padding: 20 } }}>
+            style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
             <Row gutter={[12, 12]}>
               {WORKFLOW_STEPS.map(step => (
                 <Col xs={24} sm={12} key={step.step}>
@@ -126,11 +136,11 @@ export default function DashboardPage() {
                     onClick={() => navigate(step.path)}
                     style={{
                       padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
-                      background: '#111827', border: `1px solid #1f2937`,
+                      background: itemBg, border: `1px solid ${panelBorder}`,
                       transition: 'border-color 0.2s',
                     }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = step.color)}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = '#1f2937')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = panelBorder)}
                   >
                     <Flex align="flex-start" gap={10}>
                       <Text style={{
@@ -140,10 +150,10 @@ export default function DashboardPage() {
                         {step.step}
                       </Text>
                       <div>
-                        <Text strong style={{ color: '#e5e7eb', fontSize: 13, display: 'block' }}>
+                        <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
                           {step.title}
                         </Text>
-                        <Text style={{ color: '#6b7280', fontSize: 11 }}>{step.desc}</Text>
+                        <Text style={{ color: dimText, fontSize: 11 }}>{step.desc}</Text>
                       </div>
                     </Flex>
                   </div>
@@ -156,13 +166,13 @@ export default function DashboardPage() {
         {/* ── Quick actions ── */}
         <Col xs={24} lg={10}>
           <Card title="Truy cập nhanh"
-            style={{ background: '#0d1117', border: '1px solid #1f2937' }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937' }, body: { padding: 12 } }}>
+            style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 12 } }}>
             {QUICK_ACTIONS.map(item => (
               <div key={item.path} onClick={() => navigate(item.path)}
                 style={{
                   padding: '10px 14px', marginBottom: 6, borderRadius: 8, cursor: 'pointer',
-                  background: '#111827', border: '1px solid #1f2937',
+                  background: itemBg, border: `1px solid ${panelBorder}`,
                   transition: 'all 0.15s',
                 }}
                 onMouseEnter={e => {
@@ -170,8 +180,8 @@ export default function DashboardPage() {
                   e.currentTarget.style.background = `${item.color}11`;
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#1f2937';
-                  e.currentTarget.style.background = '#111827';
+                  e.currentTarget.style.borderColor = panelBorder;
+                  e.currentTarget.style.background = itemBg;
                 }}
               >
                 <Flex align="center" gap={10}>
@@ -182,7 +192,7 @@ export default function DashboardPage() {
                   }}>
                     {item.icon}
                   </div>
-                  <Text style={{ color: '#e5e7eb', fontSize: 13 }}>{item.label}</Text>
+                  <Text style={{ color: titleColor, fontSize: 13 }}>{item.label}</Text>
                 </Flex>
               </div>
             ))}
@@ -190,17 +200,17 @@ export default function DashboardPage() {
 
           {/* CBM Formula card */}
           <Card title="Công thức tính CSSK"
-            style={{ background: '#0d1117', border: '1px solid #1f2937', marginTop: 16 }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937', fontSize: 13 }, body: { padding: 16 } }}>
-            <Text style={{ color: '#6b7280', fontSize: 12, display: 'block', marginBottom: 8 }}>
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, marginTop: 16 }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}`, fontSize: 13 }, body: { padding: 16 } }}>
+            <Text style={{ color: dimText, fontSize: 12, display: 'block', marginBottom: 8 }}>
               Chỉ số sức khỏe tổng hợp (CSSK):
             </Text>
-            <div style={{ padding: '10px 14px', background: '#111827', borderRadius: 6, fontFamily: 'monospace' }}>
+            <div style={{ padding: '10px 14px', background: formulaBoxBg, borderRadius: 6, fontFamily: 'monospace' }}>
               <Text style={{ color: '#93c5fd', fontSize: 13 }}>
                 CSSK = Σ (Điểm_nhóm × W_nhóm) × 10
               </Text>
             </div>
-            <Text style={{ color: '#6b7280', fontSize: 12, display: 'block', marginTop: 8 }}>
+            <Text style={{ color: dimText, fontSize: 12, display: 'block', marginTop: 8 }}>
               Trong đó Điểm_nhóm = Σ (Điểm_Sᵢ × Wᵢ)
             </Text>
             <Row gutter={8} style={{ marginTop: 12 }}>

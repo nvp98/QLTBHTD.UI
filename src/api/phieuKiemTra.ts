@@ -11,6 +11,8 @@ type PhieuKiemTraRaw = Partial<PhieuKiemTra> & {
   iD_Phieu?: number;
   iD_ThietBi?: number;
   tenThietBi?: string;
+  iD_NhomChiTieu?: number;
+  tenNhom?: string;
   ngayKiemTra?: string;
   nguoiKiemTra?: string;
   tongDiem_Soqt?: number;
@@ -21,14 +23,18 @@ type PhieuKiemTraRaw = Partial<PhieuKiemTra> & {
 type PhieuKiemTraDetailRaw = PhieuKiemTraRaw & { chiTiets?: ChiTietKiemTra[] };
 
 const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
-  ID_Phieu:      Number(raw.ID_Phieu     ?? raw.iD_Phieu     ?? 0),
-  ID_ThietBi:    Number(raw.ID_ThietBi   ?? raw.iD_ThietBi   ?? 0),
-  TenThietBi:    raw.TenThietBi   ?? raw.tenThietBi,
-  NgayKiemTra:   raw.NgayKiemTra  ?? raw.ngayKiemTra  ?? '',
-  NguoiKiemTra:  raw.NguoiKiemTra ?? raw.nguoiKiemTra,
-  TongDiem_Soqt: raw.TongDiem_Soqt ?? raw.tongDiem_Soqt,
-  CapDoCanhBao:  raw.CapDoCanhBao ?? raw.capDoCanhBao,
-  GhiChuChung:   raw.GhiChuChung  ?? raw.ghiChuChung,
+  ID_Phieu:        Number(raw.ID_Phieu        ?? raw.iD_Phieu        ?? 0),
+  ID_ThietBi:      Number(raw.ID_ThietBi      ?? raw.iD_ThietBi      ?? 0),
+  TenThietBi:      raw.TenThietBi      ?? raw.tenThietBi,
+  ID_NhomChiTieu:  raw.ID_NhomChiTieu  != null ? Number(raw.ID_NhomChiTieu)
+                 : raw.iD_NhomChiTieu  != null ? Number(raw.iD_NhomChiTieu)
+                 : undefined,
+  TenNhom:         raw.TenNhom         ?? raw.tenNhom,
+  NgayKiemTra:     raw.NgayKiemTra     ?? raw.ngayKiemTra     ?? '',
+  NguoiKiemTra:    raw.NguoiKiemTra    ?? raw.nguoiKiemTra,
+  TongDiem_Soqt:   raw.TongDiem_Soqt   ?? raw.tongDiem_Soqt,
+  CapDoCanhBao:    raw.CapDoCanhBao    ?? raw.capDoCanhBao,
+  GhiChuChung:     raw.GhiChuChung     ?? raw.ghiChuChung,
 });
 
 const toPhieuDetail = (raw: PhieuKiemTraDetailRaw): PhieuKiemTraDetailDto => ({

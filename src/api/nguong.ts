@@ -7,18 +7,22 @@ type NguongApiRaw = Partial<Nguong> & {
   iD_Nguong?: number;
   iD_ChiTieu?: number;
   tenChiTieu?: string;
-  canTren?: number;
-  canDuoi?: number;
+  canTren?: number | null;
+  canDuoi?: number | null;
   diem_Si?: number;
+  canDuoi_BaoGom?: boolean;
+  canTren_BaoGom?: boolean;
 };
 
 const toNguong = (raw: NguongApiRaw): Nguong => ({
-  ID_Nguong:  Number(raw.ID_Nguong  ?? raw.iD_Nguong  ?? 0),
-  ID_ChiTieu: Number(raw.ID_ChiTieu ?? raw.iD_ChiTieu ?? 0),
-  TenChiTieu: raw.TenChiTieu ?? raw.tenChiTieu,
-  CanTren:    Number(raw.CanTren  ?? raw.canTren  ?? 0),
-  CanDuoi:    Number(raw.CanDuoi  ?? raw.canDuoi  ?? 0),
-  Diem_Si:    Number(raw.Diem_Si  ?? raw.diem_Si  ?? 0),
+  ID_Nguong:       Number(raw.ID_Nguong  ?? raw.iD_Nguong  ?? 0),
+  ID_ChiTieu:      Number(raw.ID_ChiTieu ?? raw.iD_ChiTieu ?? 0),
+  TenChiTieu:      raw.TenChiTieu ?? raw.tenChiTieu,
+  CanTren:         raw.CanTren  ?? raw.canTren  ?? null,
+  CanDuoi:         raw.CanDuoi  ?? raw.canDuoi  ?? null,
+  Diem_Si:         Number(raw.Diem_Si  ?? raw.diem_Si  ?? 0),
+  CanDuoi_BaoGom:  raw.CanDuoi_BaoGom ?? raw.canDuoi_BaoGom ?? true,
+  CanTren_BaoGom:  raw.CanTren_BaoGom ?? raw.canTren_BaoGom ?? false,
 });
 
 type PagedRaw = PagedResult<NguongApiRaw>;

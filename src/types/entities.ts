@@ -76,6 +76,7 @@ export interface ChiTieu {
   ID_ChiTieu: number;
   ID_NhomChiTieu: number;
   TenNhom?: string;
+  ID_LoaiThietBi?: number;
   TenChiTieu: string;
   TrongSo_Wi: number;
   TrangThai: number;
@@ -88,11 +89,20 @@ export interface Nguong {
   ID_Nguong: number;
   ID_ChiTieu: number;
   TenChiTieu?: string;
-  CanTren: number;
-  CanDuoi: number;
+  CanTren: number | null;
+  CanDuoi: number | null;
   Diem_Si: number;
+  CanDuoi_BaoGom: boolean;
+  CanTren_BaoGom: boolean;
 }
-export interface CreateNguongDto { ID_ChiTieu: number; CanTren: number; CanDuoi: number; Diem_Si: number }
+export interface CreateNguongDto {
+  ID_ChiTieu: number;
+  CanTren: number | null;
+  CanDuoi: number | null;
+  Diem_Si: number;
+  CanDuoi_BaoGom: boolean;
+  CanTren_BaoGom: boolean;
+}
 export interface UpdateNguongDto extends CreateNguongDto {}
 
 // ─── Phiếu Kiểm Tra ───────────────────────────────────────────────────────
@@ -100,6 +110,8 @@ export interface PhieuKiemTra {
   ID_Phieu: number;
   ID_ThietBi: number;
   TenThietBi?: string;
+  ID_NhomChiTieu?: number;
+  TenNhom?: string;
   NgayKiemTra: string;
   NguoiKiemTra?: string;
   TongDiem_Soqt?: number;
@@ -113,6 +125,8 @@ export interface PhieuKiemTraDetailDto extends PhieuKiemTra {
 
 export interface CreatePhieuKiemTraDto {
   ID_ThietBi: number;
+  /** Nhóm chỉ tiêu cần đo. undefined/null = kiểm tra toàn diện. */
+  ID_NhomChiTieu?: number;
   NgayKiemTra: string;
   NguoiKiemTra?: string;
   GhiChuChung?: string;
@@ -121,6 +135,7 @@ export interface CreatePhieuKiemTraDto {
 
 export interface UpdatePhieuKiemTraDto {
   ID_ThietBi: number;
+  ID_NhomChiTieu?: number;
   NgayKiemTra: string;
   NguoiKiemTra?: string;
   GhiChuChung?: string;

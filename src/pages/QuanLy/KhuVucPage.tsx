@@ -7,6 +7,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant
 import type { ColumnsType } from 'antd/es/table';
 import { khuVucApi } from '../../api/khuVuc';
 import type { KhuVuc } from '../../types/entities';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
@@ -16,6 +17,8 @@ const TRANG_THAI_OPTIONS = [
 ];
 
 export default function KhuVucPage() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [data, setData]         = useState<KhuVuc[]>([]);
   const [loading, setLoading]   = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -103,7 +106,7 @@ export default function KhuVucPage() {
     },
     {
       title: 'Tên khu vực', dataIndex: 'TenKhuVuc', key: 'name',
-      render: v => <Text strong style={{ color: '#e5e7eb' }}>{v ?? 'Chưa có tên'}</Text>,
+      render: v => <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827' }}>{v ?? 'Chưa có tên'}</Text>,
       sorter: (a, b) => (a.TenKhuVuc ?? '').localeCompare(b.TenKhuVuc ?? ''),
     },
     {
@@ -133,13 +136,13 @@ export default function KhuVucPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Quản lý khu vực</Title>
+        <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Quản lý khu vực</Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
           Khu vực quản lý các trạm điện · {data.length} khu vực
         </Text>
       </div>
 
-      <Card style={{ background: '#0d1117', border: '1px solid #1f2937' }}
+      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
           <Input.Search

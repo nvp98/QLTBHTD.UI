@@ -1,5 +1,6 @@
 import { Card, Typography, Flex } from 'antd';
 import type { ReactNode } from 'react';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Text } = Typography;
 
@@ -13,10 +14,17 @@ interface Props {
 }
 
 export default function StatCard({ title, value, suffix, icon, color = '#3b82f6', onClick }: Props) {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
   return (
     <Card
       onClick={onClick}
-      style={{ background: '#0d1117', border: '1px solid #1f2937', cursor: onClick ? 'pointer' : 'default' }}
+      style={{
+        background: isDark ? '#0d1117' : '#ffffff',
+        border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`,
+        cursor: onClick ? 'pointer' : 'default',
+      }}
       styles={{ body: { padding: '16px 20px' } }}
       hoverable={!!onClick}
     >
@@ -29,7 +37,7 @@ export default function StatCard({ title, value, suffix, icon, color = '#3b82f6'
             <Text style={{ color, fontSize: 26, fontWeight: 700, lineHeight: 1.2, fontFamily: 'monospace' }}>
               {value}
             </Text>
-            {suffix && <Text style={{ color: '#6b7280', fontSize: 12 }}>{suffix}</Text>}
+            {suffix && <Text style={{ color: isDark ? '#6b7280' : '#4b5563', fontSize: 12 }}>{suffix}</Text>}
           </Flex>
         </Flex>
         {icon && (

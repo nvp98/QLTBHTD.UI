@@ -7,10 +7,13 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant
 import type { ColumnsType } from 'antd/es/table';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
 import type { LoaiThietBi } from '../../types/entities';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
 export default function LoaiThietBiPage() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [data, setData]           = useState<LoaiThietBi[]>([]);
   const [loading, setLoading]     = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -99,7 +102,7 @@ export default function LoaiThietBiPage() {
     },
     {
       title: 'Tên loại thiết bị', dataIndex: 'TenLoaiTB', key: 'name',
-      render: v => <Text strong style={{ color: '#e5e7eb' }}>{v ?? 'Chưa có tên'}</Text>,
+      render: v => <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827' }}>{v ?? 'Chưa có tên'}</Text>,
       sorter: (a, b) => (a.TenLoaiTB ?? '').localeCompare(b.TenLoaiTB ?? ''),
     },
     {
@@ -135,13 +138,13 @@ export default function LoaiThietBiPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Loại thiết bị</Title>
+        <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Loại thiết bị</Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
           Phân loại thiết bị điện · {data.length} loại (MBA, MC, DCL, CSV...)
         </Text>
       </div>
 
-      <Card style={{ background: '#0d1117', border: '1px solid #1f2937' }}
+      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
           <Input.Search placeholder="Tìm tên loại hoặc ký hiệu..."

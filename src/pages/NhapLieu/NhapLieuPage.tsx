@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Typography, Flex, Tag, Button } from 'antd';
 import { ArrowRightOutlined, FormOutlined } from '@ant-design/icons';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
@@ -15,11 +16,17 @@ const WORKFLOW = [
 
 export default function NhapLieuPage() {
   const navigate = useNavigate();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const titleColor = isDark ? '#f9fafb' : '#111827';
+  const panelBg = isDark ? '#0d1117' : '#ffffff';
+  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
 
   return (
-    <div style={{ color: '#f9fafb' }}>
+    <div style={{ color: titleColor }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Nhập liệu kiểm tra CBM</Title>
+        <Title level={4} style={{ color: titleColor, margin: 0 }}>Nhập liệu kiểm tra CBM</Title>
         <Text style={{ color: '#6b7280' }}>
           Tạo phiếu kiểm tra thiết bị và tính toán chỉ số sức khỏe
         </Text>
@@ -28,7 +35,7 @@ export default function NhapLieuPage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
           {/* Main action */}
-          <Card style={{ background: '#0d1117', border: '1px solid #3b82f644', marginBottom: 16 }}
+          <Card style={{ background: panelBg, border: `1px solid ${isDark ? '#3b82f644' : '#bfdbfe'}`, marginBottom: 16 }}
             styles={{ body: { padding: 24 } }}>
             <Flex gap={16} align="flex-start">
               <div style={{
@@ -39,7 +46,7 @@ export default function NhapLieuPage() {
                 <FormOutlined />
               </div>
               <div style={{ flex: 1 }}>
-                <Title level={4} style={{ color: '#f9fafb', margin: 0, marginBottom: 8 }}>
+                <Title level={4} style={{ color: titleColor, margin: 0, marginBottom: 8 }}>
                   Tạo phiếu kiểm tra mới
                 </Title>
                 <Text style={{ color: '#9ca3af', display: 'block', marginBottom: 16 }}>
@@ -61,8 +68,8 @@ export default function NhapLieuPage() {
           </Card>
 
           {/* Workflow steps */}
-          <Card title="Quy trình nhập liệu CBM" style={{ background: '#0d1117', border: '1px solid #1f2937' }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937' }, body: { padding: 20 } }}>
+          <Card title="Quy trình nhập liệu CBM" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
             {WORKFLOW.map((item, i) => (
               <Flex key={item.step} align="flex-start" gap={12} style={{ marginBottom: i < WORKFLOW.length - 1 ? 16 : 0 }}>
                 <Flex vertical align="center" gap={0} style={{ flexShrink: 0 }}>
@@ -76,25 +83,25 @@ export default function NhapLieuPage() {
                     </Text>
                   </div>
                   {i < WORKFLOW.length - 1 && (
-                    <div style={{ width: 1, height: 20, background: '#1f2937', margin: '4px 0' }} />
+                    <div style={{ width: 1, height: 20, background: panelBorder, margin: '4px 0' }} />
                   )}
                 </Flex>
-                <Text style={{ color: '#e5e7eb', fontSize: 13, paddingTop: 6 }}>{item.label}</Text>
+                <Text style={{ color: titleColor, fontSize: 13, paddingTop: 6 }}>{item.label}</Text>
               </Flex>
             ))}
           </Card>
         </Col>
 
         <Col xs={24} lg={10}>
-          <Card title="Lưu ý khi nhập liệu" style={{ background: '#0d1117', border: '1px solid #1f2937' }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937' }, body: { padding: 20 } }}>
+          <Card title="Lưu ý khi nhập liệu" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
             {[
               { title: 'Đơn vị đo', desc: 'Nhập đúng đơn vị theo từng chỉ tiêu (ppm, kV, %, ms...)' },
               { title: 'Ngưỡng điểm', desc: 'Điểm Sᵢ được tra theo ngưỡng: nếu giá trị ∈ [Cận dưới; Cận trên] → đạt Diem_Si điểm' },
               { title: 'Trọng số', desc: 'Mỗi chỉ tiêu có trọng số Wᵢ. CSSK = Σ(Sᵢ × Wᵢ) × trọng_số_nhóm × 10' },
               { title: 'Phân hạng', desc: 'A≥85 · B70-84 · C55-69 · D40-54 · E<40' },
             ].map(item => (
-              <div key={item.title} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid #1f2937' }}>
+              <div key={item.title} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${panelBorder}` }}>
                 <Text strong style={{ color: '#93c5fd', fontSize: 13, display: 'block', marginBottom: 4 }}>
                   {item.title}
                 </Text>

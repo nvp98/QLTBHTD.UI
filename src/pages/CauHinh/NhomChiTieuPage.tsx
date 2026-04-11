@@ -8,10 +8,13 @@ import type { ColumnsType } from 'antd/es/table';
 import { nhomChiTieuApi }  from '../../api/nhomChiTieu';
 import { loaiThietBiApi }  from '../../api/loaiThietBi';
 import type { NhomChiTieu, LoaiThietBi } from '../../types/entities';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
 export default function NhomChiTieuPage() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [data, setData]           = useState<NhomChiTieu[]>([]);
   const [loais, setLoais]         = useState<LoaiThietBi[]>([]);
   const [loading, setLoading]     = useState(false);
@@ -111,7 +114,7 @@ export default function NhomChiTieuPage() {
     },
     {
       title: 'Tên nhóm chỉ tiêu', dataIndex: 'TenNhom', key: 'name',
-      render: v => <Text strong style={{ color: '#e5e7eb' }}>{v ?? 'Chưa có tên'}</Text>,
+      render: v => <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827' }}>{v ?? 'Chưa có tên'}</Text>,
       sorter: (a, b) => (a.TenNhom ?? '').localeCompare(b.TenNhom ?? ''),
     },
     {
@@ -155,13 +158,13 @@ export default function NhomChiTieuPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Nhóm chỉ tiêu CBM</Title>
+        <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Nhóm chỉ tiêu CBM</Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
           Nhóm các chỉ tiêu đánh giá theo loại thiết bị · {data.length} nhóm
         </Text>
       </div>
 
-      <Card style={{ background: '#0d1117', border: '1px solid #1f2937' }}
+      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
           <Space wrap>

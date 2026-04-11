@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { tramDienApi } from '../../api/tramDien';
 import { khuVucApi }   from '../../api/khuVuc';
 import type { TramDien, KhuVuc } from '../../types/entities';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
@@ -17,6 +18,8 @@ const TRANG_THAI_OPTIONS = [
 ];
 
 export default function TramDienPage() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [data, setData]           = useState<TramDien[]>([]);
   const [khuVucs, setKhuVucs]     = useState<KhuVuc[]>([]);
   const [loading, setLoading]     = useState(false);
@@ -116,7 +119,7 @@ export default function TramDienPage() {
     },
     {
       title: 'Tên trạm', dataIndex: 'TenTram', key: 'name',
-      render: v => <Text strong style={{ color: '#e5e7eb' }}>{v ?? 'Chưa có tên'}</Text>,
+      render: v => <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827' }}>{v ?? 'Chưa có tên'}</Text>,
       sorter: (a, b) => (a.TenTram ?? '').localeCompare(b.TenTram ?? ''),
     },
     {
@@ -156,13 +159,13 @@ export default function TramDienPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Quản lý trạm điện</Title>
+        <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Quản lý trạm điện</Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
           Danh sách trạm biến áp · {data.length} trạm điện
         </Text>
       </div>
 
-      <Card style={{ background: '#0d1117', border: '1px solid #1f2937' }}
+      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
           <Space wrap>

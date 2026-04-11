@@ -1,6 +1,7 @@
 import { Card, Row, Col, Typography, Flex, Button, Select, Tag } from 'antd';
 import { DownloadOutlined, PrinterOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
@@ -16,12 +17,19 @@ const TEMPLATES = [
 export default function BaoCaoPage() {
   const [selected, setSelected] = useState('summary');
   const tpl = TEMPLATES.find(t => t.id === selected)!;
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const titleColor = isDark ? '#f9fafb' : '#111827';
+  const panelBg = isDark ? '#0d1117' : '#ffffff';
+  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
+  const itemBg = isDark ? '#111827' : '#f9fafb';
 
   return (
-    <div style={{ color: '#f9fafb' }}>
+    <div style={{ color: titleColor }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Báo cáo CBM</Title>
+          <Title level={4} style={{ color: titleColor, margin: 0 }}>Báo cáo CBM</Title>
           <Text style={{ color: '#6b7280', fontSize: 13 }}>Xuất báo cáo chỉ số sức khỏe thiết bị điện</Text>
         </div>
         <Flex gap={8}>
@@ -35,20 +43,20 @@ export default function BaoCaoPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={10}>
-          <Card title="Chọn mẫu báo cáo" style={{ background: '#0d1117', border: '1px solid #1f2937', marginBottom: 16 }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937' }, body: { padding: 16 } }}>
+          <Card title="Chọn mẫu báo cáo" style={{ background: panelBg, border: `1px solid ${panelBorder}`, marginBottom: 16 }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 16 } }}>
             {TEMPLATES.map(t => (
               <div key={t.id} onClick={() => setSelected(t.id)}
                 style={{
                   padding: '12px 14px', marginBottom: 8, borderRadius: 8, cursor: 'pointer',
-                  background: selected === t.id ? `${t.color}11` : '#111827',
-                  border: `1px solid ${selected === t.id ? t.color + '55' : '#1f2937'}`,
+                  background: selected === t.id ? `${t.color}11` : itemBg,
+                  border: `1px solid ${selected === t.id ? t.color + '55' : panelBorder}`,
                   transition: 'all 0.2s',
                 }}>
                 <Flex align="flex-start" gap={10}>
                   <div style={{ color: t.color, fontSize: 16, marginTop: 2, flexShrink: 0 }}>{t.icon}</div>
                   <div>
-                    <Text strong style={{ color: selected === t.id ? t.color : '#e5e7eb', fontSize: 13 }}>
+                    <Text strong style={{ color: selected === t.id ? t.color : titleColor, fontSize: 13 }}>
                       {t.label}
                     </Text>
                     <Text style={{ color: '#6b7280', fontSize: 11, display: 'block', marginTop: 2 }}>{t.desc}</Text>
@@ -58,11 +66,11 @@ export default function BaoCaoPage() {
             ))}
           </Card>
 
-          <Card title="Tùy chọn xuất" style={{ background: '#0d1117', border: '1px solid #1f2937' }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937' }, body: { padding: 16 } }}>
+          <Card title="Tùy chọn xuất" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 16 } }}>
             <Flex vertical gap={12}>
               <div>
-                <Text style={{ color: '#9ca3af', fontSize: 12, display: 'block', marginBottom: 4 }}>Loại thiết bị</Text>
+                <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 12, display: 'block', marginBottom: 4 }}>Loại thiết bị</Text>
                 <Select defaultValue="all" style={{ width: '100%' }}
                   options={[
                     { label: 'Tất cả loại thiết bị', value: 'all' },
@@ -72,7 +80,7 @@ export default function BaoCaoPage() {
                 />
               </div>
               <div>
-                <Text style={{ color: '#9ca3af', fontSize: 12, display: 'block', marginBottom: 4 }}>Định dạng</Text>
+                <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 12, display: 'block', marginBottom: 4 }}>Định dạng</Text>
                 <Select defaultValue="pdf" style={{ width: '100%' }}
                   options={[{ label: 'PDF', value: 'pdf' }, { label: 'Excel (.xlsx)', value: 'xlsx' }]}
                 />
@@ -86,20 +94,20 @@ export default function BaoCaoPage() {
         </Col>
 
         <Col xs={24} lg={14}>
-          <Card title="Xem trước" style={{ background: '#0d1117', border: '1px solid #1f2937' }}
-            styles={{ header: { color: '#f9fafb', borderBottom: '1px solid #1f2937' }, body: { padding: 20 } }}>
-            <div style={{ padding: 20, background: '#111827', borderRadius: 8, marginBottom: 16 }}>
+          <Card title="Xem trước" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
+            <div style={{ padding: 20, background: itemBg, borderRadius: 8, marginBottom: 16 }}>
               <Flex justify="space-between" align="flex-start">
                 <div>
                   <Text style={{ color: '#4b5563', fontSize: 11 }}>TỔNG CÔNG TY ĐIỆN LỰC MIỀN TRUNG</Text>
-                  <Title level={4} style={{ color: '#f9fafb', margin: '4px 0' }}>{tpl.label.toUpperCase()}</Title>
+                  <Title level={4} style={{ color: titleColor, margin: '4px 0' }}>{tpl.label.toUpperCase()}</Title>
                   <Text style={{ color: '#6b7280', fontSize: 12 }}>Ngày: {new Date().toLocaleDateString('vi-VN')}</Text>
                 </div>
                 <Tag color="blue">CBM Platform</Tag>
               </Flex>
             </div>
             <Flex vertical align="center" justify="center" style={{ padding: '40px 0' }}>
-              <div style={{ fontSize: 48, color: '#1f2937', marginBottom: 16 }}>{tpl.icon}</div>
+              <div style={{ fontSize: 48, color: isDark ? '#1f2937' : '#9ca3af', marginBottom: 16 }}>{tpl.icon}</div>
               <Text style={{ color: '#4b5563', fontSize: 15, textAlign: 'center' }}>
                 Chức năng xuất báo cáo sẽ được tích hợp với dữ liệu phiếu kiểm tra thực tế.
               </Text>

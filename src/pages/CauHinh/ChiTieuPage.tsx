@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm,
-  Row, Select, Space, Table, Tag, Tooltip, Typography, message,
+  Row, Select, Space, Switch, Table, Tag, Tooltip, Typography, message,
   Divider, Flex,
 } from 'antd';
 import {
@@ -14,11 +14,14 @@ import { nguongApi }       from '../../api/nguong';
 import { nhomChiTieuApi }  from '../../api/nhomChiTieu';
 import { loaiThietBiApi }  from '../../api/loaiThietBi';
 import type { ChiTieu, Nguong, NhomChiTieu, LoaiThietBi } from '../../types/entities';
+import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
 // ─── Nguong Sub-panel ──────────────────────────────────────────────────────
 function NguongPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuName: string }) {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [data, setData]       = useState<Nguong[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModal] = useState(false);
@@ -41,7 +44,11 @@ function NguongPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuNam
     if (editing) {
       form.setFieldsValue(editing);
     } else {
-      form.setFieldsValue({ ID_ChiTieu: chiTieuId });
+      form.setFieldsValue({
+        ID_ChiTieu:     chiTieuId,
+        CanDuoi_BaoGom: true,
+        CanTren_BaoGom: false,
+      });
     }
   }, [modalOpen, editing, chiTieuId, form]);
 
@@ -71,12 +78,25 @@ function NguongPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuNam
 
   const cols: ColumnsType<Nguong> = [
     {
-      title: 'Cận dưới ≤ x ≤ Cận trên', key: 'range',
-      render: (_, r) => (
-        <Text style={{ color: '#e5e7eb', fontFamily: 'monospace' }}>
-          [{r.CanDuoi} — {r.CanTren}]
-        </Text>
-      ),
+      title: 'Điều kiện', key: 'range', width: 240,
+      render: (_, r) => {
+        const lo  = r.CanDuoi  != null ? String(r.CanDuoi)  : '−∞';
+        const hi  = r.CanTren  != null ? String(r.CanTren)  : '+∞';
+        const lBr = r.CanDuoi_BaoGom ? '[' : '(';
+        const rBr = r.CanTren_BaoGom ? ']' : ')';
+        const lOp = r.CanDuoi_BaoGom ? '≤' : '<';
+        const rOp = r.CanTren_BaoGom ? '≤' : '<';
+        return (
+          <Flex gap={6} align="center">
+            <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontFamily: 'monospace', fontSize: 13 }}>
+              {lBr}{lo} ; {hi}{rBr}
+            </Text>
+            <Text style={{ color: '#6b7280', fontSize: 11 }}>
+              {r.CanDuoi != null ? `${lo} ${lOp} x` : `x`}{r.CanTren != null ? ` ${rOp} ${hi}` : ''}
+            </Text>
+          </Flex>
+        );
+      },
     },
     {
       title: 'Điểm Sᵢ', dataIndex: 'Diem_Si', key: 'diem', width: 100, align: 'center',
@@ -103,7 +123,12 @@ function NguongPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuNam
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: '#060c14', borderRadius: 8, border: '1px solid #1f2937' }}>
+    <div style={{
+      padding: '12px 16px',
+      background: isDark ? '#060c14' : '#f9fafb',
+      borderRadius: 8,
+      border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`,
+    }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
         <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: 600 }}>
           <SettingOutlined style={{ marginRight: 6 }} />
@@ -126,31 +151,75 @@ function NguongPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuNam
         confirmLoading={saving} destroyOnHidden>
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="ID_ChiTieu" hidden><InputNumber /></Form.Item>
-          <Row gutter={12}>
-            <Col span={12}>
+
+          <Row gutter={12} align="bottom">
+            <Col span={14}>
               <Form.Item name="CanDuoi" label="Cận dưới"
-                rules={[{ required: true, message: 'Nhập cận dưới' }]}
-                tooltip="Giá trị nhỏ nhất của khoảng (≥)">
-                <InputNumber style={{ width: '100%' }} step={0.01} placeholder="0" />
+                tooltip="Để trống = không giới hạn (−∞)">
+                <InputNumber style={{ width: '100%' }} step={0.01} placeholder="−∞ (bỏ trống)" />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item name="CanTren" label="Cận trên"
-                rules={[{ required: true, message: 'Nhập cận trên' }]}
-                tooltip="Giá trị lớn nhất của khoảng (≤)">
-                <InputNumber style={{ width: '100%' }} step={0.01} placeholder="100" />
+            <Col span={10}>
+              <Form.Item name="CanDuoi_BaoGom" label="Bao gồm dấu ="
+                valuePropName="checked"
+                tooltip="Bật = dùng ≥  |  Tắt = dùng >">
+                <Switch
+                  checkedChildren="≥ (có =)"
+                  unCheckedChildren="> (không =)"
+                />
               </Form.Item>
             </Col>
           </Row>
+
+          <Row gutter={12} align="bottom">
+            <Col span={14}>
+              <Form.Item name="CanTren" label="Cận trên"
+                tooltip="Để trống = không giới hạn (+∞)">
+                <InputNumber style={{ width: '100%' }} step={0.01} placeholder="+∞ (bỏ trống)" />
+              </Form.Item>
+            </Col>
+            <Col span={10}>
+              <Form.Item name="CanTren_BaoGom" label="Bao gồm dấu ="
+                valuePropName="checked"
+                tooltip="Bật = dùng ≤  |  Tắt = dùng <">
+                <Switch
+                  checkedChildren="≤ (có =)"
+                  unCheckedChildren="< (không =)"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
           <Form.Item name="Diem_Si" label="Điểm Sᵢ đạt được"
             rules={[{ required: true, message: 'Nhập điểm' }]}
-            tooltip="Điểm từ 0-10 nếu giá trị rơi vào khoảng [Cận dưới; Cận trên]">
+            tooltip="Điểm từ 0-10 khi giá trị đo thỏa mãn điều kiện trên">
             <InputNumber style={{ width: '100%' }} min={0} max={10} step={0.5}
-              placeholder="Điểm từ 0 đến 10" />
+              placeholder="0 – 10" />
           </Form.Item>
-          <Text style={{ color: '#6b7280', fontSize: 11 }}>
-            Khi giá trị đo được nằm trong [Cận dưới; Cận trên] → chỉ tiêu đạt Diem_Sᵢ điểm.
-          </Text>
+
+          <Form.Item noStyle shouldUpdate>
+            {({ getFieldValue }) => {
+              const cd   = getFieldValue('CanDuoi');
+              const ct   = getFieldValue('CanTren');
+              const cdBG = getFieldValue('CanDuoi_BaoGom');
+              const ctBG = getFieldValue('CanTren_BaoGom');
+              const lo   = cd  != null ? cd  : '−∞';
+              const hi   = ct  != null ? ct  : '+∞';
+              const lOp  = cd  != null ? (cdBG ? '≥' : '>') : '';
+              const rOp  = ct  != null ? (ctBG ? '≤' : '<') : '';
+              const expr = [lOp && `x ${lOp === '≥' ? '≥' : '>'} ${lo}`, rOp && `x ${rOp === '≤' ? '≤' : '<'} ${hi}`]
+                .filter(Boolean).join(' và ');
+              return (
+                <div style={{ padding: '8px 12px', background: isDark ? '#0d1117' : '#eff6ff', borderRadius: 6,
+                  border: `1px solid ${isDark ? '#1f2937' : '#dbeafe'}`, fontSize: 12 }}>
+                  <Text style={{ color: '#6b7280' }}>Điều kiện: </Text>
+                  <Text style={{ color: '#93c5fd', fontFamily: 'monospace' }}>
+                    {expr || '(chưa nhập)'}
+                  </Text>
+                </div>
+              );
+            }}
+          </Form.Item>
         </Form>
       </Modal>
     </div>
@@ -159,7 +228,12 @@ function NguongPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuNam
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function ChiTieuPage() {
-  const [data, setData]           = useState<ChiTieu[]>([]);
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  const [rows, setRows]           = useState<ChiTieu[]>([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [pageSize, setPageSize]   = useState(15);
   const [nhoms, setNhoms]         = useState<NhomChiTieu[]>([]);
   const [loais, setLoais]         = useState<LoaiThietBi[]>([]);
   const [loading, setLoading]     = useState(false);
@@ -167,28 +241,36 @@ export default function ChiTieuPage() {
   const [saving, setSaving]       = useState(false);
   const [editing, setEditing]     = useState<ChiTieu | null>(null);
   const [search, setSearch]       = useState('');
-  const [filterNhom, setFilterNhom]   = useState<number | 'all'>('all');
-  const [filterLoai, setFilterLoai]   = useState<number | 'all'>('all');
+  const [filterNhom, setFilterNhom]   = useState<number | undefined>(undefined);
+  const [filterLoai, setFilterLoai]   = useState<number | undefined>(undefined);
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const [form]                    = Form.useForm();
 
-  const load = useCallback(async () => {
+  // Load dropdown data once
+  useEffect(() => {
+    Promise.all([nhomChiTieuApi.getActive(), loaiThietBiApi.getActive()])
+      .then(([ns, ls]) => { setNhoms(ns); setLoais(ls); })
+      .catch(() => message.error('Không thể tải danh mục'));
+  }, []);
+
+  const load = useCallback(async (p = page, ps = pageSize) => {
     setLoading(true);
     try {
-      const [cts, ns, ls] = await Promise.all([
-        chiTieuApi.getAll(),
-        nhomChiTieuApi.getActive(),
-        loaiThietBiApi.getActive(),
-      ]);
-      setData(cts);
-      setNhoms(ns);
-      setLoais(ls);
+      const result = await chiTieuApi.getPaged({
+        search:   search || undefined,
+        idNhom:   filterNhom,
+        idLoai:   filterLoai,
+        page:     p,
+        pageSize: ps,
+      });
+      setRows(result.items);
+      setTotal(result.total);
     } catch {
       message.error('Không thể tải chỉ tiêu CBM');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, filterNhom, filterLoai, page, pageSize]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -237,26 +319,16 @@ export default function ChiTieuPage() {
     catch { message.error('Không thể xóa — còn dữ liệu liên quan'); }
   };
 
-  const nhomName  = (id: number) => nhoms.find(n => n.ID_NhomChiTieu === id)?.TenNhom ?? `Nhóm ${id}`;
+  // Nhóm hiển thị trong dropdown — lọc theo loại TB đang chọn
+  const filteredNhoms = filterLoai != null
+    ? nhoms.filter(n => n.ID_LoaiThietBi === filterLoai)
+    : nhoms;
+
+  // Loại TB của 1 nhóm (dùng cho cột bảng)
   const loaiForNhom = (nhomId: number) => {
     const nhom = nhoms.find(n => n.ID_NhomChiTieu === nhomId);
-    if (!nhom) return null;
-    return loais.find(l => l.ID_LoaiThietBi === nhom.ID_LoaiThietBi);
+    return nhom ? loais.find(l => l.ID_LoaiThietBi === nhom.ID_LoaiThietBi) : null;
   };
-
-  // Filter nhoms by selected loai
-  const filteredNhoms = filterLoai === 'all'
-    ? nhoms
-    : nhoms.filter(n => n.ID_LoaiThietBi === filterLoai);
-
-  const filtered = data.filter(d => {
-    const matchSearch = (d.TenChiTieu ?? '').toLowerCase().includes(search.toLowerCase());
-    const matchNhom   = filterNhom === 'all' || d.ID_NhomChiTieu === filterNhom;
-    const matchLoai   = filterLoai === 'all' || !!nhoms.find(n =>
-      n.ID_NhomChiTieu === d.ID_NhomChiTieu && n.ID_LoaiThietBi === filterLoai
-    );
-    return matchSearch && matchNhom && matchLoai;
-  });
 
   const toggleExpand = (id: number) => {
     setExpandedKeys(prev =>
@@ -274,17 +346,18 @@ export default function ChiTieuPage() {
       render: v => <Text style={{ color: '#93c5fd', fontFamily: 'monospace' }}>{v}</Text>,
     },
     {
-      title: 'Tên chỉ tiêu', dataIndex: 'TenChiTieu', key: 'name',
-      render: v => <Text strong style={{ color: '#e5e7eb' }}>{v ?? 'Chưa có tên'}</Text>,
+      title: 'Tên chỉ tiêu', dataIndex: 'TenChiTieu', key: 'name', width: 300,
+      render: v => <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827' }}>{v ?? 'Chưa có tên'}</Text>,
       sorter: (a, b) => (a.TenChiTieu ?? '').localeCompare(b.TenChiTieu ?? ''),
     },
     {
       title: 'Nhóm chỉ tiêu', dataIndex: 'ID_NhomChiTieu', key: 'nhom', width: 220,
       render: (v, r) => {
         const loai = loaiForNhom(v);
+        const nhomName = nhoms.find(n => n.ID_NhomChiTieu === v)?.TenNhom ?? 'N/A';
         return (
           <div>
-            <Text style={{ color: '#9ca3af', fontSize: 12, display: 'block' }}>{r.TenNhom ?? nhomName(v)}</Text>
+            <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 12, display: 'block' }}>{r.TenNhom ?? nhomName}</Text>
             {loai && <Tag color="blue" style={{ fontSize: 10 }}>{loai.KyHieu}</Tag>}
           </div>
         );
@@ -295,8 +368,8 @@ export default function ChiTieuPage() {
     {
       title: 'Trọng số Wᵢ', dataIndex: 'TrongSo_Wi', key: 'trongso', width: 120, align: 'center',
       render: v => (
-        <Tag color="purple" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
-          {Number(v)}
+        <Tag  style={{  fontWeight: 500,color: isDark ? '#f9fafb' : '#111827' ,fontSize: 15 }}>
+          {Number(v) }
         </Tag>
       ),
       sorter: (a, b) => a.TrongSo_Wi - b.TrongSo_Wi,
@@ -329,44 +402,53 @@ export default function ChiTieuPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ color: '#f9fafb', margin: 0 }}>Chỉ tiêu & Ngưỡng điểm CBM</Title>
+        <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Chỉ tiêu & Ngưỡng điểm CBM</Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Cấu hình chỉ tiêu đánh giá và ngưỡng chấm điểm · {data.length} chỉ tiêu
+          Cấu hình chỉ tiêu đánh giá và ngưỡng chấm điểm · {total} chỉ tiêu
         </Text>
       </div>
 
-      <Card style={{ background: '#0d1117', border: '1px solid #1f2937' }}
+      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
           <Space wrap>
             <Input.Search placeholder="Tìm tên chỉ tiêu..."
               value={search} onChange={e => setSearch(e.target.value)}
               style={{ width: 240 }} allowClear />
-            <Select value={filterLoai} onChange={v => { setFilterLoai(v); setFilterNhom('all'); }}
+            <Select<number | 0>
+              value={filterLoai ?? 0}
+              onChange={v => { setFilterLoai(v === 0 ? undefined : v); setFilterNhom(undefined); setPage(1); }}
               style={{ width: 170 }}
               options={[
-                { label: 'Tất cả loại TB', value: 'all' },
+                { label: 'Tất cả loại TB', value: 0 },
                 ...loais.map(l => ({ label: `${l.TenLoaiTB} (${l.KyHieu})`, value: l.ID_LoaiThietBi })),
               ]}
             />
-            <Select value={filterNhom} onChange={setFilterNhom} style={{ width: 230 }}
-              showSearch optionFilterProp="label"
+            <Select<number | 0>
+              value={filterNhom ?? 0}
+              onChange={v => { setFilterNhom(v === 0 ? undefined : v); setPage(1); }}
+              style={{ width: 230 }} showSearch
               options={[
-                { label: 'Tất cả nhóm', value: 'all' },
+                { label: 'Tất cả nhóm', value: 0 },
                 ...filteredNhoms.map(n => ({ label: n.TenNhom, value: n.ID_NhomChiTieu })),
               ]}
             />
           </Space>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Làm mới</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>Làm mới</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm chỉ tiêu</Button>
           </Space>
         </Space>
 
         <Table<ChiTieu>
-          dataSource={filtered} columns={columns} rowKey="ID_ChiTieu"
+          dataSource={rows} columns={columns} rowKey="ID_ChiTieu"
           loading={loading} size="small"
-          pagination={{ pageSize: 15, showTotal: t => `Tổng ${t} chỉ tiêu`, showSizeChanger: true }}
+          pagination={{
+            current: page, pageSize, total,
+            showTotal: t => `Tổng ${t} chỉ tiêu`,
+            showSizeChanger: true,
+            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+          }}
           expandable={{
             expandedRowKeys: expandedKeys,
             showExpandColumn: false,
@@ -395,12 +477,12 @@ export default function ChiTieuPage() {
             <Input placeholder="VD: Điện áp đánh thủng (BDV)" />
           </Form.Item>
           <Form.Item name="TrongSo_Wi" label="Trọng số Wᵢ"
-            rules={[{ required: true, message: 'Nhập trọng số' }]}
+            rules={[{ required: false, message: 'Nhập trọng số' }]}
             tooltip="Trọng số chỉ tiêu trong nhóm (0 < Wᵢ ≤ 1). Tổng Wᵢ trong nhóm = 1.0">
-            <InputNumber style={{ width: '100%' }} min={0.001} max={1} step={0.001}
+            <InputNumber style={{ width: '100%' }} min={0.00} max={1} step={0.001}
               precision={3} placeholder="VD: 0.250" />
           </Form.Item>
-          <Divider style={{ borderColor: '#1f2937', margin: '8px 0' }} />
+          <Divider style={{ borderColor: isDark ? '#1f2937' : '#e5e7eb', margin: '8px 0' }} />
           <Form.Item name="TrangThai" label="Trạng thái" rules={[{ required: true }]}>
             <Select options={[{ label: 'Hoạt động', value: 1 }, { label: 'Ngừng', value: 0 }]} />
           </Form.Item>
