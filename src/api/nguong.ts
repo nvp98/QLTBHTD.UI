@@ -12,17 +12,19 @@ type NguongApiRaw = Partial<Nguong> & {
   diem_Si?: number;
   canDuoi_BaoGom?: boolean;
   canTren_BaoGom?: boolean;
+  bieuThuc_Logic?: string | null;
 };
 
 const toNguong = (raw: NguongApiRaw): Nguong => ({
-  ID_Nguong:       Number(raw.ID_Nguong  ?? raw.iD_Nguong  ?? 0),
-  ID_ChiTieu:      Number(raw.ID_ChiTieu ?? raw.iD_ChiTieu ?? 0),
-  TenChiTieu:      raw.TenChiTieu ?? raw.tenChiTieu,
-  CanTren:         raw.CanTren  ?? raw.canTren  ?? null,
-  CanDuoi:         raw.CanDuoi  ?? raw.canDuoi  ?? null,
-  Diem_Si:         Number(raw.Diem_Si  ?? raw.diem_Si  ?? 0),
-  CanDuoi_BaoGom:  raw.CanDuoi_BaoGom ?? raw.canDuoi_BaoGom ?? true,
-  CanTren_BaoGom:  raw.CanTren_BaoGom ?? raw.canTren_BaoGom ?? false,
+  ID_Nguong:      Number(raw.ID_Nguong  ?? raw.iD_Nguong  ?? 0),
+  ID_ChiTieu:     Number(raw.ID_ChiTieu ?? raw.iD_ChiTieu ?? 0),
+  TenChiTieu:     raw.TenChiTieu ?? raw.tenChiTieu,
+  CanTren:        raw.CanTren  ?? raw.canTren  ?? null,
+  CanDuoi:        raw.CanDuoi  ?? raw.canDuoi  ?? null,
+  Diem_Si:        Number(raw.Diem_Si  ?? raw.diem_Si  ?? 0),
+  CanDuoi_BaoGom: raw.CanDuoi_BaoGom ?? raw.canDuoi_BaoGom ?? true,
+  CanTren_BaoGom: raw.CanTren_BaoGom ?? raw.canTren_BaoGom ?? false,
+  BieuThuc_Logic: raw.BieuThuc_Logic ?? raw.bieuThuc_Logic ?? null,
 });
 
 type PagedRaw = PagedResult<NguongApiRaw>;

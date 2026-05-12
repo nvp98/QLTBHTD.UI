@@ -80,9 +80,33 @@ export interface ChiTieu {
   TenChiTieu: string;
   TrongSo_Wi: number;
   TrangThai: number;
+  /** 'Nguong' | 'Rule' — null/undefined = 'Nguong' */
+  LoaiTinhDiem?: string | null;
 }
-export interface CreateChiTieuDto { ID_NhomChiTieu: number; TenChiTieu: string; TrongSo_Wi: number; TrangThai: number }
+export interface CreateChiTieuDto { ID_NhomChiTieu: number; TenChiTieu: string; TrongSo_Wi: number; TrangThai: number; LoaiTinhDiem?: string | null }
 export interface UpdateChiTieuDto extends CreateChiTieuDto {}
+
+// ─── Chỉ Tiêu Input (biến đầu vào) ───────────────────────────────────────
+export interface ChiTieuInput {
+  ID_Input:    number;
+  ID_ChiTieu:  number;
+  MaInput:     string;
+  TenInput:    string;
+  MaOutput?:   string | null;
+}
+export interface CreateChiTieuInputDto { ID_ChiTieu: number; MaInput: string; TenInput: string }
+export interface UpdateChiTieuInputDto extends CreateChiTieuInputDto {}
+
+// ─── Chỉ Tiêu Rule (quy tắc biểu thức) ──────────────────────────────────
+export interface ChiTieuRule {
+  ID_Rule:    number;
+  ID_ChiTieu: number;
+  TenMuc:     string;
+  Diem_Si:    number;
+  BieuThuc:   string;
+}
+export interface CreateChiTieuRuleDto { ID_ChiTieu: number; TenMuc: string; Diem_Si: number; BieuThuc: string }
+export interface UpdateChiTieuRuleDto extends CreateChiTieuRuleDto {}
 
 // ─── Ngưỡng ───────────────────────────────────────────────────────────────
 export interface Nguong {
@@ -94,6 +118,8 @@ export interface Nguong {
   Diem_Si: number;
   CanDuoi_BaoGom: boolean;
   CanTren_BaoGom: boolean;
+  /** Biểu thức NCalc (AND/OR). Nếu có, ưu tiên hơn CanDuoi/CanTren. */
+  BieuThuc_Logic?: string | null;
 }
 export interface CreateNguongDto {
   ID_ChiTieu: number;
@@ -102,6 +128,7 @@ export interface CreateNguongDto {
   Diem_Si: number;
   CanDuoi_BaoGom: boolean;
   CanTren_BaoGom: boolean;
+  BieuThuc_Logic?: string | null;
 }
 export interface UpdateNguongDto extends CreateNguongDto {}
 

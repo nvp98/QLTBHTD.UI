@@ -11,6 +11,7 @@ type ChiTieuApiRaw = Partial<ChiTieu> & {
   tenChiTieu?: string;
   trongSo_Wi?: number;
   trangThai?: number;
+  loaiTinhDiem?: string | null;
 };
 
 const toChiTieu = (raw: ChiTieuApiRaw): ChiTieu => ({
@@ -21,6 +22,7 @@ const toChiTieu = (raw: ChiTieuApiRaw): ChiTieu => ({
   TenChiTieu:      raw.TenChiTieu ?? raw.tenChiTieu ?? '',
   TrongSo_Wi:      Number(raw.TrongSo_Wi ?? raw.trongSo_Wi ?? 0),
   TrangThai:       Number(raw.TrangThai  ?? raw.trangThai  ?? 0),
+  LoaiTinhDiem:    raw.LoaiTinhDiem ?? raw.loaiTinhDiem ?? null,
 });
 
 type PagedRaw = PagedResult<ChiTieuApiRaw>;
