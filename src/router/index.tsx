@@ -25,6 +25,9 @@ import KetQuaPage      from '../pages/KetQua/KetQuaPage';
 import PhieuDetailPage from '../pages/KetQua/PhieuDetailPage';
 import BaoCaoPage      from '../pages/BaoCao/BaoCaoPage';
 
+// Thống kê
+import ThongKePage from '../pages/ThongKe/ThongKePage';
+
 const router = createBrowserRouter([
   {
     element: <MainLayout />,
@@ -54,6 +57,7 @@ const router = createBrowserRouter([
       { path: 'ket-qua',      element: <KetQuaPage /> },
       { path: 'ket-qua/:id',  element: <PhieuDetailPage /> },
       { path: 'bao-cao',      element: <BaoCaoPage /> },
+      { path: 'thong-ke',     element: <ThongKePage /> },
     ],
   },
 ]);

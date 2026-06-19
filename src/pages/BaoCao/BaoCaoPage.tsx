@@ -1,6 +1,7 @@
 import { Card, Row, Col, Typography, Flex, Button, Select, Tag } from 'antd';
-import { DownloadOutlined, PrinterOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { DownloadOutlined, PrinterOutlined, FilePdfOutlined, FileExcelOutlined, BarChartOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
@@ -19,6 +20,7 @@ export default function BaoCaoPage() {
   const tpl = TEMPLATES.find(t => t.id === selected)!;
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const navigate = useNavigate();
 
   const titleColor = isDark ? '#f9fafb' : '#111827';
   const panelBg = isDark ? '#0d1117' : '#ffffff';
@@ -33,6 +35,9 @@ export default function BaoCaoPage() {
           <Text style={{ color: '#6b7280', fontSize: 13 }}>Xuất báo cáo chỉ số sức khỏe thiết bị điện</Text>
         </div>
         <Flex gap={8}>
+          <Button icon={<BarChartOutlined />} onClick={() => navigate('/thong-ke')}>
+            Xem thống kê
+          </Button>
           <Button icon={<PrinterOutlined />}>In báo cáo</Button>
           <Button type="primary" icon={<DownloadOutlined />}
             style={{ background: tpl.color, borderColor: tpl.color }}>

@@ -14,6 +14,8 @@ import { loaiThietBiApi } from '../api/loaiThietBi';
 import { nhomChiTieuApi } from '../api/nhomChiTieu';
 import { chiTieuApi }     from '../api/chiTieu';
 
+import hoaPhatImg from '../assets/img/hoa-phat-3d.png';
+
 const { Title, Text } = Typography;
 
 interface Stats {
@@ -123,47 +125,62 @@ export default function DashboardPage() {
         </Row>
       </Spin>
 
-      <Row gutter={[16, 16]}>
-        {/* ── Quy trình nghiệp vụ ── */}
+      {/* ── Row 1: Ảnh 3D + Quick actions + CBM formula ── */}
+      {/* align="stretch" giúp 2 Col bằng nhau chiều cao */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+
+        {/* ── Ảnh 3D Khu liên hợp Hòa Phát ── */}
         <Col xs={24} lg={14}>
-          <Card title="Quy trình thiết lập & sử dụng CBM"
+          <Card
+            title="Khu liên hợp sản xuất gang thép Hòa Phát"
             style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
-            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
-            <Row gutter={[12, 12]}>
-              {WORKFLOW_STEPS.map(step => (
-                <Col xs={24} sm={12} key={step.step}>
-                  <div
-                    onClick={() => navigate(step.path)}
-                    style={{
-                      padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
-                      background: itemBg, border: `1px solid ${panelBorder}`,
-                      transition: 'border-color 0.2s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = step.color)}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = panelBorder)}
-                  >
-                    <Flex align="flex-start" gap={10}>
-                      <Text style={{
-                        color: step.color, fontFamily: 'monospace', fontSize: 18,
-                        fontWeight: 700, opacity: 0.5, lineHeight: 1, flexShrink: 0,
-                      }}>
-                        {step.step}
-                      </Text>
-                      <div>
-                        <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
-                          {step.title}
-                        </Text>
-                        <Text style={{ color: dimText, fontSize: 11 }}>{step.desc}</Text>
-                      </div>
-                    </Flex>
-                  </div>
-                </Col>
-              ))}
-            </Row>
+            styles={{
+              header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` },
+              body: { padding: 0, overflow: 'hidden', borderRadius: '0 0 8px 8px' },
+            }}
+          >
+            {/* Giữ đúng tỷ lệ gốc 3471:2169 ≈ 62.5% */}
+            <div style={{ position: 'relative', paddingBottom: '62.5%', overflow: 'hidden' }}>
+              <img
+                src={hoaPhatImg}
+                alt="Khu liên hợp sản xuất gang thép Hòa Phát - Mô hình 3D"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'fill',
+                  display: 'block',
+                  imageRendering: 'auto',
+                }}
+              />
+              {/* Overlay badge */}
+              <div style={{
+                position: 'absolute',
+                bottom: 12,
+                left: 12,
+                background: 'rgba(0,0,0,0.55)',
+                backdropFilter: 'blur(6px)',
+                borderRadius: 6,
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: '#10b981',
+                  boxShadow: '0 0 6px #10b981',
+                }} />
+                <Text style={{ color: '#fff', fontSize: 12 }}>
+                  Khu liên hợp Dung Quất — Quảng Ngãi
+                </Text>
+              </div>
+            </div>
           </Card>
         </Col>
 
-        {/* ── Quick actions ── */}
+        {/* ── Quick actions + CBM Formula ── */}
         <Col xs={24} lg={10}>
           <Card title="Truy cập nhanh"
             style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
@@ -232,6 +249,47 @@ export default function DashboardPage() {
                     </Text>
                     <Text style={{ color: r.color, fontSize: 12 }}>{r.label}</Text>
                   </Flex>
+                </Col>
+              ))}
+            </Row>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* ── Row 2: Quy trình nghiệp vụ ── */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24}>
+          <Card title="Quy trình thiết lập & sử dụng CBM"
+            style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
+            <Row gutter={[12, 12]}>
+              {WORKFLOW_STEPS.map(step => (
+                <Col xs={24} sm={12} md={8} key={step.step}>
+                  <div
+                    onClick={() => navigate(step.path)}
+                    style={{
+                      padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
+                      background: itemBg, border: `1px solid ${panelBorder}`,
+                      transition: 'border-color 0.2s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = step.color)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = panelBorder)}
+                  >
+                    <Flex align="flex-start" gap={10}>
+                      <Text style={{
+                        color: step.color, fontFamily: 'monospace', fontSize: 18,
+                        fontWeight: 700, opacity: 0.5, lineHeight: 1, flexShrink: 0,
+                      }}>
+                        {step.step}
+                      </Text>
+                      <div>
+                        <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
+                          {step.title}
+                        </Text>
+                        <Text style={{ color: dimText, fontSize: 11 }}>{step.desc}</Text>
+                      </div>
+                    </Flex>
+                  </div>
                 </Col>
               ))}
             </Row>
