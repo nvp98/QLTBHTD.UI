@@ -1,7 +1,7 @@
 import { api } from './client';
 import type { ChiTietKiemTra, CreateChiTietKiemTraDto, UpdateChiTietKiemTraDto } from '../types/entities';
 
-const BASE = '/api/chitietkiemtra';
+const BASE = '/api/chi-tiet-kiem-tra';
 
 type ChiTietKiemTraRaw = Partial<ChiTietKiemTra> & {
   iD_ChiTiet?: number;

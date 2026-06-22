@@ -10,15 +10,18 @@ import TramDienPage  from '../pages/QuanLy/TramDienPage';
 import ThietBiPage   from '../pages/QuanLy/ThietBiPage';
 
 // Cấu hình CBM
-import LoaiThietBiPage  from '../pages/CauHinh/LoaiThietBiPage';
-import NhomChiTieuPage  from '../pages/CauHinh/NhomChiTieuPage';
-import ChiTieuPage      from '../pages/CauHinh/ChiTieuPage';
+import LoaiThietBiPage    from '../pages/CauHinh/LoaiThietBiPage';
+import NhomChiTieuPage    from '../pages/CauHinh/NhomChiTieuPage';
+import ChiTieuPage        from '../pages/CauHinh/ChiTieuPage';
+import CayChiTieuPage     from '../pages/CauHinh/CayChiTieuPage';
+import CongThucTongHopPage from '../pages/CauHinh/CongThucTongHopPage';
 
 // Nhập liệu
 import NhapLieuPage        from '../pages/NhapLieu/NhapLieuPage';
 import TaoPhieuKiemTraPage from '../pages/NhapLieu/TaoPhieuKiemTraPage';
 import MayBienApForm       from '../pages/NhapLieu/forms/MayBienApForm';
 import MayCatForm          from '../pages/NhapLieu/forms/MayCatForm';
+import NhapLieuDongPage    from '../pages/NhapLieu/NhapLieuDongPage';
 
 // Kết quả & Báo cáo
 import KetQuaPage      from '../pages/KetQua/KetQuaPage';
@@ -43,15 +46,18 @@ const router = createBrowserRouter([
       { path: 'quan-ly/thiet-bi', element: <ThietBiPage /> },
 
       // ── Cấu hình CBM ──────────────────────────────────────────────────────
-      { path: 'cau-hinh/loai-thiet-bi',  element: <LoaiThietBiPage /> },
-      { path: 'cau-hinh/nhom-chi-tieu',  element: <NhomChiTieuPage /> },
-      { path: 'cau-hinh/chi-tieu',       element: <ChiTieuPage /> },
+      { path: 'cau-hinh/loai-thiet-bi',    element: <LoaiThietBiPage /> },
+      { path: 'cau-hinh/nhom-chi-tieu',    element: <NhomChiTieuPage /> },
+      { path: 'cau-hinh/chi-tieu',         element: <ChiTieuPage /> },
+      { path: 'cau-hinh/cay-chi-tieu',     element: <CayChiTieuPage /> },
+      { path: 'cau-hinh/cong-thuc',        element: <CongThucTongHopPage /> },
 
       // ── Nhập liệu ─────────────────────────────────────────────────────────
       { path: 'nhap-lieu',                  element: <NhapLieuPage /> },
       { path: 'nhap-lieu/phieu-kiem-tra',   element: <TaoPhieuKiemTraPage /> },
       { path: 'nhap-lieu/may-bien-ap',      element: <MayBienApForm /> },
       { path: 'nhap-lieu/may-cat',          element: <MayCatForm /> },
+      { path: 'nhap-lieu/dong',             element: <NhapLieuDongPage /> },
 
       // ── Kết quả & Báo cáo ─────────────────────────────────────────────────
       { path: 'ket-qua',      element: <KetQuaPage /> },

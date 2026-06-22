@@ -13,7 +13,7 @@ import logoFull from '../../assets/img/logoHP.png';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Sider } = Layout;
-const { Text }  = Typography;
+const { Text } = Typography;
 
 type NavItem = { key: string; label: string; icon: React.ReactNode };
 type NavGroup = { title: string; items: NavItem[] };
@@ -22,42 +22,72 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'TỔNG QUAN',
     items: [
-      { key: '/dashboard',            label: 'Dashboard',              icon: <AppstoreOutlined /> },
+      { key: '/dashboard', label: 'Dashboard', icon: <AppstoreOutlined /> },
     ],
   },
   {
     title: 'QUẢN LÝ THIẾT BỊ',
     items: [
-      { key: '/quan-ly/khu-vuc',      label: 'Khu vực',                icon: <EnvironmentOutlined /> },
-      { key: '/quan-ly/tram-dien',    label: 'Trạm điện',              icon: <ThunderboltOutlined /> },
-      { key: '/quan-ly/thiet-bi',     label: 'Thiết bị',               icon: <ApartmentOutlined /> },
+      { key: '/quan-ly/khu-vuc', label: 'Khu vực', icon: <EnvironmentOutlined /> },
+      { key: '/quan-ly/tram-dien', label: 'Trạm điện', icon: <ThunderboltOutlined /> },
+      { key: '/quan-ly/thiet-bi', label: 'Thiết bị', icon: <ApartmentOutlined /> },
     ],
   },
+  // {
+  //   title: 'CẤU HÌNH CBM',
+  //   items: [
+  //     { key: '/cau-hinh/loai-thiet-bi', label: 'Loại thiết bị',       icon: <UnorderedListOutlined /> },
+  //     { key: '/cau-hinh/nhom-chi-tieu', label: 'Nhóm chỉ tiêu',       icon: <BulbOutlined /> },
+  //     { key: '/cau-hinh/chi-tieu',      label: 'Chỉ tiêu & Ngưỡng',   icon: <SettingOutlined /> },
+  //   ],
+  // },
   {
     title: 'CẤU HÌNH CBM',
     items: [
-      { key: '/cau-hinh/loai-thiet-bi', label: 'Loại thiết bị',       icon: <UnorderedListOutlined /> },
-      { key: '/cau-hinh/nhom-chi-tieu', label: 'Nhóm chỉ tiêu',       icon: <BulbOutlined /> },
-      { key: '/cau-hinh/chi-tieu',      label: 'Chỉ tiêu & Ngưỡng',   icon: <SettingOutlined /> },
-    ],
+      {
+        key: '/cau-hinh/loai-thiet-bi',
+        label: 'Loại thiết bị',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        key: '/cau-hinh/cay-chi-tieu',
+        label: 'Cây chỉ tiêu',
+        icon: <ApartmentOutlined />
+      },
+      {
+        key: '/cau-hinh/nhom-chi-tieu',
+        label: 'Nhóm chỉ tiêu',
+        icon: <BulbOutlined />
+      },
+      {
+        key: '/cau-hinh/chi-tieu',
+        label: 'Chỉ tiêu & Ngưỡng',
+        icon: <SettingOutlined />
+      },
+      {
+        key: '/cau-hinh/cong-thuc',
+        label: 'Công thức tổng hợp',
+        icon: <FundOutlined />
+      }
+    ]
   },
   {
     title: 'NHẬP LIỆU',
     items: [
-      { key: '/nhap-lieu',            label: 'Nhập liệu kiểm tra',     icon: <EditOutlined /> },
+      { key: '/nhap-lieu', label: 'Nhập liệu kiểm tra', icon: <EditOutlined /> },
     ],
   },
   {
     title: 'KẾT QUẢ & BÁO CÁO',
     items: [
-      { key: '/ket-qua',              label: 'Kết quả phân hạng',      icon: <FundOutlined /> },
-      { key: '/bao-cao',              label: 'Báo cáo',                icon: <FileTextOutlined /> },
+      { key: '/ket-qua', label: 'Kết quả phân hạng', icon: <FundOutlined /> },
+      { key: '/bao-cao', label: 'Báo cáo', icon: <FileTextOutlined /> },
     ],
   },
   {
     title: 'HỆ THỐNG',
     items: [
-      { key: '/thong-ke',             label: 'Thống kê',               icon: <BarChartOutlined /> },
+      { key: '/thong-ke', label: 'Thống kê', icon: <BarChartOutlined /> },
     ],
   },
 ];
@@ -68,7 +98,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarProps) {
-  const navigate    = useNavigate();
+  const navigate = useNavigate();
   const { pathname } = useLocation();
   const { mode } = useThemeMode();
   const [openKeys, setOpenKeys] = useState<string[]>([]);

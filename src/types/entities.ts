@@ -188,3 +188,139 @@ export interface CreateChiTietKiemTraDto {
 }
 
 export interface UpdateChiTietKiemTraDto extends CreateChiTietKiemTraDto {}
+
+// ─── Nhóm Chỉ Tiêu (mở rộng với cây phân cấp) ───────────────────────────────
+export interface NhomChiTieuV2 extends NhomChiTieu {
+  ID_NhomCha?: number | null;
+  CapDo: number;
+  LoaiNhom: 'LEAF' | 'COMPOSITE';
+  CoCongThuc: boolean;
+}
+
+export interface NhomChiTieuCay extends NhomChiTieuV2 {
+  NhomCon: NhomChiTieuCay[];
+}
+
+export interface CreateNhomChiTieuV2Dto extends CreateNhomChiTieuDto {
+  ID_NhomCha?: number | null;
+  CapDo?: number;
+  LoaiNhom?: string;
+}
+
+export interface UpdateNhomChiTieuV2Dto extends UpdateNhomChiTieuDto {
+  ID_NhomCha?: number | null;
+  CapDo?: number;
+  LoaiNhom?: string;
+}
+
+// ─── Ngưỡng (mở rộng với ThuTu) ─────────────────────────────────────────────
+export interface NguongV2 extends Nguong {
+  ThuTu: number;
+}
+
+export interface CreateNguongV2Dto extends CreateNguongDto {
+  ThuTu?: number;
+}
+
+// ─── Công Thức Tổng Hợp ──────────────────────────────────────────────────────
+export interface CongThucBien {
+  ID_Bien: number;
+  ID_CongThuc: number;
+  MaBien: string;
+  NguonBien: 'CHITIEU' | 'NHOM_CON' | 'HANGSO';
+  ID_ChiTieuNguon?: number | null;
+  TenChiTieu?: string | null;
+  ID_NhomCon?: number | null;
+  TenNhomCon?: string | null;
+  GiaTriHangSo?: number | null;
+  MoTa?: string | null;
+}
+
+export interface CongThucTongHop {
+  ID_CongThuc: number;
+  ID_NhomChiTieu: number;
+  TenNhom: string;
+  BieuThuc: string;
+  LoaiCongThuc: string;
+  PhienBan: number;
+  TrangThai: number;
+  ThangDiem_Min?: number | null;
+  ThangDiem_Max?: number | null;
+  MoTa?: string | null;
+  DanhSachBien: CongThucBien[];
+}
+
+export interface CreateCongThucTongHopDto {
+  ID_NhomChiTieu: number;
+  BieuThuc: string;
+  LoaiCongThuc?: string;
+  PhienBan?: number;
+  ThangDiem_Min?: number | null;
+  ThangDiem_Max?: number | null;
+  MoTa?: string | null;
+}
+
+export interface UpdateCongThucTongHopDto {
+  BieuThuc: string;
+  LoaiCongThuc?: string;
+  TrangThai: number;
+  ThangDiem_Min?: number | null;
+  ThangDiem_Max?: number | null;
+  MoTa?: string | null;
+}
+
+export interface CreateCongThucBienDto {
+  ID_CongThuc: number;
+  MaBien: string;
+  NguonBien: 'CHITIEU' | 'NHOM_CON' | 'HANGSO';
+  ID_ChiTieuNguon?: number | null;
+  ID_NhomCon?: number | null;
+  GiaTriHangSo?: number | null;
+  MoTa?: string | null;
+}
+
+export interface UpdateCongThucBienDto {
+  MaBien: string;
+  NguonBien: 'CHITIEU' | 'NHOM_CON' | 'HANGSO';
+  ID_ChiTieuNguon?: number | null;
+  ID_NhomCon?: number | null;
+  GiaTriHangSo?: number | null;
+  MoTa?: string | null;
+}
+
+// ─── Kết quả tính điểm nhóm ──────────────────────────────────────────────────
+export interface KetQuaNhom {
+  ID_NhomChiTieu: number;
+  TenNhom: string;
+  LoaiNhom: string;
+  CapDo: number;
+  Diem: number;
+  BienDaBind?: string | null;
+  ThoiGianTinh: string;
+  NhomCon: KetQuaNhom[];
+}
+
+export interface TinhDiemCayResult {
+  IDPhieu: number;
+  KetQuaCay: KetQuaNhom[];
+}
+
+// ─── Nhập liệu batch ─────────────────────────────────────────────────────────
+export interface NhapChiTietDto {
+  ID_ChiTieu: number;
+  GiaTriNhap_So?: number | null;
+  GiaTriNhap_Chu?: string | null;
+  DanhSachInput?: Record<string, number>;
+  GhiChu?: string | null;
+}
+
+export interface NhapPhieuRequest {
+  DanhSachChiTieu: NhapChiTietDto[];
+  TuDongTinhDiem?: boolean;
+  ID_NhomChiTieuTinhDiem?: number | null;
+}
+
+export interface NhapPhieuResponse {
+  KetQuaNhap: ChiTietKiemTra[];
+  KetQuaTinhDiem?: KetQuaNhom | null;
+}

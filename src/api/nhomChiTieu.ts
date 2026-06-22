@@ -1,15 +1,23 @@
 import { api } from './client';
-import type { NhomChiTieu, CreateNhomChiTieuDto, UpdateNhomChiTieuDto, PagedResult } from '../types/entities';
+import type {
+  NhomChiTieu, NhomChiTieuCay,
+  CreateNhomChiTieuDto, UpdateNhomChiTieuDto, PagedResult
+} from '../types/entities';
 
-const BASE = '/api/NhomChiTieu';
+const BASE = '/api/nhom-chi-tieu';
 
 type NhomChiTieuApiRaw = Partial<NhomChiTieu> & {
   iD_NhomChiTieu?: number;
   tenNhom?: string;
   iD_LoaiThietBi?: number;
   tenLoaiThietBi?: string;
+  iD_NhomCha?: number | null;
+  capDo?: number;
+  loaiNhom?: string;
   phienBan?: number;
   trangThai?: number;
+  coCongThuc?: boolean;
+  nhomCon?: NhomChiTieuApiRaw[];
 };
 
 const toNhomChiTieu = (raw: NhomChiTieuApiRaw): NhomChiTieu => ({
@@ -20,6 +28,15 @@ const toNhomChiTieu = (raw: NhomChiTieuApiRaw): NhomChiTieu => ({
   PhienBan: Number(raw.PhienBan ?? raw.phienBan ?? 1),
   TrangThai: Number(raw.TrangThai ?? raw.trangThai ?? 0),
 });
+
+const toNhomCay = (raw: NhomChiTieuApiRaw): NhomChiTieuCay => ({
+  ...toNhomChiTieu(raw),
+  ID_NhomCha: raw.iD_NhomCha ?? raw.ID_NhomCha ?? null,
+  CapDo: raw.capDo ?? raw.CapDo ?? 1,
+  LoaiNhom: (raw.loaiNhom ?? raw.LoaiNhom ?? 'LEAF') as 'LEAF' | 'COMPOSITE',
+  CoCongThuc: raw.coCongThuc ?? false,
+  NhomCon: (raw.nhomCon ?? []).map(toNhomCay),
+} as NhomChiTieuCay);
 
 type PagedRaw = PagedResult<NhomChiTieuApiRaw>;
 
@@ -45,6 +62,7 @@ export const nhomChiTieuApi = {
   },
   getActive:  async ()           => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/active`)).map(toNhomChiTieu),
   getByLoai:  async (id: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/by-loaithietbi/${id}`)).map(toNhomChiTieu),
+  getCay:     async (idLoai: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/cay/${idLoai}`)).map(toNhomCay),
   getById:    async (id: number) => toNhomChiTieu(await api.get<NhomChiTieuApiRaw>(`${BASE}/${id}`)),
   create:     async (dto: CreateNhomChiTieuDto) => toNhomChiTieu(await api.post<NhomChiTieuApiRaw>(BASE, dto)),
   update:     async (id: number, dto: UpdateNhomChiTieuDto) => toNhomChiTieu(await api.put<NhomChiTieuApiRaw>(`${BASE}/${id}`, dto)),
