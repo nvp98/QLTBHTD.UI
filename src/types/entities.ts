@@ -65,6 +65,10 @@ export interface NhomChiTieu {
   TenNhom: string;
   ID_LoaiThietBi: number;
   TenLoaiThietBi?: string;
+  ID_NhomCha?: number | null;
+  CapDo?: number;
+  LoaiNhom?: 'LEAF' | 'COMPOSITE';
+  CoCongThuc?: boolean;
   PhienBan: number;
   TrangThai: number;
 }
@@ -80,7 +84,7 @@ export interface ChiTieu {
   TenChiTieu: string;
   TrongSo_Wi: number;
   TrangThai: number;
-  /** 'Nguong' | 'Rule' — null/undefined = 'Nguong' */
+  /** 'Nguong' | 'Rule' | 'LF' — null/undefined = 'Nguong' */
   LoaiTinhDiem?: string | null;
 }
 export interface CreateChiTieuDto { ID_NhomChiTieu: number; TenChiTieu: string; TrongSo_Wi: number; TrangThai: number; LoaiTinhDiem?: string | null }
@@ -306,12 +310,54 @@ export interface TinhDiemCayResult {
 }
 
 // ─── Nhập liệu batch ─────────────────────────────────────────────────────────
+export interface ThangDoDto {
+  Nam: number;
+  Thang: number;
+  GiaTriDo: number;
+}
+
 export interface NhapChiTietDto {
   ID_ChiTieu: number;
   GiaTriNhap_So?: number | null;
   GiaTriNhap_Chu?: string | null;
   DanhSachInput?: Record<string, number>;
+  /** Dùng khi chỉ tiêu có LoaiTinhDiem='LF' (Load Factor) — giá trị đo theo từng tháng. */
+  DanhSachThang?: ThangDoDto[];
   GhiChu?: string | null;
+}
+
+// ─── Phân loại theo tháng (LF — Load Factor) ────────────────────────────────
+export interface ChiTieuPhanLoaiNguong {
+  ID_PhanLoai: number;
+  ID_ChiTieu: number;
+  MaMuc: string;
+  GiaTriTu?: number | null;
+  GiaTriDen?: number | null;
+  GiaTriTu_BaoGom: boolean;
+  GiaTriDen_BaoGom: boolean;
+  TrongSo: number;
+  ThuTu: number;
+}
+export interface CreateChiTieuPhanLoaiNguongDto {
+  ID_ChiTieu: number;
+  MaMuc: string;
+  GiaTriTu?: number | null;
+  GiaTriDen?: number | null;
+  GiaTriTu_BaoGom: boolean;
+  GiaTriDen_BaoGom: boolean;
+  TrongSo: number;
+  ThuTu: number;
+}
+export interface UpdateChiTieuPhanLoaiNguongDto extends Omit<CreateChiTieuPhanLoaiNguongDto, 'ID_ChiTieu'> {}
+
+export interface KetQuaPhanLoaiThang {
+  IDPhieu: number;
+  ID_ChiTieu: number;
+  Nam: number;
+  Thang: number;
+  GiaTriDo: number;
+  MaMuc: string;
+  TrongSo: number;
 }
 
 export interface NhapPhieuRequest {

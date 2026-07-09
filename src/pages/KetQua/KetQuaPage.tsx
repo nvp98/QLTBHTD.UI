@@ -42,7 +42,7 @@ export default function KetQuaPage() {
       if (!acc[p.ID_ThietBi] || p.ID_Phieu > acc[p.ID_ThietBi].ID_Phieu) acc[p.ID_ThietBi] = p;
       return acc;
     }, {})
-  ).sort((a, b) => (a.TongDiem_Soqt ?? 100) - (b.TongDiem_Soqt ?? 100));
+  ).sort((a, b) => (a.TongDiem_Soqt ?? 10) - (b.TongDiem_Soqt ?? 10));
 
   const columns = [
     {
@@ -75,10 +75,10 @@ export default function KetQuaPage() {
       render: (v?: number | null) => v != null ? (
         <Flex align="center" gap={8}>
           <Progress
-            percent={v}
+            percent={v * 10}
             size="small"
             showInfo={false}
-            strokeColor={v >= 85 ? '#4ade80' : v >= 70 ? '#60a5fa' : v >= 55 ? '#fbbf24' : v >= 40 ? '#f97316' : '#f87171'}
+            strokeColor={v >= 8 ? '#4ade80' : v >= 6 ? '#60a5fa' : v >= 4 ? '#fbbf24' : v >= 2 ? '#f97316' : '#f87171'}
             trailColor={isDark ? '#1f2937' : '#e5e7eb'}
             style={{ width: 80 }}
           />

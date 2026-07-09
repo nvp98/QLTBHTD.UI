@@ -10,7 +10,7 @@ const WORKFLOW = [
   { step: '02', label: 'Hệ thống tải danh sách nhóm chỉ tiêu & chỉ tiêu', color: '#3b82f6' },
   { step: '03', label: 'Nhập giá trị đo được cho từng chỉ tiêu', color: '#0ea5e9' },
   { step: '04', label: 'Hệ thống tự động chấm điểm theo ngưỡng', color: '#10b981' },
-  { step: '05', label: 'Tính CSSK = Σ (Điểm_nhóm × W_nhóm) × 10', color: '#f59e0b' },
+  { step: '05', label: 'Tính CSSK = Σ (Điểm_nhóm × W_nhóm) (thang 0–10)', color: '#f59e0b' },
   { step: '06', label: 'Lưu phiếu kiểm tra và xem kết quả phân hạng', color: '#f97316' },
 ];
 
@@ -98,8 +98,8 @@ export default function NhapLieuPage() {
             {[
               { title: 'Đơn vị đo', desc: 'Nhập đúng đơn vị theo từng chỉ tiêu (ppm, kV, %, ms...)' },
               { title: 'Ngưỡng điểm', desc: 'Điểm Sᵢ được tra theo ngưỡng: nếu giá trị ∈ [Cận dưới; Cận trên] → đạt Diem_Si điểm' },
-              { title: 'Trọng số', desc: 'Mỗi chỉ tiêu có trọng số Wᵢ. CSSK = Σ(Sᵢ × Wᵢ) × trọng_số_nhóm × 10' },
-              { title: 'Phân hạng', desc: 'A≥85 · B70-84 · C55-69 · D40-54 · E<40' },
+              { title: 'Trọng số', desc: 'Mỗi chỉ tiêu có trọng số Wᵢ. CSSK = Σ(Sᵢ × Wᵢ) × trọng_số_nhóm (thang 0–10)' },
+              { title: 'Phân hạng', desc: 'A≥8 · B6-8 · C4-6 · D2-4 · E<2' },
             ].map(item => (
               <div key={item.title} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${panelBorder}` }}>
                 <Text strong style={{ color: '#93c5fd', fontSize: 13, display: 'block', marginBottom: 4 }}>

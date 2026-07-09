@@ -19,11 +19,11 @@ const fmtDate = (iso?: string) => {
 };
 
 function rankInfo(hi: number) {
-  if (hi >= 85) return { rank: 'A', color: '#4ade80', label: 'Rất tốt',    bg: '#052e16', border: '#166534' };
-  if (hi >= 70) return { rank: 'B', color: '#60a5fa', label: 'Tốt',        bg: '#0c1a3a', border: '#1d4ed8' };
-  if (hi >= 55) return { rank: 'C', color: '#fbbf24', label: 'Trung bình', bg: '#1c1400', border: '#b45309' };
-  if (hi >= 40) return { rank: 'D', color: '#f97316', label: 'Kém',        bg: '#1a0a00', border: '#9a3412' };
-  return              { rank: 'E', color: '#f87171', label: 'Rất kém',   bg: '#1f0000', border: '#7f1d1d' };
+  if (hi >= 8) return { rank: 'A', color: '#4ade80', label: 'Rất tốt',    bg: '#052e16', border: '#166534' };
+  if (hi >= 6) return { rank: 'B', color: '#60a5fa', label: 'Tốt',        bg: '#0c1a3a', border: '#1d4ed8' };
+  if (hi >= 4) return { rank: 'C', color: '#fbbf24', label: 'Trung bình', bg: '#1c1400', border: '#b45309' };
+  if (hi >= 2) return { rank: 'D', color: '#f97316', label: 'Kém',        bg: '#1a0a00', border: '#9a3412' };
+  return            { rank: 'E', color: '#f87171', label: 'Rất kém',   bg: '#1f0000', border: '#7f1d1d' };
 }
 
 function scoreColor(s: number): string {
@@ -186,7 +186,7 @@ export default function PhieuDetailPage() {
                   {Number(phieu.TongDiem_Soqt).toFixed(1)}
                 </Text>
                 <Text style={{ color: '#6b7280', fontSize: 12, display: 'block', marginTop: 4 }}>
-                  / 100 — CSSK
+                  / 10 — CSSK
                 </Text>
                 <Tag style={{
                   marginTop: 10, fontSize: 13, padding: '2px 12px',

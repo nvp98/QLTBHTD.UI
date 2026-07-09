@@ -1,7 +1,7 @@
 import { api } from './client';
 import type {
   NhomChiTieu, NhomChiTieuCay,
-  CreateNhomChiTieuDto, UpdateNhomChiTieuDto, PagedResult
+  CreateNhomChiTieuV2Dto, UpdateNhomChiTieuV2Dto, PagedResult
 } from '../types/entities';
 
 const BASE = '/api/nhom-chi-tieu';
@@ -25,6 +25,10 @@ const toNhomChiTieu = (raw: NhomChiTieuApiRaw): NhomChiTieu => ({
   TenNhom: raw.TenNhom ?? raw.tenNhom ?? '',
   ID_LoaiThietBi: Number(raw.ID_LoaiThietBi ?? raw.iD_LoaiThietBi ?? 0),
   TenLoaiThietBi: raw.TenLoaiThietBi ?? raw.tenLoaiThietBi,
+  ID_NhomCha: raw.ID_NhomCha ?? raw.iD_NhomCha ?? null,
+  CapDo: Number(raw.CapDo ?? raw.capDo ?? 1),
+  LoaiNhom: (raw.LoaiNhom ?? raw.loaiNhom ?? 'LEAF') as 'LEAF' | 'COMPOSITE',
+  CoCongThuc: raw.CoCongThuc ?? raw.coCongThuc ?? false,
   PhienBan: Number(raw.PhienBan ?? raw.phienBan ?? 1),
   TrangThai: Number(raw.TrangThai ?? raw.trangThai ?? 0),
 });
@@ -64,7 +68,7 @@ export const nhomChiTieuApi = {
   getByLoai:  async (id: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/by-loaithietbi/${id}`)).map(toNhomChiTieu),
   getCay:     async (idLoai: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/cay/${idLoai}`)).map(toNhomCay),
   getById:    async (id: number) => toNhomChiTieu(await api.get<NhomChiTieuApiRaw>(`${BASE}/${id}`)),
-  create:     async (dto: CreateNhomChiTieuDto) => toNhomChiTieu(await api.post<NhomChiTieuApiRaw>(BASE, dto)),
-  update:     async (id: number, dto: UpdateNhomChiTieuDto) => toNhomChiTieu(await api.put<NhomChiTieuApiRaw>(`${BASE}/${id}`, dto)),
+  create:     async (dto: CreateNhomChiTieuV2Dto) => toNhomChiTieu(await api.post<NhomChiTieuApiRaw>(BASE, dto)),
+  update:     async (id: number, dto: UpdateNhomChiTieuV2Dto) => toNhomChiTieu(await api.put<NhomChiTieuApiRaw>(`${BASE}/${id}`, dto)),
   delete:     (id: number) => api.delete(`${BASE}/${id}`),
 };

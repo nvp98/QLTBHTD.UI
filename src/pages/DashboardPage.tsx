@@ -224,7 +224,7 @@ export default function DashboardPage() {
             </Text>
             <div style={{ padding: '10px 14px', background: formulaBoxBg, borderRadius: 6, fontFamily: 'monospace' }}>
               <Text style={{ color: '#93c5fd', fontSize: 13 }}>
-                CSSK = Σ (Điểm_nhóm × W_nhóm) × 10
+                CSSK = Σ (Điểm_nhóm × W_nhóm) — thang 0–10
               </Text>
             </div>
             <Text style={{ color: dimText, fontSize: 12, display: 'block', marginTop: 8 }}>
@@ -232,11 +232,11 @@ export default function DashboardPage() {
             </Text>
             <Row gutter={8} style={{ marginTop: 12 }}>
               {[
-                { range: '85–100', rank: 'A', label: 'Rất tốt',  color: '#4ade80' },
-                { range: '70–84',  rank: 'B', label: 'Tốt',      color: '#60a5fa' },
-                { range: '55–69',  rank: 'C', label: 'Trung bình',color: '#fbbf24' },
-                { range: '40–54',  rank: 'D', label: 'Kém',      color: '#f97316' },
-                { range: '0–39',   rank: 'E', label: 'Rất kém',  color: '#f87171' },
+                { range: '8–10', rank: 'A', label: 'Rất tốt',  color: '#4ade80' },
+                { range: '6–8',  rank: 'B', label: 'Tốt',      color: '#60a5fa' },
+                { range: '4–6',  rank: 'C', label: 'Trung bình',color: '#fbbf24' },
+                { range: '2–4',  rank: 'D', label: 'Kém',      color: '#f97316' },
+                { range: '0–2',  rank: 'E', label: 'Rất kém',  color: '#f87171' },
               ].map(r => (
                 <Col span={24} key={r.rank} style={{ marginBottom: 4 }}>
                   <Flex align="center" gap={8}>

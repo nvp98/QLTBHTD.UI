@@ -21,11 +21,11 @@ const { Title, Text } = Typography;
 // ─── Màu & nhãn theo mức CSSK ──────────────────────────────────────────────
 function getCapDo(diem?: number | null) {
   if (diem == null) return { color: '#6b7280', label: 'Chưa tính', bg: '#6b728022' };
-  if (diem >= 85) return { color: '#4ade80', label: 'Tốt',        bg: '#4ade8022' };
-  if (diem >= 70) return { color: '#60a5fa', label: 'Bình thường',bg: '#60a5fa22' };
-  if (diem >= 55) return { color: '#fbbf24', label: 'Chú ý',      bg: '#fbbf2422' };
-  if (diem >= 40) return { color: '#f97316', label: 'Cảnh báo',   bg: '#f9731622' };
-  return             { color: '#f87171', label: 'Nguy hiểm',       bg: '#f8717122' };
+  if (diem >= 8) return { color: '#4ade80', label: 'Tốt',        bg: '#4ade8022' };
+  if (diem >= 6) return { color: '#60a5fa', label: 'Bình thường',bg: '#60a5fa22' };
+  if (diem >= 4) return { color: '#fbbf24', label: 'Chú ý',      bg: '#fbbf2422' };
+  if (diem >= 2) return { color: '#f97316', label: 'Cảnh báo',   bg: '#f9731622' };
+  return           { color: '#f87171', label: 'Nguy hiểm',       bg: '#f8717122' };
 }
 
 const fmtDate = (iso?: string) => {
@@ -51,7 +51,7 @@ function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: stri
 
   const n = data.length;
   const xOf = (i: number) => pad.left + (n === 1 ? iW / 2 : (i / (n - 1)) * iW);
-  const yOf = (v: number) => pad.top + (1 - v / 100) * iH;
+  const yOf = (v: number) => pad.top + (1 - v / 10) * iH;
 
   // Polyline chỉ nối các điểm có giá trị liên tiếp
   const segments: string[][] = [];
@@ -66,7 +66,7 @@ function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: stri
   });
   if (cur.length) segments.push(cur);
 
-  const gridVals = [0, 25, 50, 75, 100];
+  const gridVals = [0, 2, 4, 6, 8, 10];
   const axisColor = isDark ? '#374151' : '#e5e7eb';
   const textColor = isDark ? '#6b7280' : '#9ca3af';
   const gradId = `grad-${color.replace('#', '')}`;
@@ -91,10 +91,10 @@ function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: stri
       ))}
 
       {/* Threshold zones */}
-      <rect x={pad.left} y={yOf(85)} width={iW} height={yOf(70) - yOf(85)} fill="#4ade8008" />
-      <rect x={pad.left} y={yOf(70)} width={iW} height={yOf(55) - yOf(70)} fill="#60a5fa08" />
-      <rect x={pad.left} y={yOf(55)} width={iW} height={yOf(40) - yOf(55)} fill="#fbbf2408" />
-      <rect x={pad.left} y={yOf(40)} width={iW} height={yOf(0) - yOf(40)} fill="#f9731608" />
+      <rect x={pad.left} y={yOf(8)} width={iW} height={yOf(6) - yOf(8)} fill="#4ade8008" />
+      <rect x={pad.left} y={yOf(6)} width={iW} height={yOf(4) - yOf(6)} fill="#60a5fa08" />
+      <rect x={pad.left} y={yOf(4)} width={iW} height={yOf(2) - yOf(4)} fill="#fbbf2408" />
+      <rect x={pad.left} y={yOf(2)} width={iW} height={yOf(0) - yOf(2)} fill="#f9731608" />
 
       {/* Area fill for first segment */}
       {segments[0] && segments[0].length > 1 && (
@@ -153,11 +153,11 @@ function TabTongHop({ isDark }: { isDark: boolean }) {
   }, []);
 
   const LEVELS = [
-    { key: 'thietBiTot',        label: 'Tốt (≥85)',          color: '#4ade80' },
-    { key: 'thietBiBinhThuong', label: 'Bình thường (70–84)', color: '#60a5fa' },
-    { key: 'thietBiChuY',       label: 'Chú ý (55–69)',       color: '#fbbf24' },
-    { key: 'thietBiCanhBao',    label: 'Cảnh báo (40–54)',    color: '#f97316' },
-    { key: 'thietBiNguyHiem',   label: 'Nguy hiểm (<40)',     color: '#f87171' },
+    { key: 'thietBiTot',        label: 'Tốt (≥8)',          color: '#4ade80' },
+    { key: 'thietBiBinhThuong', label: 'Bình thường (6–8)', color: '#60a5fa' },
+    { key: 'thietBiChuY',       label: 'Chú ý (4–6)',       color: '#fbbf24' },
+    { key: 'thietBiCanhBao',    label: 'Cảnh báo (2–4)',    color: '#f97316' },
+    { key: 'thietBiNguyHiem',   label: 'Nguy hiểm (<2)',     color: '#f87171' },
     { key: 'thietBiChuaKiemTra',label: 'Chưa kiểm tra',      color: '#6b7280' },
   ] as const;
 
@@ -301,7 +301,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
     { title: 'CSSK', dataIndex: 'tongDiem_Soqt', key: 'diem', width: 180,
       render: (v: number | null) => v != null ? (
         <Flex align="center" gap={8}>
-          <Progress percent={v} size="small" showInfo={false}
+          <Progress percent={v * 10} size="small" showInfo={false}
             strokeColor={getCapDo(v).color}
             trailColor={isDark ? '#1f2937' : '#e5e7eb'} style={{ width: 80 }} />
           <Text style={{ color: getCapDo(v).color, fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
@@ -551,7 +551,7 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
       defaultSortOrder: 'ascend' as const,
       render: (_: unknown, r: CanhBaoThietBiDto) => r.tongDiem_Soqt != null ? (
         <Flex align="center" gap={8}>
-          <Progress percent={r.tongDiem_Soqt} size="small" showInfo={false}
+          <Progress percent={r.tongDiem_Soqt * 10} size="small" showInfo={false}
             strokeColor={getCapDo(r.tongDiem_Soqt).color}
             trailColor={isDark ? '#1f2937' : '#e5e7eb'} style={{ width: 80 }} />
           <Text style={{ color: getCapDo(r.tongDiem_Soqt).color, fontFamily: 'monospace', fontWeight: 600 }}>
@@ -580,14 +580,14 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
       ) },
   ];
 
-  const nguHiem = data.filter(d => (d.tongDiem_Soqt ?? 100) < 40).length;
+  const nguHiem = data.filter(d => (d.tongDiem_Soqt ?? 10) < 2).length;
   const canhBao = data.filter(d => {
-    const v = d.tongDiem_Soqt ?? 100;
-    return v >= 40 && v < 55;
+    const v = d.tongDiem_Soqt ?? 10;
+    return v >= 2 && v < 4;
   }).length;
   const chuY = data.filter(d => {
-    const v = d.tongDiem_Soqt ?? 100;
-    return v >= 55 && v < 70;
+    const v = d.tongDiem_Soqt ?? 10;
+    return v >= 4 && v < 6;
   }).length;
 
   return (
@@ -596,9 +596,9 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
       {data.length > 0 && (
         <Row gutter={[12, 12]}>
           {[
-            { label: 'Chú ý (55–69)', count: chuY,    color: '#fbbf24', icon: <WarningOutlined /> },
-            { label: 'Cảnh báo (40–54)', count: canhBao, color: '#f97316', icon: <WarningOutlined /> },
-            { label: 'Nguy hiểm (<40)', count: nguHiem, color: '#f87171', icon: <ExclamationCircleOutlined /> },
+            { label: 'Chú ý (4–6)', count: chuY,    color: '#fbbf24', icon: <WarningOutlined /> },
+            { label: 'Cảnh báo (2–4)', count: canhBao, color: '#f97316', icon: <WarningOutlined /> },
+            { label: 'Nguy hiểm (<2)', count: nguHiem, color: '#f87171', icon: <ExclamationCircleOutlined /> },
           ].map(s => (
             <Col xs={8} key={s.label}>
               <Card style={{ background: `${s.color}11`, border: `1px solid ${s.color}44`, textAlign: 'center' as const }}
@@ -640,9 +640,9 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
             loading={loading}
             pagination={{ pageSize: 10, showTotal: t => `${t} thiết bị` }}
             rowClassName={(r) => {
-              const v = r.tongDiem_Soqt ?? 100;
-              if (v < 40)  return isDark ? 'row-danger-dark' : 'row-danger-light';
-              if (v < 55)  return isDark ? 'row-warn-dark'   : 'row-warn-light';
+              const v = r.tongDiem_Soqt ?? 10;
+              if (v < 2)  return isDark ? 'row-danger-dark' : 'row-danger-light';
+              if (v < 4)  return isDark ? 'row-warn-dark'   : 'row-warn-light';
               return '';
             }}
           />

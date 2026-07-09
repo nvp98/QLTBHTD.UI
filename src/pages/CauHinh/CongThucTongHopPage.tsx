@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm,
-  Row, Select, Space, Table, Tag, Typography, message,
+  Row, Select, Space, Table, Tag, Tooltip, Typography, message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
@@ -12,15 +13,52 @@ import { chiTieuApi } from '../../api/chiTieu';
 import type {
   CongThucTongHop, CongThucBien,
   CreateCongThucTongHopDto, CreateCongThucBienDto,
-  NhomChiTieu, LoaiThietBi, ChiTieu,
+  NhomChiTieuCay, LoaiThietBi, ChiTieu,
 } from '../../types/entities';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+/** Nhãn tiếng Việt cho LoaiCongThuc, đặt theo đúng ngữ cảnh công thức CBM điện lực — giá trị lưu DB giữ nguyên tiếng Anh. */
+const LOAI_CONG_THUC_OPTIONS = [
+  { value: 'CUSTOM_NCALC', label: 'Biểu thức tự do (NCalc)' },
+  { value: 'WEIGHTED_AVG', label: 'Trung bình trọng số — kiểu Soqt (chất lượng dầu)' },
+  { value: 'WEIGHTED_AVG_SCALED', label: 'Trung bình trọng số quy đổi thang 10 — kiểu TS (nhóm chính/OLTC)' },
+  { value: 'LINEAR_COMBINE', label: 'Cộng dồn hiệu chỉnh — kiểu CHI (điểm cha + Xᵢ/Yᵢ)' },
+  { value: 'PRODUCT', label: 'Nhân hệ số — kiểu DGA (Sdga × Sr)' },
+  { value: 'CUSTOM_MONTHLY_CLASSIFY', label: 'Phân loại theo tháng — kiểu LF (mức mang tải)' },
+];
+const loaiCongThucLabel = (v?: string) =>
+  LOAI_CONG_THUC_OPTIONS.find(o => o.value === v)?.label ?? v ?? '—';
+
+/** Nhãn ngắn dùng cho Tag trong bảng — bản đầy đủ nằm ở LOAI_CONG_THUC_OPTIONS (dropdown/tooltip). */
+const LOAI_CONG_THUC_SHORT: Record<string, string> = {
+  CUSTOM_NCALC: 'Tự do',
+  WEIGHTED_AVG: 'Soqt',
+  WEIGHTED_AVG_SCALED: 'TS',
+  LINEAR_COMBINE: 'CHI',
+  PRODUCT: 'DGA',
+  CUSTOM_MONTHLY_CLASSIFY: 'LF',
+};
+const loaiCongThucShort = (v?: string) => (v ? LOAI_CONG_THUC_SHORT[v] ?? v : '—');
+
+/** Nhãn tiếng Việt cho NguonBien — giá trị lưu DB giữ nguyên tiếng Anh. */
+const NGUON_BIEN_LABEL: Record<string, string> = {
+  HANGSO: 'Hằng số',
+  CHITIEU: 'Điểm chỉ tiêu',
+  NHOM_CON: 'Điểm nhóm con',
+};
+const nguonBienLabel = (v?: string) => (v ? NGUON_BIEN_LABEL[v] ?? v : '—');
+
+function flattenCay(nodes: NhomChiTieuCay[]): NhomChiTieuCay[] {
+  return nodes.flatMap(n => [n, ...flattenCay(n.NhomCon ?? [])]);
+}
+
 export default function CongThucTongHopPage() {
+  const [searchParams] = useSearchParams();
+
   const [loais, setLoais]           = useState<LoaiThietBi[]>([]);
-  const [nhoms, setNhoms]           = useState<NhomChiTieu[]>([]);
+  const [cay, setCay]               = useState<NhomChiTieuCay[]>([]);
   const [chiTieus, setChiTieus]     = useState<ChiTieu[]>([]);
   const [congThucs, setCongThucs]   = useState<CongThucTongHop[]>([]);
   const [loading, setLoading]       = useState(false);
@@ -39,29 +77,21 @@ export default function CongThucTongHopPage() {
   const [currentCongThuc, setCurrentCongThuc] = useState<CongThucTongHop | null>(null);
 
   useEffect(() => {
-    loaiThietBiApi.getActive().then(setLoais).catch(() => {});
+    loaiThietBiApi.getActive().then(setLoais).catch(() => message.error('Lỗi tải loại thiết bị'));
   }, []);
 
-  const handleSelectLoai = async (id: number) => {
-    setSelectedLoai(id);
-    setSelectedNhom(null);
-    setCongThucs([]);
-    try {
-      const [ns, cts] = await Promise.all([
-        nhomChiTieuApi.getByLoai(id),
-        // lấy tất cả chỉ tiêu thuộc loại thiết bị này
-        Promise.resolve([] as ChiTieu[]),
-      ]);
-      setNhoms(ns.filter((n: NhomChiTieu & { loaiNhom?: string }) =>
-        (n as any).LoaiNhom === 'COMPOSITE' || (n as any).loaiNhom === 'COMPOSITE'
-      ));
-    } catch {
-      message.error('Lỗi tải nhóm chỉ tiêu');
-    }
-  };
+  const flatNhoms = useMemo(() => flattenCay(cay), [cay]);
+  const compositeNhoms = useMemo(() => flatNhoms.filter(n => n.LoaiNhom === 'COMPOSITE'), [flatNhoms]);
+  const selectedNode = flatNhoms.find(n => n.ID_NhomChiTieu === selectedNhom) ?? null;
+  const childNhomOptions = (selectedNode?.NhomCon ?? []).map(n => ({ value: n.ID_NhomChiTieu, label: n.TenNhom }));
+  const chiTieuOptions = chiTieus.map(c => ({
+    value: c.ID_ChiTieu,
+    label: c.TenNhom ? `${c.TenChiTieu} — ${c.TenNhom}` : c.TenChiTieu,
+  }));
 
   const handleSelectNhom = useCallback(async (id: number) => {
     setSelectedNhom(id);
+    setCurrentCongThuc(null);
     setLoading(true);
     try {
       const data = await congThucTongHopApi.getByNhom(id);
@@ -72,6 +102,36 @@ export default function CongThucTongHopPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleSelectLoai = useCallback(async (id: number, autoNhom?: number) => {
+    setSelectedLoai(id);
+    setSelectedNhom(null);
+    setCongThucs([]);
+    setCurrentCongThuc(null);
+    try {
+      const [cayData, cts] = await Promise.all([
+        nhomChiTieuApi.getCay(id),
+        chiTieuApi.getAll({ idLoai: id, pageSize: 1000 }),
+      ]);
+      setCay(cayData);
+      setChiTieus(cts);
+      if (autoNhom != null) handleSelectNhom(autoNhom);
+    } catch {
+      message.error('Lỗi tải nhóm chỉ tiêu / chỉ tiêu');
+    }
+  }, [handleSelectNhom]);
+
+  // Tự động chọn loại thiết bị + nhóm khi được điều hướng từ trang Cây chỉ tiêu (?nhom=ID)
+  useEffect(() => {
+    const nhomParam = searchParams.get('nhom');
+    if (!nhomParam) return;
+    const idNhom = Number(nhomParam);
+    if (!idNhom) return;
+    nhomChiTieuApi.getById(idNhom)
+      .then(nhom => handleSelectLoai(nhom.ID_LoaiThietBi, idNhom))
+      .catch(() => message.error('Không tìm thấy nhóm chỉ tiêu được liên kết'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const openCreateCt = () => {
     setEditingCt(null);
@@ -92,7 +152,8 @@ export default function CongThucTongHopPage() {
       }
       setCtModalOpen(false);
       if (selectedNhom) handleSelectNhom(selectedNhom);
-    } catch {
+    } catch (e: unknown) {
+      if (e instanceof Error && 'errorFields' in (e as object)) return;
       message.error('Lỗi lưu công thức');
     }
   };
@@ -108,6 +169,12 @@ export default function CongThucTongHopPage() {
     setBienModalOpen(true);
   };
 
+  const openEditBien = (r: CongThucBien) => {
+    setEditingBien(r);
+    bienForm.setFieldsValue(r);
+    setBienModalOpen(true);
+  };
+
   const saveBien = async () => {
     try {
       const vals = await bienForm.validateFields();
@@ -120,7 +187,8 @@ export default function CongThucTongHopPage() {
       }
       setBienModalOpen(false);
       if (selectedNhom) handleSelectNhom(selectedNhom);
-    } catch {
+    } catch (e: unknown) {
+      if (e instanceof Error && 'errorFields' in (e as object)) return;
       message.error('Lỗi lưu biến');
     }
   };
@@ -136,7 +204,12 @@ export default function CongThucTongHopPage() {
         </Text>
       ),
     },
-    { title: 'Loại', dataIndex: 'LoaiCongThuc', width: 140 },
+    { title: 'Loại', dataIndex: 'LoaiCongThuc', width: 90,
+      render: (v: string) => (
+        <Tooltip title={loaiCongThucLabel(v)}>
+          <Tag style={{ cursor: 'help' }}>{loaiCongThucShort(v)}</Tag>
+        </Tooltip>
+      ) },
     {
       title: 'Trạng thái',
       dataIndex: 'TrangThai',
@@ -180,8 +253,8 @@ export default function CongThucTongHopPage() {
     {
       title: 'Nguồn',
       dataIndex: 'NguonBien',
-      width: 100,
-      render: (v: string) => <Tag>{v}</Tag>,
+      width: 130,
+      render: (v: string) => <Tag>{nguonBienLabel(v)}</Tag>,
     },
     {
       title: 'Nguồn dữ liệu',
@@ -194,16 +267,19 @@ export default function CongThucTongHopPage() {
     { title: 'Ghi chú', dataIndex: 'MoTa' },
     {
       title: '',
-      width: 60,
+      width: 84,
       render: (_: unknown, r: CongThucBien) => (
-        <Popconfirm title="Xóa biến?" onConfirm={() =>
-          congThucBienApi.delete(r.ID_Bien).then(() => {
-            message.success('Đã xóa');
-            if (selectedNhom) handleSelectNhom(selectedNhom);
-          })
-        }>
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditBien(r)} />
+          <Popconfirm title="Xóa biến?" onConfirm={() =>
+            congThucBienApi.delete(r.ID_Bien).then(() => {
+              message.success('Đã xóa');
+              if (selectedNhom) handleSelectNhom(selectedNhom);
+            })
+          }>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -217,15 +293,20 @@ export default function CongThucTongHopPage() {
           <Select
             style={{ width: 200 }}
             placeholder="Loại thiết bị"
-            onChange={handleSelectLoai}
+            value={selectedLoai ?? undefined}
+            onChange={(id: number) => handleSelectLoai(id)}
             options={loais.map(l => ({ value: l.ID_LoaiThietBi, label: l.TenLoaiTB }))}
           />
           <Select
             style={{ width: 280 }}
             placeholder="Nhóm COMPOSITE"
             disabled={!selectedLoai}
+            value={selectedNhom ?? undefined}
             onChange={handleSelectNhom}
-            options={nhoms.map(n => ({ value: n.ID_NhomChiTieu, label: n.TenNhom }))}
+            showSearch
+            optionFilterProp="label"
+            options={compositeNhoms.map(n => ({ value: n.ID_NhomChiTieu, label: n.TenNhom }))}
+            notFoundContent={selectedLoai ? 'Chưa có nhóm COMPOSITE nào — tạo tại trang Cây chỉ tiêu' : undefined}
           />
           {selectedNhom && (
             <Button icon={<PlusOutlined />} type="primary" onClick={openCreateCt}>
@@ -244,6 +325,7 @@ export default function CongThucTongHopPage() {
               columns={columnsCt}
               pagination={false}
               size="small"
+              locale={{ emptyText: selectedNhom ? 'Chưa có công thức — nhấn "Tạo phiên bản mới"' : 'Chọn nhóm COMPOSITE để xem công thức' }}
             />
           </Card>
         </Col>
@@ -280,6 +362,7 @@ export default function CongThucTongHopPage() {
         onOk={saveCt}
         onCancel={() => setCtModalOpen(false)}
         width={680}
+        destroyOnHidden
       >
         <Form form={ctForm} layout="vertical">
           <Form.Item name="ID_NhomChiTieu" hidden><Input /></Form.Item>
@@ -293,14 +376,9 @@ export default function CongThucTongHopPage() {
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="LoaiCongThuc" label="Loại công thức">
-                <Select options={[
-                  { value: 'CUSTOM_NCALC', label: 'Custom NCalc' },
-                  { value: 'WEIGHTED_AVG', label: 'Weighted Average' },
-                  { value: 'WEIGHTED_AVG_SCALED', label: 'Weighted Avg Scaled' },
-                  { value: 'LINEAR_COMBINE', label: 'Linear Combine' },
-                  { value: 'PRODUCT', label: 'Product' },
-                ]} />
+              <Form.Item name="LoaiCongThuc" label="Loại công thức"
+                tooltip="Chỉ để hiển thị/ghi chú — biểu thức phía trên mới là thứ thực sự được tính.">
+                <Select options={LOAI_CONG_THUC_OPTIONS} />
               </Form.Item>
             </Col>
             <Col span={6}>
@@ -331,6 +409,7 @@ export default function CongThucTongHopPage() {
         open={bienModalOpen}
         onOk={saveBien}
         onCancel={() => setBienModalOpen(false)}
+        destroyOnHidden
       >
         <Form form={bienForm} layout="vertical">
           <Form.Item name="ID_CongThuc" hidden><Input /></Form.Item>
@@ -356,13 +435,25 @@ export default function CongThucTongHopPage() {
                 </Form.Item>
               );
               if (src === 'CHITIEU') return (
-                <Form.Item name="ID_ChiTieuNguon" label="ID Chỉ tiêu nguồn" rules={[{ required: true }]}>
-                  <InputNumber style={{ width: '100%' }} />
+                <Form.Item name="ID_ChiTieuNguon" label="Chỉ tiêu nguồn" rules={[{ required: true }]}>
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="Chọn chỉ tiêu"
+                    options={chiTieuOptions}
+                    notFoundContent="Loại thiết bị này chưa có chỉ tiêu nào"
+                  />
                 </Form.Item>
               );
               if (src === 'NHOM_CON') return (
-                <Form.Item name="ID_NhomCon" label="ID Nhóm con" rules={[{ required: true }]}>
-                  <InputNumber style={{ width: '100%' }} />
+                <Form.Item name="ID_NhomCon" label="Nhóm con" rules={[{ required: true }]}>
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="Chọn nhóm con"
+                    options={childNhomOptions}
+                    notFoundContent="Nhóm này chưa có nhóm con — tạo tại trang Cây chỉ tiêu"
+                  />
                 </Form.Item>
               );
               return null;

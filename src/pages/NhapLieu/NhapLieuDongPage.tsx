@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button, Card, Col, Collapse, Form, InputNumber, Row, Select,
-  Space, Spin, Tag, Tree, Typography, message,
+  Space, Spin, Tag, Typography, message,
 } from 'antd';
 import { SaveOutlined, CalculatorOutlined } from '@ant-design/icons';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
@@ -11,11 +11,22 @@ import { nhomChiTieuApi } from '../../api/nhomChiTieu';
 import { tinhDiemApi } from '../../api/tinhDiem';
 import type {
   PhieuKiemTra, ChiTieu, ChiTieuInput, NhomChiTieuCay,
-  NhapChiTietDto, KetQuaNhom,
+  NhapChiTietDto, KetQuaNhom, ThangDoDto,
 } from '../../types/entities';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
+
+/** 12 tháng liên tiếp, kết thúc ở tháng của ngày kiểm tra — dùng cho input LF. */
+function last12Months(ngayKiemTra?: string): { Nam: number; Thang: number; Label: string }[] {
+  const base = ngayKiemTra ? new Date(ngayKiemTra) : new Date();
+  const months: { Nam: number; Thang: number; Label: string }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+    months.push({ Nam: d.getFullYear(), Thang: d.getMonth() + 1, Label: `T${d.getMonth() + 1}/${d.getFullYear()}` });
+  }
+  return months;
+}
 
 interface NhomChiTieuData {
   nhom: NhomChiTieuCay;
@@ -32,6 +43,8 @@ export default function NhapLieuDongPage() {
   const [ketQua, setKetQua]         = useState<KetQuaNhom | null>(null);
   const [form]                      = Form.useForm();
 
+  const months = useMemo(() => last12Months(selectedPhieu?.NgayKiemTra), [selectedPhieu?.NgayKiemTra]);
+
   useEffect(() => {
     phieuKiemTraApi.getAll().then(setPhieus).catch(() => {});
   }, []);
@@ -44,9 +57,10 @@ export default function NhapLieuDongPage() {
       // Lấy cây nhóm chỉ tiêu cho loại thiết bị của phiếu
       // (cần ID_LoaiThietBi — lấy từ ThietBi, đơn giản hóa: giả sử có trong phiếu)
       const allNhoms = await nhomChiTieuApi.getActive();
-      // Lọc leaf nodes
+      // Lọc leaf nodes — nếu phiếu chỉ định 1 nhóm cụ thể thì chỉ nhập nhóm đó
       const leafNhoms = allNhoms.filter((n: any) =>
-        n.LoaiNhom === 'LEAF' || n.loaiNhom === 'LEAF'
+        (n.LoaiNhom === 'LEAF' || n.loaiNhom === 'LEAF')
+        && (phieu.ID_NhomChiTieu == null || n.ID_NhomChiTieu === phieu.ID_NhomChiTieu)
       );
 
       const data: NhomChiTieuData[] = [];
@@ -83,7 +97,18 @@ export default function NhapLieuDongPage() {
       for (const nd of nhomData) {
         for (const ct of nd.chiTieus) {
           const inps = nd.inputs[ct.ID_ChiTieu] ?? [];
-          if (inps.length === 0) {
+          if (ct.LoaiTinhDiem === 'LF') {
+            const danhSachThang: ThangDoDto[] = [];
+            months.forEach((m, idx) => {
+              const v = values[`lf_${ct.ID_ChiTieu}_${idx}`];
+              if (v !== undefined && v !== null) {
+                danhSachThang.push({ Nam: m.Nam, Thang: m.Thang, GiaTriDo: v });
+              }
+            });
+            if (danhSachThang.length > 0) {
+              danhSachChiTieu.push({ ID_ChiTieu: ct.ID_ChiTieu, DanhSachThang: danhSachThang });
+            }
+          } else if (inps.length === 0) {
             const val = values[`ct_${ct.ID_ChiTieu}`];
             if (val !== undefined && val !== null) {
               danhSachChiTieu.push({ ID_ChiTieu: ct.ID_ChiTieu, GiaTriNhap_So: val });
@@ -165,7 +190,7 @@ export default function NhapLieuDongPage() {
                 header={
                   <Space>
                     <Text strong>{nd.nhom.TenNhom}</Text>
-                    <Tag color="green">LEAF</Tag>
+                    <Tag color="green">Đo lường</Tag>
                     <Tag>{nd.chiTieus.length} chỉ tiêu</Tag>
                   </Space>
                 }
@@ -182,14 +207,29 @@ export default function NhapLieuDongPage() {
                 <Row gutter={[16, 8]}>
                   {nd.chiTieus.map(ct => {
                     const inps = nd.inputs[ct.ID_ChiTieu] ?? [];
+                    const isLF = ct.LoaiTinhDiem === 'LF';
                     return (
-                      <Col key={ct.ID_ChiTieu} span={inps.length > 1 ? 24 : 12}>
+                      <Col key={ct.ID_ChiTieu} span={isLF || inps.length > 1 ? 24 : 12}>
                         <Card
                           size="small"
                           title={<Text>{ct.TenChiTieu}</Text>}
                           style={{ marginBottom: 8 }}
                         >
-                          {inps.length === 0 ? (
+                          {isLF ? (
+                            <Row gutter={[8, 8]}>
+                              {months.map((m, idx) => (
+                                <Col key={`${m.Nam}-${m.Thang}`} span={4}>
+                                  <Form.Item
+                                    name={`lf_${ct.ID_ChiTieu}_${idx}`}
+                                    label={m.Label}
+                                    style={{ marginBottom: 0 }}
+                                  >
+                                    <InputNumber style={{ width: '100%' }} step={0.01} placeholder="Si/SB" />
+                                  </Form.Item>
+                                </Col>
+                              ))}
+                            </Row>
+                          ) : inps.length === 0 ? (
                             <Form.Item
                               name={`ct_${ct.ID_ChiTieu}`}
                               label="Giá trị đo"

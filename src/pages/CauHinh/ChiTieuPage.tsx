@@ -5,7 +5,7 @@ import {
   Switch, Table, Tag, Tooltip, Typography, message,
 } from 'antd';
 import {
-  DeleteOutlined, EditOutlined, FunctionOutlined, PlusOutlined,
+  CalendarOutlined, DeleteOutlined, EditOutlined, FunctionOutlined, PlusOutlined,
   ReloadOutlined, SettingOutlined, UnorderedListOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -16,8 +16,9 @@ import { nhomChiTieuApi }  from '../../api/nhomChiTieu';
 import { loaiThietBiApi }  from '../../api/loaiThietBi';
 import { chiTieuInputApi } from '../../api/chiTieuInput';
 import { chiTieuRuleApi }  from '../../api/chiTieuRule';
+import { chiTieuPhanLoaiApi } from '../../api/chiTieuPhanLoai';
 import type {
-  ChiTieu, ChiTieuInput, ChiTieuRule,
+  ChiTieu, ChiTieuInput, ChiTieuRule, ChiTieuPhanLoaiNguong,
   Nguong, NhomChiTieu, LoaiThietBi,
 } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
@@ -977,15 +978,191 @@ function RulePanel({
   );
 }
 
+// ─── PhanLoaiPanel — mức phân loại N0..N4 cho chỉ tiêu kiểu LF ──────────────────
+function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuName: string }) {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const [data, setData]       = useState<ChiTieuPhanLoaiNguong[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modalOpen, setModal] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [editing, setEditing] = useState<ChiTieuPhanLoaiNguong | null>(null);
+  const [form]                = Form.useForm();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setData(await chiTieuPhanLoaiApi.getByChiTieu(chiTieuId)); }
+    catch { message.error('Không thể tải mức phân loại'); }
+    finally { setLoading(false); }
+  }, [chiTieuId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    if (editing) {
+      form.setFieldsValue(editing);
+    } else {
+      const thuTuGoiY = data.length;
+      form.setFieldsValue({
+        MaMuc: `N${thuTuGoiY}`, GiaTriTu_BaoGom: true, GiaTriDen_BaoGom: false,
+        TrongSo: 0, ThuTu: thuTuGoiY,
+      });
+    }
+  }, [modalOpen, editing, data.length, form]);
+
+  const openCreate = () => { setEditing(null); setModal(true); };
+  const openEdit   = (r: ChiTieuPhanLoaiNguong) => { setEditing(r); setModal(true); };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      const v = await form.validateFields();
+      if (editing) await chiTieuPhanLoaiApi.update(editing.ID_PhanLoai, v);
+      else         await chiTieuPhanLoaiApi.create({ ID_ChiTieu: chiTieuId, ...v });
+      message.success(editing ? 'Đã cập nhật mức' : 'Đã thêm mức');
+      setModal(false); load();
+    } catch (e: unknown) {
+      if (e instanceof Error && 'errorFields' in (e as object)) return;
+      message.error('Lỗi lưu mức phân loại');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    try { await chiTieuPhanLoaiApi.delete(id); message.success('Đã xóa mức'); load(); }
+    catch { message.error('Lỗi xóa mức'); }
+  };
+
+  const borderColor = isDark ? '#1f2937' : '#e5e7eb';
+
+  const cols: ColumnsType<ChiTieuPhanLoaiNguong> = [
+    { title: 'Mã mức', dataIndex: 'MaMuc', key: 'ma', width: 90,
+      render: v => <Text code style={{ color: '#34d399' }}>{v}</Text> },
+    {
+      title: 'Khoảng giá trị', key: 'khoang',
+      render: (_, r) => {
+        const lo = r.GiaTriTu != null ? String(r.GiaTriTu) : '−∞';
+        const hi = r.GiaTriDen != null ? String(r.GiaTriDen) : '+∞';
+        const lBr = r.GiaTriTu_BaoGom ? '[' : '(';
+        const rBr = r.GiaTriDen_BaoGom ? ']' : ')';
+        return <Text style={{ fontFamily: 'monospace', fontSize: 13 }}>{lBr}{lo} ; {hi}{rBr}</Text>;
+      },
+    },
+    { title: 'Trọng số', dataIndex: 'TrongSo', key: 'trongso', width: 90, align: 'center',
+      render: v => <Tag color="purple" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{v}</Tag> },
+    { title: 'Thứ tự', dataIndex: 'ThuTu', key: 'thutu', width: 80, align: 'center' },
+    { title: '', key: 'actions', width: 76, align: 'center',
+      render: (_, r) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Popconfirm title="Xóa mức này?" okText="Xóa" cancelText="Hủy"
+            okButtonProps={{ danger: true }} onConfirm={() => handleDelete(r.ID_PhanLoai)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ) },
+  ];
+
+  return (
+    <div style={{ padding: '12px 16px', background: isDark ? '#060c14' : '#fdf4ff', borderRadius: 8, border: `1px solid ${isDark ? '#4c1d95' : '#e9d5ff'}`, marginBottom: 12 }}>
+      <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
+        <Text style={{ color: '#a855f7', fontSize: 12, fontWeight: 600 }}>
+          <CalendarOutlined style={{ marginRight: 6 }} />Mức phân loại theo tháng (N0..N4) · {chiTieuName}
+        </Text>
+        <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed"
+          style={{ borderColor: '#a855f7', color: '#a855f7' }}>
+          Thêm mức
+        </Button>
+      </Flex>
+      <Text style={{ color: '#6b7280', fontSize: 11, display: 'block', marginBottom: 10 }}>
+        LF = Σ Trọng số các tháng khớp mức / Số tháng đo được. Kết quả LF sau đó được tra trong bảng "Ngưỡng điểm" bên dưới để ra Điểm Sᵢ cuối cùng.
+      </Text>
+      <Table<ChiTieuPhanLoaiNguong>
+        dataSource={data} columns={cols} rowKey="ID_PhanLoai"
+        loading={loading} size="small" pagination={false}
+        locale={{ emptyText: 'Chưa có mức nào — nhấn "Thêm mức" (VD: N0..N4)' }}
+      />
+      <Modal
+        title={<Space><CalendarOutlined style={{ color: '#a855f7' }} />
+          {editing ? 'Sửa mức phân loại' : 'Thêm mức phân loại'}
+          <Tag color="purple" style={{ fontSize: 11 }}>{chiTieuName}</Tag></Space>}
+        open={modalOpen}
+        onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
+        okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
+        confirmLoading={saving} destroyOnHidden width={520}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="MaMuc" label="Mã mức" rules={[{ required: true }]}
+                tooltip="VD: N0, N1, N2, N3, N4">
+                <Input placeholder="N0" style={{ fontFamily: 'monospace' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="ThuTu" label="Thứ tự kiểm tra" rules={[{ required: true }]}
+                tooltip="Mức nào khớp trước sẽ được dùng — nên xếp theo khoảng tăng dần">
+                <InputNumber style={{ width: '100%' }} min={0} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12} align="bottom">
+            <Col span={14}>
+              <Form.Item name="GiaTriTu" label="Cận dưới" tooltip="Để trống = −∞">
+                <InputNumber style={{ width: '100%' }} step={0.01} placeholder="−∞" />
+              </Form.Item>
+            </Col>
+            <Col span={10}>
+              <Form.Item name="GiaTriTu_BaoGom" label="Bao gồm =" valuePropName="checked">
+                <Switch checkedChildren="≥" unCheckedChildren=">" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12} align="bottom">
+            <Col span={14}>
+              <Form.Item name="GiaTriDen" label="Cận trên" tooltip="Để trống = +∞">
+                <InputNumber style={{ width: '100%' }} step={0.01} placeholder="+∞" />
+              </Form.Item>
+            </Col>
+            <Col span={10}>
+              <Form.Item name="GiaTriDen_BaoGom" label="Bao gồm =" valuePropName="checked">
+                <Switch checkedChildren="≤" unCheckedChildren="<" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Divider style={{ margin: '4px 0 10px', borderColor: borderColor }} />
+          <Form.Item name="TrongSo" label="Trọng số (áp dụng khi 1 tháng rơi vào mức này)"
+            rules={[{ required: true }]} tooltip="VD theo công thức LF=Σ(4-i)·Ni/ΣNi: N0→4, N1→3, N2→2, N3→1, N4→0">
+            <InputNumber style={{ width: '100%' }} step={0.5} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
+
 // ─── Expanded row ─────────────────────────────────────────────────────────────
 function ExpandedRow({ record }: { record: ChiTieu }) {
   const [inputs, setInputs] = useState<ChiTieuInput[]>([]);
   const isRule = record.LoaiTinhDiem === 'Rule';
+  const isLF   = record.LoaiTinhDiem === 'LF';
   const handleInputsChange = useCallback((items: ChiTieuInput[]) => setInputs(items), []);
 
   return (
     <div style={{ padding: '8px 0' }}>
-      {isRule ? (
+      {isLF ? (
+        <>
+          <PhanLoaiPanel
+            chiTieuId={record.ID_ChiTieu}
+            chiTieuName={record.TenChiTieu}
+          />
+          <NguongPanel
+            chiTieuId={record.ID_ChiTieu}
+            chiTieuName={record.TenChiTieu}
+          />
+        </>
+      ) : isRule ? (
         <>
           <InputPanel
             chiTieuId={record.ID_ChiTieu}
@@ -1114,6 +1291,8 @@ export default function ChiTieuPage() {
     { title: 'Kiểu tính điểm', dataIndex: 'LoaiTinhDiem', key: 'loai', width: 120, align: 'center',
       render: v => v === 'Rule'
         ? <Tag color="purple" icon={<FunctionOutlined />} style={{ fontSize: 11 }}>Biểu thức</Tag>
+        : v === 'LF'
+        ? <Tag color="magenta" icon={<CalendarOutlined />} style={{ fontSize: 11 }}>Mang tải (LF)</Tag>
         : <Tag color="blue"   icon={<SettingOutlined  />} style={{ fontSize: 11 }}>Ngưỡng</Tag> },
     { title: 'Trạng thái', dataIndex: 'TrangThai', key: 'status', width: 105,
       render: v => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>,
@@ -1221,10 +1400,11 @@ export default function ChiTieuPage() {
           </Form.Item>
           <Form.Item name="LoaiTinhDiem" label="Kiểu tính điểm"
             rules={[{ required: true }]}
-            tooltip="Ngưỡng: so với khoảng số hoặc biểu thức đơn giản. Biểu thức: quy tắc phức tạp với nhiều biến.">
+            tooltip="Ngưỡng: so với khoảng số hoặc biểu thức đơn giản. Biểu thức: quy tắc phức tạp với nhiều biến. LF: chỉ tiêu đo theo tháng (VD: mang tải MBA), phân loại N0..N4 rồi tra ngưỡng.">
             <Radio.Group buttonStyle="solid">
               <Radio.Button value="Nguong"><SettingOutlined /> Ngưỡng</Radio.Button>
               <Radio.Button value="Rule"><FunctionOutlined /> Biểu thức (Rule)</Radio.Button>
+              <Radio.Button value="LF"><CalendarOutlined /> Mang tải (LF)</Radio.Button>
             </Radio.Group>
           </Form.Item>
           <Divider style={{ borderColor: isDark ? '#1f2937' : '#e5e7eb', margin: '8px 0' }} />
