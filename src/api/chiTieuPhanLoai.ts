@@ -19,15 +19,15 @@ type RawPhanLoai = Partial<ChiTieuPhanLoaiNguong> & {
 };
 
 const toPhanLoai = (r: RawPhanLoai): ChiTieuPhanLoaiNguong => ({
-  ID_PhanLoai:      Number(r.ID_PhanLoai ?? r.iD_PhanLoai ?? 0),
-  ID_ChiTieu:       Number(r.ID_ChiTieu  ?? r.iD_ChiTieu  ?? 0),
-  MaMuc:            r.MaMuc ?? r.maMuc ?? '',
-  GiaTriTu:         r.GiaTriTu ?? r.giaTriTu ?? null,
-  GiaTriDen:        r.GiaTriDen ?? r.giaTriDen ?? null,
-  GiaTriTu_BaoGom:  r.GiaTriTu_BaoGom ?? r.giaTriTu_BaoGom ?? true,
+  ID_PhanLoai:      Number(r.ID_PhanLoai      ?? r.iD_PhanLoai      ?? 0),
+  ID_ChiTieu:       Number(r.ID_ChiTieu       ?? r.iD_ChiTieu       ?? 0),
+  MaMuc:            r.MaMuc            ?? r.maMuc            ?? '',
+  GiaTriTu:         r.GiaTriTu         ?? r.giaTriTu         ?? null,
+  GiaTriDen:        r.GiaTriDen        ?? r.giaTriDen        ?? null,
+  GiaTriTu_BaoGom:  r.GiaTriTu_BaoGom  ?? r.giaTriTu_BaoGom  ?? false,
   GiaTriDen_BaoGom: r.GiaTriDen_BaoGom ?? r.giaTriDen_BaoGom ?? false,
-  TrongSo:          Number(r.TrongSo ?? r.trongSo ?? 0),
-  ThuTu:            Number(r.ThuTu ?? r.thuTu ?? 0),
+  TrongSo:          Number(r.TrongSo   ?? r.trongSo          ?? 0),
+  ThuTu:            Number(r.ThuTu     ?? r.thuTu            ?? 0),
 });
 
 type RawKetQuaThang = Partial<KetQuaPhanLoaiThang> & {
@@ -41,13 +41,13 @@ type RawKetQuaThang = Partial<KetQuaPhanLoaiThang> & {
 };
 
 const toKetQuaThang = (r: RawKetQuaThang): KetQuaPhanLoaiThang => ({
-  IDPhieu:    Number(r.IDPhieu   ?? r.iDPhieu   ?? 0),
+  IDPhieu:    Number(r.IDPhieu    ?? r.iDPhieu    ?? 0),
   ID_ChiTieu: Number(r.ID_ChiTieu ?? r.iD_ChiTieu ?? 0),
-  Nam:        Number(r.Nam ?? r.nam ?? 0),
-  Thang:      Number(r.Thang ?? r.thang ?? 0),
-  GiaTriDo:   Number(r.GiaTriDo ?? r.giaTriDo ?? 0),
-  MaMuc:      r.MaMuc ?? r.maMuc ?? '',
-  TrongSo:    Number(r.TrongSo ?? r.trongSo ?? 0),
+  Nam:        Number(r.Nam        ?? r.nam        ?? 0),
+  Thang:      Number(r.Thang      ?? r.thang      ?? 0),
+  GiaTriDo:   Number(r.GiaTriDo   ?? r.giaTriDo    ?? 0),
+  MaMuc:      r.MaMuc  ?? r.maMuc  ?? '',
+  TrongSo:    Number(r.TrongSo    ?? r.trongSo     ?? 0),
 });
 
 export const chiTieuPhanLoaiApi = {

@@ -52,10 +52,13 @@ export interface ThietBi {
   NamSanXuat?: number;
   TrangThai: number;
   GhiChu?: string;
+  /** Tải định mức (MVA) — dùng làm SB trong công thức LF (Si/SB) của chỉ tiêu "Quá khứ mang tải". */
+  TaiDinhMuc?: number | null;
 }
 export interface CreateThietBiDto {
   ID_Tram: number; ID_LoaiTB: number; TenThietBi: string;
   SoHieu?: string; NhanHieu?: string; NamSanXuat?: number; TrangThai: number; GhiChu?: string;
+  TaiDinhMuc?: number | null;
 }
 export interface UpdateThietBiDto extends CreateThietBiDto {}
 
@@ -108,9 +111,47 @@ export interface ChiTieuRule {
   TenMuc:     string;
   Diem_Si:    number;
   BieuThuc:   string;
+  /** 'BANG_MUC' (mặc định) hoặc 'CONG_THUC' (biểu thức NCalc số gộp nhiều Si, vd Min(Si_DT1,Si_DT2)) */
+  LoaiRule:   string;
 }
-export interface CreateChiTieuRuleDto { ID_ChiTieu: number; TenMuc: string; Diem_Si: number; BieuThuc: string }
+export interface CreateChiTieuRuleDto { ID_ChiTieu: number; TenMuc: string; Diem_Si: number; BieuThuc: string; LoaiRule?: string }
 export interface UpdateChiTieuRuleDto extends CreateChiTieuRuleDto {}
+
+// ─── Formula (Input → giá trị trung gian, không chấm điểm) ─────────────────
+export interface ChiTieuFormula {
+  ID_Formula:  number;
+  ID_ChiTieu:  number;
+  MaKetQua:    string;
+  ThuTu:       number;
+  LoaiFormula: string; // 'NCALC' | 'FUNCTION'
+  BieuThuc?:   string | null;
+  TenFunction?: string | null;
+  TrangThai:   number;
+  MoTa?:       string | null;
+}
+export interface CreateChiTieuFormulaDto {
+  ID_ChiTieu: number; MaKetQua: string; ThuTu: number; LoaiFormula: string;
+  BieuThuc?: string | null; TenFunction?: string | null; TrangThai?: number; MoTa?: string | null;
+}
+export interface UpdateChiTieuFormulaDto extends CreateChiTieuFormulaDto {}
+
+export interface ChiTieuFormulaThamSo {
+  ID_ThamSo:       number;
+  ID_Formula:      number;
+  MaThamSo:        string;
+  NguonGiaTri:     string; // 'INPUT' | 'FORMULA_KETQUA' | 'HANGSO' | 'CHITIEU_SI' | 'THIETBI_THUOCTINH'
+  MaInput?:        string | null;
+  ID_FormulaNguon?: number | null;
+  ID_ChiTieuNguon?: number | null;
+  TenThuocTinhTB?: string | null;
+  GiaTriHangSo?:   number | null;
+}
+export interface CreateChiTieuFormulaThamSoDto {
+  ID_Formula: number; MaThamSo: string; NguonGiaTri: string;
+  MaInput?: string | null; ID_FormulaNguon?: number | null; ID_ChiTieuNguon?: number | null;
+  TenThuocTinhTB?: string | null; GiaTriHangSo?: number | null;
+}
+export interface UpdateChiTieuFormulaThamSoDto extends CreateChiTieuFormulaThamSoDto {}
 
 // ─── Ngưỡng ───────────────────────────────────────────────────────────────
 export interface Nguong {
@@ -122,6 +163,8 @@ export interface Nguong {
   Diem_Si: number;
   CanDuoi_BaoGom: boolean;
   CanTren_BaoGom: boolean;
+  /** Khi Chỉ tiêu có Formula: MaKetQua của Formula mà ngưỡng này áp dụng. undefined/null = áp trực tiếp lên giá trị nhập. */
+  MaKetQua?: string | null;
   /** Biểu thức NCalc (AND/OR). Nếu có, ưu tiên hơn CanDuoi/CanTren. */
   BieuThuc_Logic?: string | null;
 }
@@ -133,6 +176,7 @@ export interface CreateNguongDto {
   CanDuoi_BaoGom: boolean;
   CanTren_BaoGom: boolean;
   BieuThuc_Logic?: string | null;
+  MaKetQua?: string | null;
 }
 export interface UpdateNguongDto extends CreateNguongDto {}
 
@@ -158,7 +202,8 @@ export interface CreatePhieuKiemTraDto {
   ID_ThietBi: number;
   /** Nhóm chỉ tiêu cần đo. undefined/null = kiểm tra toàn diện. */
   ID_NhomChiTieu?: number;
-  NgayKiemTra: string;
+  /** undefined/null = không chọn, backend tự lấy ngày giờ hiện tại. */
+  NgayKiemTra?: string;
   NguoiKiemTra?: string;
   GhiChuChung?: string;
   ChiTiets: CreateChiTietKiemTraDto[];
@@ -237,6 +282,8 @@ export interface CongThucBien {
   ID_NhomCon?: number | null;
   TenNhomCon?: string | null;
   GiaTriHangSo?: number | null;
+  /** Trọng số Wi — chỉ dùng khi CongThucTongHop.LoaiCongThuc là WEIGHTED_AVG/WEIGHTED_AVG_SCALED. */
+  TrongSo?: number | null;
   MoTa?: string | null;
 }
 
@@ -280,6 +327,7 @@ export interface CreateCongThucBienDto {
   ID_ChiTieuNguon?: number | null;
   ID_NhomCon?: number | null;
   GiaTriHangSo?: number | null;
+  TrongSo?: number | null;
   MoTa?: string | null;
 }
 
@@ -289,6 +337,7 @@ export interface UpdateCongThucBienDto {
   ID_ChiTieuNguon?: number | null;
   ID_NhomCon?: number | null;
   GiaTriHangSo?: number | null;
+  TrongSo?: number | null;
   MoTa?: string | null;
 }
 
@@ -310,19 +359,11 @@ export interface TinhDiemCayResult {
 }
 
 // ─── Nhập liệu batch ─────────────────────────────────────────────────────────
-export interface ThangDoDto {
-  Nam: number;
-  Thang: number;
-  GiaTriDo: number;
-}
-
 export interface NhapChiTietDto {
   ID_ChiTieu: number;
   GiaTriNhap_So?: number | null;
   GiaTriNhap_Chu?: string | null;
   DanhSachInput?: Record<string, number>;
-  /** Dùng khi chỉ tiêu có LoaiTinhDiem='LF' (Load Factor) — giá trị đo theo từng tháng. */
-  DanhSachThang?: ThangDoDto[];
   GhiChu?: string | null;
 }
 
@@ -369,4 +410,8 @@ export interface NhapPhieuRequest {
 export interface NhapPhieuResponse {
   KetQuaNhap: ChiTietKiemTra[];
   KetQuaTinhDiem?: KetQuaNhom | null;
+  /** CSSK tổng vừa tính lại cho phiếu — null nếu cây chưa đủ dữ liệu/công thức để tính. */
+  TongDiem_Soqt?: number | null;
+  /** Cảnh báo cấu hình (VD nhiều hơn 1 nhóm gốc) khi không tự xác định được nhóm CSSK. */
+  CanhBaoTongDiem?: string | null;
 }

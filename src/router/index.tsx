@@ -8,9 +8,10 @@ import DashboardPage from '../pages/DashboardPage';
 import KhuVucPage    from '../pages/QuanLy/KhuVucPage';
 import TramDienPage  from '../pages/QuanLy/TramDienPage';
 import ThietBiPage   from '../pages/QuanLy/ThietBiPage';
+import CayThietBiPage from '../pages/QuanLy/CayThietBiPage';
+import LoaiThietBiPage from '../pages/CauHinh/LoaiThietBiPage';
 
 // Cấu hình CBM
-import LoaiThietBiPage    from '../pages/CauHinh/LoaiThietBiPage';
 import NhomChiTieuPage    from '../pages/CauHinh/NhomChiTieuPage';
 import ChiTieuPage        from '../pages/CauHinh/ChiTieuPage';
 import CayChiTieuPage     from '../pages/CauHinh/CayChiTieuPage';
@@ -44,9 +45,10 @@ const router = createBrowserRouter([
       { path: 'quan-ly/khu-vuc',  element: <KhuVucPage /> },
       { path: 'quan-ly/tram-dien', element: <TramDienPage /> },
       { path: 'quan-ly/thiet-bi', element: <ThietBiPage /> },
+      { path: 'quan-ly/cay-thiet-bi', element: <CayThietBiPage /> },
+      { path: 'quan-ly/loai-thiet-bi', element: <LoaiThietBiPage /> },
 
       // ── Cấu hình CBM ──────────────────────────────────────────────────────
-      { path: 'cau-hinh/loai-thiet-bi',    element: <LoaiThietBiPage /> },
       { path: 'cau-hinh/nhom-chi-tieu',    element: <NhomChiTieuPage /> },
       { path: 'cau-hinh/chi-tieu',         element: <ChiTieuPage /> },
       { path: 'cau-hinh/cay-chi-tieu',     element: <CayChiTieuPage /> },

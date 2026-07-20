@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Typography, Flex, Form, InputNumber, Select, Button,
-  Steps, Divider, Tag, Alert, Space, message, Spin, Input, Collapse,
+  Steps, Divider, Tag, Alert, Space, message, Spin, Input, Collapse, DatePicker,
 } from 'antd';
+import type { Dayjs } from 'dayjs';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { thietBiApi }      from '../../api/thietBi';
 import { tramDienApi }     from '../../api/tramDien';
@@ -108,9 +109,10 @@ export default function TaoPhieuKiemTraPage() {
   // Tập ID chỉ tiêu có biến được tự trích từ BieuThuc_Logic (không có DB ChiTieuInput)
   const [syntheticCtIds, setSyntheticCtIds] = useState<Set<number>>(new Set());
 
-  const [ghiChu, setGhiChu]   = useState('');
-  const [nguoiKT, setNguoiKT] = useState('Nguyễn Văn A');
-  const [saving, setSaving]   = useState(false);
+  const [ghiChu, setGhiChu]           = useState('');
+  const [nguoiKT, setNguoiKT]         = useState('Nguyễn Văn A');
+  const [ngayKiemTra, setNgayKiemTra] = useState<Dayjs | null>(null);
+  const [saving, setSaving]           = useState(false);
 
   const loadInit = useCallback(async () => {
     try {
@@ -264,7 +266,7 @@ export default function TaoPhieuKiemTraPage() {
       await api.post('/api/PhieuKiemTra', {
         ID_ThietBi:          selectedTB.ID_ThietBi,
         ID_NhomChiTieu:      selectedNhomId === CHON_TAT_CA ? null : selectedNhomId,
-        NgayKiemTra:         new Date().toISOString(),
+        NgayKiemTra:         ngayKiemTra ? ngayKiemTra.toISOString() : undefined,
         NguoiKiemTra:        nguoiKT,
         GhiChuChung:         ghiChu,
         ChiTiets:            chiTiets,
@@ -352,6 +354,17 @@ export default function TaoPhieuKiemTraPage() {
                   </Form.Item>
                 )}
                 <Divider style={{ borderColor: panelBorder }} />
+                <Form.Item label={<Text style={{ color: textColor }}>Ngày kiểm tra</Text>}
+                  extra={<Text style={{ color: '#4b5563', fontSize: 11 }}>Để trống = lấy ngày giờ hiện tại lúc lưu phiếu</Text>}>
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    value={ngayKiemTra}
+                    onChange={setNgayKiemTra}
+                    format="DD/MM/YYYY"
+                    placeholder="Chọn ngày kiểm tra..."
+                    allowClear
+                  />
+                </Form.Item>
                 <Form.Item label={<Text style={{ color: textColor }}>Kỹ thuật viên</Text>}>
                   <Input value={nguoiKT} onChange={e => setNguoiKT(e.target.value)} placeholder="Họ tên kỹ thuật viên" />
                 </Form.Item>
@@ -383,6 +396,7 @@ export default function TaoPhieuKiemTraPage() {
                         {nhom.chiTieus.map(ct => {
                           const inputs = chiTieuInputs[ct.ID_ChiTieu];
                           const isRule = !!(inputs && inputs.length > 0);
+                          const isLF   = ct.LoaiTinhDiem === 'LF';
                           const rules  = chiTieuRules[ct.ID_ChiTieu] ?? [];
 
                           /* ── Chỉ tiêu loại Biểu thức (Rule) ── */
@@ -541,9 +555,13 @@ export default function TaoPhieuKiemTraPage() {
                             );
                           }
 
-                          /* ── Chỉ tiêu loại Ngưỡng (Nguong) — giá trị đơn ── */
+                          /* ── Chỉ tiêu loại Ngưỡng (Nguong) — giá trị đơn ──
+                             LƯU Ý: chỉ tiêu loại LF (vd "Mang tải") KHÔNG được xem điểm dự kiến ở đây —
+                             giá trị nhập chỉ là 1 tháng, điểm thật phụ thuộc gộp 12 tháng liên tục liền kề
+                             (xem ChiTieuScoringService.TinhDiemLFAsync), server tính khi lưu phiếu. So trực
+                             tiếp giá trị vừa nhập với bảng ngưỡng ở đây sẽ cho điểm sai. */
                           const val          = values[ct.ID_ChiTieu];
-                          const previewScore = val !== undefined ? calcNguongScore(val, ct.nguongs) : null;
+                          const previewScore = (!isLF && val !== undefined) ? calcNguongScore(val, ct.nguongs) : null;
 
                           // Màu border thay đổi theo điểm dự kiến
                           let activeBorder = panelBorder;
@@ -586,7 +604,7 @@ export default function TaoPhieuKiemTraPage() {
                                       : Object.fromEntries(Object.entries(prev).filter(([k]) => k !== String(ct.ID_ChiTieu)))
                                     )}
                                     step={0.01}
-                                    placeholder="Nhập giá trị đo..."
+                                    placeholder={isLF ? 'Nhập tải đỉnh tháng này (MVA)...' : 'Nhập giá trị đo...'}
                                   />
                                   {previewScore !== null && (
                                     <Tag
@@ -595,6 +613,9 @@ export default function TaoPhieuKiemTraPage() {
                                     >
                                       {previewScore}/10
                                     </Tag>
+                                  )}
+                                  {isLF && val !== undefined && (
+                                    <Tag style={{ margin: 0, fontSize: 11 }}>Điểm tính khi lưu (gộp 12 tháng)</Tag>
                                   )}
                                 </Flex>
 
@@ -608,7 +629,9 @@ export default function TaoPhieuKiemTraPage() {
                                       key: 'nguong',
                                       label: (
                                         <Text style={{ color: textColor, fontSize: 11 }}>
-                                          Bảng ngưỡng tham khảo — {ct.nguongs.length} mức
+                                          {isLF
+                                            ? `Bảng tra điểm theo LF (không áp dụng trực tiếp cho giá trị vừa nhập) — ${ct.nguongs.length} mức`
+                                            : `Bảng ngưỡng tham khảo — ${ct.nguongs.length} mức`}
                                         </Text>
                                       ),
                                       children: (

@@ -17,6 +17,7 @@ type CongThucBienRaw = Partial<CongThucBien> & {
   iD_NhomCon?: number | null;
   tenNhomCon?: string | null;
   giaTriHangSo?: number | null;
+  trongSo?: number | null;
   moTa?: string | null;
 };
 
@@ -30,6 +31,7 @@ const toCongThucBien = (r: CongThucBienRaw): CongThucBien => ({
   ID_NhomCon:      r.ID_NhomCon ?? r.iD_NhomCon ?? null,
   TenNhomCon:      r.TenNhomCon ?? r.tenNhomCon ?? null,
   GiaTriHangSo:    r.GiaTriHangSo ?? r.giaTriHangSo ?? null,
+  TrongSo:         r.TrongSo ?? r.trongSo ?? null,
   MoTa:            r.MoTa ?? r.moTa ?? null,
 });
 

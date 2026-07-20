@@ -111,7 +111,7 @@ export default function CongThucTongHopPage() {
     try {
       const [cayData, cts] = await Promise.all([
         nhomChiTieuApi.getCay(id),
-        chiTieuApi.getAll({ idLoai: id, pageSize: 1000 }),
+        chiTieuApi.getAll({ idLoai: id }),
       ]);
       setCay(cayData);
       setChiTieus(cts);
@@ -264,6 +264,13 @@ export default function CongThucTongHopPage() {
         return <Text>{r.TenNhomCon ?? r.ID_NhomCon}</Text>;
       },
     },
+    {
+      title: 'Trọng số Wᵢ',
+      dataIndex: 'TrongSo',
+      width: 100,
+      align: 'center',
+      render: (v?: number | null) => v != null ? <Tag color="purple">{v}</Tag> : <Text type="secondary">—</Text>,
+    },
     { title: 'Ghi chú', dataIndex: 'MoTa' },
     {
       title: '',
@@ -370,14 +377,14 @@ export default function CongThucTongHopPage() {
             name="BieuThuc"
             label="Biểu thức NCalc"
             rules={[{ required: true, message: 'Nhập biểu thức' }]}
-            extra="Ví dụ: 0.6 * TS1 + 0.4 * TS2"
+            extra="Ví dụ: 0.6 * TS1 + 0.4 * TS2. LƯU Ý: nếu Loại công thức bên dưới là 'Trung bình trọng số' (WEIGHTED_AVG/WEIGHTED_AVG_SCALED), engine tự tính từ Trọng số Wᵢ khai ở từng biến và BỎ QUA nội dung ô này — chỉ cần nhập 1 công thức tham khảo để tự đọc lại sau."
           >
             <TextArea rows={4} style={{ fontFamily: 'monospace' }} />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="LoaiCongThuc" label="Loại công thức"
-                tooltip="Chỉ để hiển thị/ghi chú — biểu thức phía trên mới là thứ thực sự được tính.">
+                tooltip="'Trung bình trọng số' (2 loại WEIGHTED_AVG*): engine TỰ tính ΣSiWi/ΣWi từ Trọng số Wᵢ khai ở từng biến, bỏ qua ô Biểu thức. Các loại khác: biểu thức phía trên mới là thứ thực sự được tính.">
                 <Select options={LOAI_CONG_THUC_OPTIONS} />
               </Form.Item>
             </Col>
@@ -458,6 +465,15 @@ export default function CongThucTongHopPage() {
               );
               return null;
             }}
+          </Form.Item>
+          <Form.Item name="TrongSo" label="Trọng số Wᵢ"
+            tooltip={
+              currentCongThuc?.LoaiCongThuc === 'WEIGHTED_AVG' || currentCongThuc?.LoaiCongThuc === 'WEIGHTED_AVG_SCALED'
+                ? "Công thức nhóm này kiểu \"Trung bình trọng số\" — engine TỰ tính ΣSiWi/ΣWi (hoặc /(3·ΣWi)×10) từ trọng số khai ở đây, KHÔNG cần tự viết hệ số vào ô Biểu thức NCalc phía trên."
+                : "Chỉ có tác dụng khi Loại công thức của nhóm là \"Trung bình trọng số\" (WEIGHTED_AVG/WEIGHTED_AVG_SCALED). Với loại khác (Biểu thức tự do...), để trống — hệ số phải viết trực tiếp trong Biểu thức NCalc."
+            }
+          >
+            <InputNumber style={{ width: '100%' }} step={0.1} placeholder="Để trống nếu công thức không phải WEIGHTED_AVG(_SCALED)" />
           </Form.Item>
           <Form.Item name="MoTa" label="Mô tả">
             <Input />

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
 import type { PhieuKiemTra } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
+import { getCapDoSucKhoe } from '../../theme/capDoSucKhoe';
 
 const { Title, Text } = Typography;
 
@@ -78,7 +79,7 @@ export default function KetQuaPage() {
             percent={v * 10}
             size="small"
             showInfo={false}
-            strokeColor={v >= 8 ? '#4ade80' : v >= 6 ? '#60a5fa' : v >= 4 ? '#fbbf24' : v >= 2 ? '#f97316' : '#f87171'}
+            strokeColor={getCapDoSucKhoe(v, isDark).color}
             trailColor={isDark ? '#1f2937' : '#e5e7eb'}
             style={{ width: 80 }}
           />
@@ -86,7 +87,7 @@ export default function KetQuaPage() {
             {v.toFixed(1)}
           </Text>
         </Flex>
-      ) : <Text style={{ color: '#4b5563' }}>Chưa tính</Text>,
+      ) : <Text style={{ color: isDark ? '#6b7280' : '#9ca3af' }}>Chưa tính</Text>,
     },
   ];
 
@@ -113,7 +114,7 @@ export default function KetQuaPage() {
       >
         {phieus.length === 0 && !loading ? (
           <Flex vertical align="center" gap={12} style={{ padding: '40px 0' }}>
-            <Text style={{ color: '#4b5563', fontSize: 15 }}>Chưa có phiếu kiểm tra nào</Text>
+            <Text style={{ color: isDark ? '#6b7280' : '#9ca3af', fontSize: 15 }}>Chưa có phiếu kiểm tra nào</Text>
             <Button type="primary" onClick={() => navigate('/nhap-lieu/phieu-kiem-tra')}>
               Tạo phiếu kiểm tra đầu tiên →
             </Button>

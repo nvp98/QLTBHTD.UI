@@ -169,6 +169,11 @@ export default function ThietBiPage() {
       render: v => <Text style={{ color: '#9ca3af', fontSize: 12 }}>{v ?? '—'}</Text>,
     },
     {
+      title: 'Tải định mức', dataIndex: 'TaiDinhMuc', key: 'taiDinhMuc', width: 110, align: 'right',
+      render: v => <Text style={{ color: '#9ca3af', fontSize: 12 }}>{v != null ? `${v} MVA` : '—'}</Text>,
+      sorter: (a, b) => (a.TaiDinhMuc ?? 0) - (b.TaiDinhMuc ?? 0),
+    },
+    {
       title: 'Trạng thái', dataIndex: 'TrangThai', key: 'status', width: 130,
       render: trangThaiTag,
       filters: [{ text: 'Hoạt động', value: 1 }, { text: 'Bảo trì', value: 2 }, { text: 'Ngừng', value: 0 }],
@@ -297,11 +302,15 @@ export default function ThietBiPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="TrangThai" label="Trạng thái" rules={[{ required: true }]}>
-                <Select options={TRANG_THAI_OPTIONS} />
+              <Form.Item name="TaiDinhMuc" label="Tải định mức (MVA)"
+                tooltip="Dùng làm SB trong công thức LF (Si/SB) của chỉ tiêu 'Quá khứ mang tải' — chỉ áp dụng cho MBA.">
+                <InputNumber style={{ width: '100%' }} min={0} step={0.1} precision={2} placeholder="VD: 25" />
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="TrangThai" label="Trạng thái" rules={[{ required: true }]}>
+            <Select options={TRANG_THAI_OPTIONS} />
+          </Form.Item>
           <Form.Item name="GhiChu" label="Ghi chú">
             <Input.TextArea rows={2} placeholder="Ghi chú thêm về thiết bị..." />
           </Form.Item>
@@ -330,6 +339,7 @@ export default function ThietBiPage() {
               ['Trạm điện',     detail.TenTram ?? tramName(detail.ID_Tram)],
               ['Nhãn hiệu',     detail.NhanHieu ?? '—'],
               ['Năm sản xuất',  detail.NamSanXuat ?? '—'],
+              ['Tải định mức',  detail.TaiDinhMuc != null ? `${detail.TaiDinhMuc} MVA` : '—'],
               ['Trạng thái',    trangThaiTag(detail.TrangThai)],
               ['Ghi chú',       detail.GhiChu ?? '—'],
             ].map(([label, value]) => (

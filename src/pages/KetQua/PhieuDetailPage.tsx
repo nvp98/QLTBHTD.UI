@@ -4,10 +4,12 @@ import {
   Card, Row, Col, Typography, Flex, Tag, Button, Spin, Progress,
   Table, Divider, message,
 } from 'antd';
-import { ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
+import { tinhDiemApi } from '../../api/tinhDiem';
 import type { PhieuKiemTraDetailDto, ChiTietKiemTra } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
+import { getCapDoSucKhoe, capDoKeyOf } from '../../theme/capDoSucKhoe';
 
 const { Title, Text } = Typography;
 
@@ -18,19 +20,13 @@ const fmtDate = (iso?: string) => {
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-function rankInfo(hi: number) {
-  if (hi >= 8) return { rank: 'A', color: '#4ade80', label: 'Rất tốt',    bg: '#052e16', border: '#166534' };
-  if (hi >= 6) return { rank: 'B', color: '#60a5fa', label: 'Tốt',        bg: '#0c1a3a', border: '#1d4ed8' };
-  if (hi >= 4) return { rank: 'C', color: '#fbbf24', label: 'Trung bình', bg: '#1c1400', border: '#b45309' };
-  if (hi >= 2) return { rank: 'D', color: '#f97316', label: 'Kém',        bg: '#1a0a00', border: '#9a3412' };
-  return            { rank: 'E', color: '#f87171', label: 'Rất kém',   bg: '#1f0000', border: '#7f1d1d' };
-}
+const RANK_LETTER: Record<ReturnType<typeof capDoKeyOf>, string> = {
+  tot: 'A', kha: 'B', trungBinh: 'C', canhBao: 'D', nguyHiem: 'E',
+};
 
-function scoreColor(s: number): string {
-  if (s >= 8) return '#4ade80';
-  if (s >= 6) return '#60a5fa';
-  if (s >= 4) return '#fbbf24';
-  return '#f87171';
+function rankInfo(hi: number, isDark: boolean) {
+  const info = getCapDoSucKhoe(hi, isDark);
+  return { rank: RANK_LETTER[capDoKeyOf(hi)], color: info.color, label: info.label, bg: info.bg, border: info.border };
 }
 
 export default function PhieuDetailPage() {
@@ -40,6 +36,7 @@ export default function PhieuDetailPage() {
   const isDark = mode === 'dark';
   const [phieu, setPhieu] = useState<PhieuKiemTraDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recomputing, setRecomputing] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -56,6 +53,24 @@ export default function PhieuDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleRecompute = async () => {
+    if (!id) return;
+    setRecomputing(true);
+    try {
+      const res = await tinhDiemApi.tinhTongDiem(Number(id));
+      if (res.TongDiem_Soqt != null) {
+        message.success(`Đã tính lại CSSK: ${res.TongDiem_Soqt.toFixed(2)}/10`);
+      } else {
+        message.warning('Chưa tính được — cây chỉ tiêu của loại thiết bị này còn thiếu công thức/dữ liệu.');
+      }
+      load();
+    } catch (e: any) {
+      message.error(e?.response?.data?.Error ?? e?.message ?? 'Lỗi khi tính lại CSSK');
+    } finally {
+      setRecomputing(false);
+    }
+  };
+
   const columns = [
     {
       title: 'Chỉ tiêu',
@@ -69,8 +84,8 @@ export default function PhieuDetailPage() {
       key: 'gtso',
       width: 120,
       render: (v?: number) => (
-        <Text style={{ color: '#9ca3af', fontFamily: 'monospace' }}>
-          {v !== undefined && v !== null ? v : <span style={{ color: '#4b5563' }}>—</span>}
+        <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontFamily: 'monospace' }}>
+          {v !== undefined && v !== null ? v : <span style={{ color: isDark ? '#4b5563' : '#9ca3af' }}>—</span>}
         </Text>
       ),
     },
@@ -80,7 +95,7 @@ export default function PhieuDetailPage() {
       key: 'gtchu',
       width: 140,
       render: (v?: string) => (
-        <Text style={{ color: '#9ca3af' }}>{v || <span style={{ color: '#4b5563' }}>—</span>}</Text>
+        <Text style={{ color: isDark ? '#9ca3af' : '#4b5563' }}>{v || <span style={{ color: isDark ? '#4b5563' : '#9ca3af' }}>—</span>}</Text>
       ),
     },
     {
@@ -90,18 +105,19 @@ export default function PhieuDetailPage() {
       width: 160,
       render: (v?: number) => {
         if (v === undefined || v === null)
-          return <Text style={{ color: '#4b5563' }}>Chưa chấm</Text>;
+          return <Text style={{ color: isDark ? '#4b5563' : '#9ca3af' }}>Chưa chấm</Text>;
+        const c = getCapDoSucKhoe(v, isDark).color;
         return (
           <Flex align="center" gap={8}>
             <Progress
               percent={v * 10}
               size="small"
               showInfo={false}
-              strokeColor={scoreColor(v)}
+              strokeColor={c}
               trailColor={isDark ? '#1f2937' : '#e5e7eb'}
               style={{ width: 70 }}
             />
-            <Text style={{ color: scoreColor(v), fontFamily: 'monospace', fontSize: 12 }}>
+            <Text style={{ color: c, fontFamily: 'monospace', fontSize: 12 }}>
               {v}/10
             </Text>
           </Flex>
@@ -113,7 +129,7 @@ export default function PhieuDetailPage() {
       dataIndex: 'GhiChu',
       key: 'ghichu',
       render: (v?: string) => (
-        <Text style={{ color: '#6b7280', fontSize: 12 }}>{v || '—'}</Text>
+        <Text style={{ color: isDark ? '#9ca3af' : '#6b7280', fontSize: 12 }}>{v || '—'}</Text>
       ),
     },
   ];
@@ -137,7 +153,7 @@ export default function PhieuDetailPage() {
   }
 
   const ri = phieu.TongDiem_Soqt !== undefined && phieu.TongDiem_Soqt !== null
-    ? rankInfo(phieu.TongDiem_Soqt)
+    ? rankInfo(phieu.TongDiem_Soqt, isDark)
     : null;
 
   return (
@@ -198,6 +214,16 @@ export default function PhieuDetailPage() {
             ) : (
               <Text style={{ color: '#4b5563' }}>Chưa tính điểm</Text>
             )}
+
+            <Button
+              icon={<ReloadOutlined />}
+              loading={recomputing}
+              onClick={handleRecompute}
+              block
+              style={{ marginTop: 12 }}
+            >
+              Tính lại CSSK
+            </Button>
           </Card>
         </Col>
 

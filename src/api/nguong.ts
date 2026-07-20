@@ -13,6 +13,7 @@ type NguongApiRaw = Partial<Nguong> & {
   canDuoi_BaoGom?: boolean;
   canTren_BaoGom?: boolean;
   bieuThuc_Logic?: string | null;
+  maKetQua?: string | null;
 };
 
 const toNguong = (raw: NguongApiRaw): Nguong => ({
@@ -25,6 +26,7 @@ const toNguong = (raw: NguongApiRaw): Nguong => ({
   CanDuoi_BaoGom: raw.CanDuoi_BaoGom ?? raw.canDuoi_BaoGom ?? true,
   CanTren_BaoGom: raw.CanTren_BaoGom ?? raw.canTren_BaoGom ?? false,
   BieuThuc_Logic: raw.BieuThuc_Logic ?? raw.bieuThuc_Logic ?? null,
+  MaKetQua:       raw.MaKetQua ?? raw.maKetQua ?? null,
 });
 
 type PagedRaw = PagedResult<NguongApiRaw>;

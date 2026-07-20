@@ -20,7 +20,29 @@ type PhieuKiemTraRaw = Partial<PhieuKiemTra> & {
   ghiChuChung?: string;
 };
 
-type PhieuKiemTraDetailRaw = PhieuKiemTraRaw & { chiTiets?: ChiTietKiemTra[] };
+type ChiTietKiemTraRaw = Partial<ChiTietKiemTra> & {
+  iD_ChiTiet?: number;
+  idPhieu?: number;
+  iD_ChiTieu?: number;
+  tenChiTieu?: string;
+  giaTriNhap_So?: number;
+  giaTriNhap_Chu?: string;
+  diem_Si_DatDuoc?: number;
+  ghiChu?: string;
+};
+
+type PhieuKiemTraDetailRaw = PhieuKiemTraRaw & { chiTiets?: ChiTietKiemTraRaw[] };
+
+const toChiTietKiemTra = (raw: ChiTietKiemTraRaw): ChiTietKiemTra => ({
+  ID_ChiTiet:      Number(raw.ID_ChiTiet ?? raw.iD_ChiTiet ?? 0),
+  IDPhieu:         Number(raw.IDPhieu    ?? raw.idPhieu    ?? 0),
+  ID_ChiTieu:      Number(raw.ID_ChiTieu ?? raw.iD_ChiTieu ?? 0),
+  TenChiTieu:      raw.TenChiTieu      ?? raw.tenChiTieu,
+  GiaTriNhap_So:   raw.GiaTriNhap_So   ?? raw.giaTriNhap_So,
+  GiaTriNhap_Chu:  raw.GiaTriNhap_Chu  ?? raw.giaTriNhap_Chu,
+  Diem_Si_DatDuoc: raw.Diem_Si_DatDuoc ?? raw.diem_Si_DatDuoc,
+  GhiChu:          raw.GhiChu          ?? raw.ghiChu,
+});
 
 const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
   ID_Phieu:        Number(raw.ID_Phieu        ?? raw.iD_Phieu        ?? 0),
@@ -39,7 +61,7 @@ const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
 
 const toPhieuDetail = (raw: PhieuKiemTraDetailRaw): PhieuKiemTraDetailDto => ({
   ...toPhieu(raw),
-  ChiTiets: raw.chiTiets ?? [],
+  ChiTiets: (raw.chiTiets ?? []).map(toChiTietKiemTra),
 });
 
 type PagedRaw = PagedResult<PhieuKiemTraRaw>;

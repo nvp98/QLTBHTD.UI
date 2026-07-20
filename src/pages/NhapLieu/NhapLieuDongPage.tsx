@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Button, Card, Col, Collapse, Form, InputNumber, Row, Select,
   Space, Spin, Tag, Typography, message,
@@ -11,22 +11,11 @@ import { nhomChiTieuApi } from '../../api/nhomChiTieu';
 import { tinhDiemApi } from '../../api/tinhDiem';
 import type {
   PhieuKiemTra, ChiTieu, ChiTieuInput, NhomChiTieuCay,
-  NhapChiTietDto, KetQuaNhom, ThangDoDto,
+  NhapChiTietDto, KetQuaNhom,
 } from '../../types/entities';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
-
-/** 12 tháng liên tiếp, kết thúc ở tháng của ngày kiểm tra — dùng cho input LF. */
-function last12Months(ngayKiemTra?: string): { Nam: number; Thang: number; Label: string }[] {
-  const base = ngayKiemTra ? new Date(ngayKiemTra) : new Date();
-  const months: { Nam: number; Thang: number; Label: string }[] = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    months.push({ Nam: d.getFullYear(), Thang: d.getMonth() + 1, Label: `T${d.getMonth() + 1}/${d.getFullYear()}` });
-  }
-  return months;
-}
 
 interface NhomChiTieuData {
   nhom: NhomChiTieuCay;
@@ -41,9 +30,8 @@ export default function NhapLieuDongPage() {
   const [loading, setLoading]       = useState(false);
   const [saving, setSaving]         = useState(false);
   const [ketQua, setKetQua]         = useState<KetQuaNhom | null>(null);
+  const [tongDiem, setTongDiem]     = useState<{ diem: number | null; canhBao: string | null } | null>(null);
   const [form]                      = Form.useForm();
-
-  const months = useMemo(() => last12Months(selectedPhieu?.NgayKiemTra), [selectedPhieu?.NgayKiemTra]);
 
   useEffect(() => {
     phieuKiemTraApi.getAll().then(setPhieus).catch(() => {});
@@ -52,6 +40,7 @@ export default function NhapLieuDongPage() {
   const loadNhomData = useCallback(async (phieu: PhieuKiemTra) => {
     setLoading(true);
     setKetQua(null);
+    setTongDiem(null);
     form.resetFields();
     try {
       // Lấy cây nhóm chỉ tiêu cho loại thiết bị của phiếu
@@ -97,18 +86,7 @@ export default function NhapLieuDongPage() {
       for (const nd of nhomData) {
         for (const ct of nd.chiTieus) {
           const inps = nd.inputs[ct.ID_ChiTieu] ?? [];
-          if (ct.LoaiTinhDiem === 'LF') {
-            const danhSachThang: ThangDoDto[] = [];
-            months.forEach((m, idx) => {
-              const v = values[`lf_${ct.ID_ChiTieu}_${idx}`];
-              if (v !== undefined && v !== null) {
-                danhSachThang.push({ Nam: m.Nam, Thang: m.Thang, GiaTriDo: v });
-              }
-            });
-            if (danhSachThang.length > 0) {
-              danhSachChiTieu.push({ ID_ChiTieu: ct.ID_ChiTieu, DanhSachThang: danhSachThang });
-            }
-          } else if (inps.length === 0) {
+          if (inps.length === 0) {
             const val = values[`ct_${ct.ID_ChiTieu}`];
             if (val !== undefined && val !== null) {
               danhSachChiTieu.push({ ID_ChiTieu: ct.ID_ChiTieu, GiaTriNhap_So: val });
@@ -133,7 +111,15 @@ export default function NhapLieuDongPage() {
         TuDongTinhDiem: false,
       });
 
-      message.success(`Đã lưu ${res.KetQuaNhap.length} chỉ tiêu. Điểm Si đã được tính.`);
+      setTongDiem({ diem: res.TongDiem_Soqt ?? null, canhBao: res.CanhBaoTongDiem ?? null });
+
+      if (res.CanhBaoTongDiem) {
+        message.warning(res.CanhBaoTongDiem);
+      } else if (res.TongDiem_Soqt != null) {
+        message.success(`Đã lưu ${res.KetQuaNhap.length} chỉ tiêu. CSSK phiếu: ${res.TongDiem_Soqt.toFixed(2)}/10.`);
+      } else {
+        message.success(`Đã lưu ${res.KetQuaNhap.length} chỉ tiêu. Điểm Si đã được tính (CSSK chưa tính được — cây chưa đủ dữ liệu/công thức).`);
+      }
     } catch (e: any) {
       message.error(e?.response?.data?.Error ?? 'Lỗi khi lưu dữ liệu');
     } finally {
@@ -207,29 +193,14 @@ export default function NhapLieuDongPage() {
                 <Row gutter={[16, 8]}>
                   {nd.chiTieus.map(ct => {
                     const inps = nd.inputs[ct.ID_ChiTieu] ?? [];
-                    const isLF = ct.LoaiTinhDiem === 'LF';
                     return (
-                      <Col key={ct.ID_ChiTieu} span={isLF || inps.length > 1 ? 24 : 12}>
+                      <Col key={ct.ID_ChiTieu} span={inps.length > 1 ? 24 : 12}>
                         <Card
                           size="small"
                           title={<Text>{ct.TenChiTieu}</Text>}
                           style={{ marginBottom: 8 }}
                         >
-                          {isLF ? (
-                            <Row gutter={[8, 8]}>
-                              {months.map((m, idx) => (
-                                <Col key={`${m.Nam}-${m.Thang}`} span={4}>
-                                  <Form.Item
-                                    name={`lf_${ct.ID_ChiTieu}_${idx}`}
-                                    label={m.Label}
-                                    style={{ marginBottom: 0 }}
-                                  >
-                                    <InputNumber style={{ width: '100%' }} step={0.01} placeholder="Si/SB" />
-                                  </Form.Item>
-                                </Col>
-                              ))}
-                            </Row>
-                          ) : inps.length === 0 ? (
+                          {inps.length === 0 ? (
                             <Form.Item
                               name={`ct_${ct.ID_ChiTieu}`}
                               label="Giá trị đo"
@@ -260,6 +231,21 @@ export default function NhapLieuDongPage() {
               </Panel>
             ))}
           </Collapse>
+
+          {tongDiem && (
+            <Card style={{ marginTop: 16 }} title="CSSK của phiếu">
+              {tongDiem.canhBao ? (
+                <Text type="warning">{tongDiem.canhBao}</Text>
+              ) : tongDiem.diem != null ? (
+                <>
+                  <Text strong>Chỉ số sức khỏe tổng: </Text>
+                  <Tag color="blue" style={{ fontSize: 16 }}>{tongDiem.diem.toFixed(2)} / 10</Tag>
+                </>
+              ) : (
+                <Text type="secondary">Chưa tính được — cây chỉ tiêu của loại thiết bị này còn thiếu công thức/dữ liệu.</Text>
+              )}
+            </Card>
+          )}
 
           {ketQua && (
             <Card style={{ marginTop: 16 }} title="Kết quả điểm nhóm">

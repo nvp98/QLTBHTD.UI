@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useThemeMode } from '../../theme/ThemeModeContext';
+import { getCapDoSucKhoe } from '../../theme/capDoSucKhoe';
 import { thongKeApi } from '../../api/thongKe';
 import { thietBiApi } from '../../api/thietBi';
 import type {
@@ -18,15 +19,8 @@ import type { ThietBi } from '../../types/entities';
 
 const { Title, Text } = Typography;
 
-// ─── Màu & nhãn theo mức CSSK ──────────────────────────────────────────────
-function getCapDo(diem?: number | null) {
-  if (diem == null) return { color: '#6b7280', label: 'Chưa tính', bg: '#6b728022' };
-  if (diem >= 8) return { color: '#4ade80', label: 'Tốt',        bg: '#4ade8022' };
-  if (diem >= 6) return { color: '#60a5fa', label: 'Bình thường',bg: '#60a5fa22' };
-  if (diem >= 4) return { color: '#fbbf24', label: 'Chú ý',      bg: '#fbbf2422' };
-  if (diem >= 2) return { color: '#f97316', label: 'Cảnh báo',   bg: '#f9731622' };
-  return           { color: '#f87171', label: 'Nguy hiểm',       bg: '#f8717122' };
-}
+// ─── Màu & nhãn theo mức CSSK (theo theme sáng/tối) ─────────────────────────
+const getCapDo = (diem: number | null | undefined, isDark: boolean) => getCapDoSucKhoe(diem, isDark);
 
 const fmtDate = (iso?: string) => {
   if (!iso) return '—';
@@ -91,10 +85,10 @@ function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: stri
       ))}
 
       {/* Threshold zones */}
-      <rect x={pad.left} y={yOf(8)} width={iW} height={yOf(6) - yOf(8)} fill="#4ade8008" />
-      <rect x={pad.left} y={yOf(6)} width={iW} height={yOf(4) - yOf(6)} fill="#60a5fa08" />
-      <rect x={pad.left} y={yOf(4)} width={iW} height={yOf(2) - yOf(4)} fill="#fbbf2408" />
-      <rect x={pad.left} y={yOf(2)} width={iW} height={yOf(0) - yOf(2)} fill="#f9731608" />
+      <rect x={pad.left} y={yOf(8)} width={iW} height={yOf(6) - yOf(8)} fill={`${getCapDoSucKhoe(9, isDark).color}0c`} />
+      <rect x={pad.left} y={yOf(6)} width={iW} height={yOf(4) - yOf(6)} fill={`${getCapDoSucKhoe(7, isDark).color}0c`} />
+      <rect x={pad.left} y={yOf(4)} width={iW} height={yOf(2) - yOf(4)} fill={`${getCapDoSucKhoe(5, isDark).color}0c`} />
+      <rect x={pad.left} y={yOf(2)} width={iW} height={yOf(0) - yOf(2)} fill={`${getCapDoSucKhoe(3, isDark).color}0c`} />
 
       {/* Area fill for first segment */}
       {segments[0] && segments[0].length > 1 && (
@@ -153,12 +147,12 @@ function TabTongHop({ isDark }: { isDark: boolean }) {
   }, []);
 
   const LEVELS = [
-    { key: 'thietBiTot',        label: 'Tốt (≥8)',          color: '#4ade80' },
-    { key: 'thietBiBinhThuong', label: 'Bình thường (6–8)', color: '#60a5fa' },
-    { key: 'thietBiChuY',       label: 'Chú ý (4–6)',       color: '#fbbf24' },
-    { key: 'thietBiCanhBao',    label: 'Cảnh báo (2–4)',    color: '#f97316' },
-    { key: 'thietBiNguyHiem',   label: 'Nguy hiểm (<2)',     color: '#f87171' },
-    { key: 'thietBiChuaKiemTra',label: 'Chưa kiểm tra',      color: '#6b7280' },
+    { key: 'thietBiTot',        label: 'Tốt (≥8)',          color: getCapDoSucKhoe(9, isDark).color },
+    { key: 'thietBiBinhThuong', label: 'Khá (6–8)',         color: getCapDoSucKhoe(7, isDark).color },
+    { key: 'thietBiChuY',       label: 'Trung bình (4–6)',  color: getCapDoSucKhoe(5, isDark).color },
+    { key: 'thietBiCanhBao',    label: 'Cảnh báo (2–4)',    color: getCapDoSucKhoe(3, isDark).color },
+    { key: 'thietBiNguyHiem',   label: 'Nguy hiểm (<2)',    color: getCapDoSucKhoe(1, isDark).color },
+    { key: 'thietBiChuaKiemTra',label: 'Chưa kiểm tra',     color: '#6b7280' },
   ] as const;
 
   const kiemTraTotal = data ? (data.tongThietBi || 1) : 1;
@@ -293,7 +287,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
   }));
 
   const latestDiem = history.length > 0 ? history[history.length - 1].tongDiem_Soqt : null;
-  const capDo = getCapDo(latestDiem);
+  const capDo = getCapDo(latestDiem, isDark);
 
   const histCols = [
     { title: 'Ngày kiểm tra', dataIndex: 'ngayKiemTra', key: 'ngay', width: 140,
@@ -302,16 +296,16 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
       render: (v: number | null) => v != null ? (
         <Flex align="center" gap={8}>
           <Progress percent={v * 10} size="small" showInfo={false}
-            strokeColor={getCapDo(v).color}
+            strokeColor={getCapDo(v, isDark).color}
             trailColor={isDark ? '#1f2937' : '#e5e7eb'} style={{ width: 80 }} />
-          <Text style={{ color: getCapDo(v).color, fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
+          <Text style={{ color: getCapDo(v, isDark).color, fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
             {v.toFixed(1)}
           </Text>
         </Flex>
       ) : <Text style={{ color: '#6b7280' }}>Chưa tính</Text> },
     { title: 'Mức', dataIndex: 'capDoCanhBao', key: 'cap', width: 110,
       render: (_: unknown, r: LichSuCSSKDto) => {
-        const cd = getCapDo(r.tongDiem_Soqt);
+        const cd = getCapDo(r.tongDiem_Soqt, isDark);
         return <Tag color={cd.color} style={{ color: '#fff', borderColor: 'transparent' }}>{r.capDoCanhBao || cd.label}</Tag>;
       } },
     { title: 'KTV', dataIndex: 'nguoiKiemTra', key: 'ktv',
@@ -415,11 +409,11 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
     const total = item.totCount + item.binhThuongCount + item.chuYCount + item.canhBaoCount + item.nguHiemCount;
     if (total === 0) return <Text style={{ color: '#6b7280', fontSize: 11 }}>Chưa có dữ liệu</Text>;
     const bars = [
-      { count: item.totCount,         color: '#4ade80' },
-      { count: item.binhThuongCount,  color: '#60a5fa' },
-      { count: item.chuYCount,        color: '#fbbf24' },
-      { count: item.canhBaoCount,     color: '#f97316' },
-      { count: item.nguHiemCount,     color: '#f87171' },
+      { count: item.totCount,         color: getCapDoSucKhoe(9, isDark).color },
+      { count: item.binhThuongCount,  color: getCapDoSucKhoe(7, isDark).color },
+      { count: item.chuYCount,        color: getCapDoSucKhoe(5, isDark).color },
+      { count: item.canhBaoCount,     color: getCapDoSucKhoe(3, isDark).color },
+      { count: item.nguHiemCount,     color: getCapDoSucKhoe(1, isDark).color },
     ];
     return (
       <div style={{ display: 'flex', height: 14, borderRadius: 4, overflow: 'hidden', gap: 1, minWidth: 120 }}>
@@ -460,8 +454,8 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
       sorter: (a: BaoCaoTramItemDto, b: BaoCaoTramItemDto) => (a.diemTrungBinh ?? 0) - (b.diemTrungBinh ?? 0),
       render: (v: number | null) => v != null ? (
         <Flex align="center" gap={6}>
-          <div style={{ width: 8, height: 8, borderRadius: 2, background: getCapDo(v).color, flexShrink: 0 }} />
-          <Text style={{ color: getCapDo(v).color, fontFamily: 'monospace', fontWeight: 600, fontSize: 13 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: getCapDo(v, isDark).color, flexShrink: 0 }} />
+          <Text style={{ color: getCapDo(v, isDark).color, fontFamily: 'monospace', fontWeight: 600, fontSize: 13 }}>
             {v.toFixed(1)}
           </Text>
         </Flex>
@@ -487,9 +481,11 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
         extra={
           <Flex gap={8} align="center">
             {[
-              { color: '#4ade80', label: 'Tốt' }, { color: '#60a5fa', label: 'Bình thường' },
-              { color: '#fbbf24', label: 'Chú ý' }, { color: '#f97316', label: 'Cảnh báo' },
-              { color: '#f87171', label: 'Nguy hiểm' },
+              { color: getCapDoSucKhoe(9, isDark).color, label: 'Tốt' },
+              { color: getCapDoSucKhoe(7, isDark).color, label: 'Khá' },
+              { color: getCapDoSucKhoe(5, isDark).color, label: 'Trung bình' },
+              { color: getCapDoSucKhoe(3, isDark).color, label: 'Cảnh báo' },
+              { color: getCapDoSucKhoe(1, isDark).color, label: 'Nguy hiểm' },
             ].map(l => (
               <Flex key={l.label} align="center" gap={4}>
                 <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
@@ -552,16 +548,16 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
       render: (_: unknown, r: CanhBaoThietBiDto) => r.tongDiem_Soqt != null ? (
         <Flex align="center" gap={8}>
           <Progress percent={r.tongDiem_Soqt * 10} size="small" showInfo={false}
-            strokeColor={getCapDo(r.tongDiem_Soqt).color}
+            strokeColor={getCapDo(r.tongDiem_Soqt, isDark).color}
             trailColor={isDark ? '#1f2937' : '#e5e7eb'} style={{ width: 80 }} />
-          <Text style={{ color: getCapDo(r.tongDiem_Soqt).color, fontFamily: 'monospace', fontWeight: 600 }}>
+          <Text style={{ color: getCapDo(r.tongDiem_Soqt, isDark).color, fontFamily: 'monospace', fontWeight: 600 }}>
             {r.tongDiem_Soqt.toFixed(1)}
           </Text>
         </Flex>
       ) : <Text style={{ color: '#6b7280' }}>—</Text> },
     { title: 'Mức độ', dataIndex: 'capDoCanhBao', key: 'cap', width: 120,
       render: (v: string, r: CanhBaoThietBiDto) => {
-        const cd = getCapDo(r.tongDiem_Soqt);
+        const cd = getCapDo(r.tongDiem_Soqt, isDark);
         return (
           <Tag icon={<ExclamationCircleOutlined />}
             style={{ background: cd.bg, color: cd.color, border: `1px solid ${cd.color}55`, fontWeight: 600 }}>
@@ -596,9 +592,9 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
       {data.length > 0 && (
         <Row gutter={[12, 12]}>
           {[
-            { label: 'Chú ý (4–6)', count: chuY,    color: '#fbbf24', icon: <WarningOutlined /> },
-            { label: 'Cảnh báo (2–4)', count: canhBao, color: '#f97316', icon: <WarningOutlined /> },
-            { label: 'Nguy hiểm (<2)', count: nguHiem, color: '#f87171', icon: <ExclamationCircleOutlined /> },
+            { label: 'Trung bình (4–6)', count: chuY,    color: getCapDoSucKhoe(5, isDark).color, icon: <WarningOutlined /> },
+            { label: 'Cảnh báo (2–4)', count: canhBao, color: getCapDoSucKhoe(3, isDark).color, icon: <WarningOutlined /> },
+            { label: 'Nguy hiểm (<2)', count: nguHiem, color: getCapDoSucKhoe(1, isDark).color, icon: <ExclamationCircleOutlined /> },
           ].map(s => (
             <Col xs={8} key={s.label}>
               <Card style={{ background: `${s.color}11`, border: `1px solid ${s.color}44`, textAlign: 'center' as const }}
@@ -628,8 +624,8 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
         styles={{ header: { color: tc, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '8px 0' } }}>
         {data.length === 0 && !loading ? (
           <Flex vertical align="center" gap={12} style={{ padding: '40px 0' }}>
-            <CheckCircleOutlined style={{ fontSize: 36, color: '#4ade80' }} />
-            <Text style={{ color: '#4ade80', fontSize: 15 }}>Tất cả thiết bị đang ở mức an toàn!</Text>
+            <CheckCircleOutlined style={{ fontSize: 36, color: getCapDoSucKhoe(9, isDark).color }} />
+            <Text style={{ color: getCapDoSucKhoe(9, isDark).color, fontSize: 15 }}>Tất cả thiết bị đang ở mức an toàn!</Text>
           </Flex>
         ) : (
           <Table

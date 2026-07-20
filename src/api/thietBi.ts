@@ -16,6 +16,7 @@ type RawThietBi = Partial<ThietBi> & {
   namSanXuat?: number;
   trangThai?: number;
   ghiChu?: string;
+  taiDinhMuc?: number | null;
 };
 
 const normalizeThietBi = (item: any): ThietBi => ({
@@ -31,6 +32,7 @@ const normalizeThietBi = (item: any): ThietBi => ({
   NamSanXuat: item.NamSanXuat ?? item.namSanXuat,
   TrangThai:  item.TrangThai  ?? item.trangThai  ?? 0,
   GhiChu:     item.GhiChu     ?? item.ghiChu,
+  TaiDinhMuc: item.TaiDinhMuc ?? item.taiDinhMuc,
 });
 
 type PagedRaw = PagedResult<RawThietBi>;

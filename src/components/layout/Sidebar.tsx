@@ -31,6 +31,9 @@ const NAV_GROUPS: NavGroup[] = [
       { key: '/quan-ly/khu-vuc', label: 'Khu vực', icon: <EnvironmentOutlined /> },
       { key: '/quan-ly/tram-dien', label: 'Trạm điện', icon: <ThunderboltOutlined /> },
       { key: '/quan-ly/thiet-bi', label: 'Thiết bị', icon: <ApartmentOutlined /> },
+      { key: '/quan-ly/cay-thiet-bi', label: 'Cây thiết bị', icon: <FundOutlined /> },
+      {key: '/quan-ly/loai-thiet-bi',label: 'Loại thiết bị',icon: <UnorderedListOutlined />
+      },
     ],
   },
   // {
@@ -44,11 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'CẤU HÌNH CBM',
     items: [
-      {
-        key: '/cau-hinh/loai-thiet-bi',
-        label: 'Loại thiết bị',
-        icon: <UnorderedListOutlined />
-      },
+     
       {
         key: '/cau-hinh/cay-chi-tieu',
         label: 'Cây chỉ tiêu',

@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Row, Col, Card, Typography, Flex, Spin, Tag } from 'antd';
+import { Row, Col, Card, Typography, Flex, Spin, Tag, Empty, Tooltip } from 'antd';
 import {
   EnvironmentOutlined, ThunderboltOutlined, ApartmentOutlined,
   SettingOutlined, BulbOutlined, UnorderedListOutlined,
+  WarningOutlined, CheckCircleOutlined, HeartOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/common/StatCard';
 import { useThemeMode } from '../theme/ThemeModeContext';
+import { getCapDoSucKhoe } from '../theme/capDoSucKhoe';
 import { khuVucApi }      from '../api/khuVuc';
 import { tramDienApi }    from '../api/tramDien';
 import { thietBiApi }     from '../api/thietBi';
 import { loaiThietBiApi } from '../api/loaiThietBi';
 import { nhomChiTieuApi } from '../api/nhomChiTieu';
 import { chiTieuApi }     from '../api/chiTieu';
+import { thongKeApi } from '../api/thongKe';
+import type { ThongKeTongHopDto, CanhBaoThietBiDto } from '../api/thongKe';
 
 import hoaPhatImg from '../assets/img/hoa-phat-3d.png';
 
@@ -37,7 +41,7 @@ const QUICK_ACTIONS = [
 ];
 
 const WORKFLOW_STEPS = [
-  { step: '01', title: 'Cấu hình loại TB',    desc: 'Thêm MBA, MC, DCL, CSV...',          path: '/cau-hinh/loai-thiet-bi',  color: '#6366f1' },
+  { step: '01', title: 'Cấu hình loại TB',    desc: 'Thêm MBA, MC, DCL, CSV...',          path: '/quan-ly/loai-thiet-bi',  color: '#6366f1' },
   { step: '02', title: 'Tạo nhóm chỉ tiêu',  desc: 'Phân nhóm chỉ tiêu cho từng loại TB', path: '/cau-hinh/nhom-chi-tieu',  color: '#3b82f6' },
   { step: '03', title: 'Thêm chỉ tiêu',       desc: 'Định nghĩa chỉ tiêu & ngưỡng điểm',  path: '/cau-hinh/chi-tieu',       color: '#0ea5e9' },
   { step: '04', title: 'Thêm khu vực & trạm', desc: 'Khai báo vị trí địa lý thiết bị',    path: '/quan-ly/khu-vuc',         color: '#10b981' },
@@ -51,6 +55,9 @@ export default function DashboardPage() {
   const isDark = mode === 'dark';
   const [stats, setStats]     = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tongKe, setTongKe]       = useState<ThongKeTongHopDto | null>(null);
+  const [canhBao, setCanhBao]     = useState<CanhBaoThietBiDto[]>([]);
+  const [sucKhoeLoading, setSucKhoeLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,13 +83,27 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadSucKhoe = useCallback(async () => {
+    setSucKhoeLoading(true);
+    try {
+      const [tk, cb] = await Promise.allSettled([
+        thongKeApi.getTongHop(),
+        thongKeApi.getCanhBao(),
+      ]);
+      setTongKe(tk.status === 'fulfilled' ? tk.value : null);
+      setCanhBao(cb.status === 'fulfilled' ? cb.value : []);
+    } finally {
+      setSucKhoeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); loadSucKhoe(); }, [load, loadSucKhoe]);
 
   const panelBg = isDark ? '#0d1117' : '#ffffff';
   const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
   const itemBg = isDark ? '#111827' : '#f9fafb';
   const titleColor = isDark ? '#f9fafb' : '#111827';
-  const dimText = isDark ? '#6b7280' : '#6b7280';
+  const dimText = isDark ? '#9ca3af' : '#6b7280';
   const formulaBoxBg = isDark ? '#111827' : '#eff6ff';
 
   return (
@@ -101,6 +122,171 @@ export default function DashboardPage() {
         </Tag>
       </Flex>
 
+      {/* ── Sức khỏe thiết bị — tổng quan trực quan ── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        <Col xs={24} lg={14}>
+          <Card
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
+            styles={{ body: { padding: '20px 24px' } }}
+            loading={sucKhoeLoading}
+          >
+            <Flex align="center" justify="space-between" style={{ marginBottom: 18 }}>
+              <Flex align="center" gap={8}>
+                <HeartOutlined style={{ color: '#f87171', fontSize: 16 }} />
+                <Text strong style={{ color: titleColor, fontSize: 15 }}>Sức khỏe thiết bị toàn hệ thống</Text>
+              </Flex>
+              <Tag
+                style={{ cursor: 'pointer' }}
+                color="blue"
+                onClick={() => navigate('/thong-ke')}
+              >
+                Xem chi tiết →
+              </Tag>
+            </Flex>
+
+            {tongKe && tongKe.tongThietBi > 0 ? (
+              <>
+                <Flex align="baseline" gap={10} style={{ marginBottom: 18 }}>
+                  {tongKe.diemTrungBinh != null ? (
+                    <>
+                      <Text style={{
+                        color: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).color,
+                        fontSize: 44, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace',
+                      }}>
+                        {tongKe.diemTrungBinh.toFixed(1)}
+                      </Text>
+                      <Text style={{ color: dimText, fontSize: 14 }}>/ 10 — CSSK trung bình</Text>
+                      <Tag style={{
+                        marginLeft: 6,
+                        color: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).color,
+                        background: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).bg,
+                        borderColor: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).border,
+                      }}>
+                        {getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).label}
+                      </Tag>
+                    </>
+                  ) : (
+                    <Text style={{ color: dimText, fontSize: 15 }}>Chưa có thiết bị nào được tính CSSK</Text>
+                  )}
+                </Flex>
+
+                {/* Thanh phân bố xếp chồng */}
+                <div style={{ display: 'flex', height: 22, borderRadius: 6, overflow: 'hidden', gap: 1, marginBottom: 10 }}>
+                  {([
+                    ['thietBiTot', 9], ['thietBiBinhThuong', 7], ['thietBiChuY', 5],
+                    ['thietBiCanhBao', 3], ['thietBiNguyHiem', 1],
+                  ] as const).map(([key, sample]) => {
+                    const count = tongKe[key];
+                    const pct = (count / tongKe.tongThietBi) * 100;
+                    const info = getCapDoSucKhoe(sample, isDark);
+                    return pct > 0 ? (
+                      <Tooltip key={key} title={`${info.label}: ${count} thiết bị (${pct.toFixed(0)}%)`}>
+                        <div style={{ flex: pct, background: info.color, minWidth: 4 }} />
+                      </Tooltip>
+                    ) : null;
+                  })}
+                  {tongKe.thietBiChuaKiemTra > 0 && (
+                    <Tooltip title={`Chưa kiểm tra: ${tongKe.thietBiChuaKiemTra} thiết bị`}>
+                      <div style={{
+                        flex: (tongKe.thietBiChuaKiemTra / tongKe.tongThietBi) * 100,
+                        background: isDark ? '#374151' : '#d1d5db', minWidth: 4,
+                      }} />
+                    </Tooltip>
+                  )}
+                </div>
+
+                <Row gutter={[12, 6]}>
+                  {([
+                    ['thietBiTot', 9, 'Tốt'], ['thietBiBinhThuong', 7, 'Khá'], ['thietBiChuY', 5, 'Trung bình'],
+                    ['thietBiCanhBao', 3, 'Cảnh báo'], ['thietBiNguyHiem', 1, 'Nguy hiểm'],
+                  ] as const).map(([key, sample, label]) => (
+                    <Col key={key} xs={12} sm={8}>
+                      <Flex align="center" gap={6}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: getCapDoSucKhoe(sample, isDark).color, flexShrink: 0 }} />
+                        <Text style={{ color: dimText, fontSize: 12 }}>{label}: </Text>
+                        <Text strong style={{ color: titleColor, fontSize: 12, fontFamily: 'monospace' }}>{tongKe[key]}</Text>
+                      </Flex>
+                    </Col>
+                  ))}
+                  <Col xs={12} sm={8}>
+                    <Flex align="center" gap={6}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: isDark ? '#374151' : '#d1d5db', flexShrink: 0 }} />
+                      <Text style={{ color: dimText, fontSize: 12 }}>Chưa kiểm tra: </Text>
+                      <Text strong style={{ color: titleColor, fontSize: 12, fontFamily: 'monospace' }}>{tongKe.thietBiChuaKiemTra}</Text>
+                    </Flex>
+                  </Col>
+                </Row>
+              </>
+            ) : (
+              <Empty description="Chưa có dữ liệu thiết bị" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            )}
+          </Card>
+        </Col>
+
+        {/* ── Cần chú ý ngay ── */}
+        <Col xs={24} lg={10}>
+          <Card
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
+            loading={sucKhoeLoading}
+            title={
+              <Flex align="center" gap={8}>
+                <WarningOutlined style={{ color: '#f97316' }} />
+                <span>Cần chú ý ngay</span>
+                {canhBao.length > 0 && <Tag color="orange">{canhBao.length}</Tag>}
+              </Flex>
+            }
+            styles={{
+              header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` },
+              body: { padding: canhBao.length === 0 ? 20 : '4px 0', maxHeight: 300, overflowY: 'auto' },
+            }}
+          >
+            {canhBao.length === 0 ? (
+              <Flex vertical align="center" gap={8} style={{ padding: '24px 0' }}>
+                <CheckCircleOutlined style={{ fontSize: 30, color: getCapDoSucKhoe(9, isDark).color }} />
+                <Text style={{ color: getCapDoSucKhoe(9, isDark).color, fontSize: 13 }}>
+                  Tất cả thiết bị đang ở mức an toàn!
+                </Text>
+              </Flex>
+            ) : (
+              canhBao.slice(0, 8).map(r => {
+                const info = getCapDoSucKhoe(r.tongDiem_Soqt, isDark);
+                return (
+                  <div
+                    key={r.iD_ThietBi}
+                    onClick={() => navigate(`/ket-qua/${r.iD_Phieu}`)}
+                    style={{
+                      padding: '10px 20px', cursor: 'pointer', borderBottom: `1px solid ${panelBorder}`,
+                    }}
+                  >
+                    <Flex justify="space-between" align="center">
+                      <div style={{ minWidth: 0 }}>
+                        <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
+                          {r.tenThietBi}
+                        </Text>
+                        <Text style={{ color: dimText, fontSize: 11 }}>{r.tenTram}</Text>
+                      </div>
+                      <Tag style={{ color: info.color, background: info.bg, borderColor: info.border, flexShrink: 0 }}>
+                        {r.tongDiem_Soqt?.toFixed(1) ?? '—'}
+                      </Tag>
+                    </Flex>
+                  </div>
+                );
+              })
+            )}
+            {canhBao.length > 8 && (
+              <div style={{ padding: '10px 20px', textAlign: 'center' }}>
+                <Text
+                  style={{ color: '#60a5fa', fontSize: 12, cursor: 'pointer' }}
+                  onClick={() => navigate('/thong-ke')}
+                >
+                  Xem thêm {canhBao.length - 8} thiết bị →
+                </Text>
+              </div>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
       {/* ── Stats cards ── */}
       <Spin spinning={loading}>
         <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
@@ -108,7 +294,7 @@ export default function DashboardPage() {
             { title: 'Khu vực',      value: stats?.khuVucs,     icon: <EnvironmentOutlined />,  color: '#10b981', path: '/quan-ly/khu-vuc' },
             { title: 'Trạm điện',    value: stats?.tramDiens,   icon: <ThunderboltOutlined />,  color: '#3b82f6', path: '/quan-ly/tram-dien' },
             { title: 'Thiết bị',     value: stats?.thietBis,    icon: <ApartmentOutlined />,    color: '#6366f1', path: '/quan-ly/thiet-bi' },
-            { title: 'Loại TB',      value: stats?.loaiThietBi, icon: <UnorderedListOutlined />,color: '#f59e0b', path: '/cau-hinh/loai-thiet-bi' },
+            { title: 'Loại TB',      value: stats?.loaiThietBi, icon: <UnorderedListOutlined />,color: '#f59e0b', path: '/quan-ly/loai-thiet-bi' },
             { title: 'Nhóm chỉ tiêu',value: stats?.nhomChiTieu, icon: <BulbOutlined />,         color: '#8b5cf6', path: '/cau-hinh/nhom-chi-tieu' },
             { title: 'Chỉ tiêu',     value: stats?.chiTieu,     icon: <SettingOutlined />,      color: '#f97316', path: '/cau-hinh/chi-tieu' },
           ].map(s => (
@@ -232,11 +418,11 @@ export default function DashboardPage() {
             </Text>
             <Row gutter={8} style={{ marginTop: 12 }}>
               {[
-                { range: '8–10', rank: 'A', label: 'Rất tốt',  color: '#4ade80' },
-                { range: '6–8',  rank: 'B', label: 'Tốt',      color: '#60a5fa' },
-                { range: '4–6',  rank: 'C', label: 'Trung bình',color: '#fbbf24' },
-                { range: '2–4',  rank: 'D', label: 'Kém',      color: '#f97316' },
-                { range: '0–2',  rank: 'E', label: 'Rất kém',  color: '#f87171' },
+                { range: '8–10', rank: 'A', label: 'Rất tốt',   color: getCapDoSucKhoe(9, isDark).color },
+                { range: '6–8',  rank: 'B', label: 'Tốt',       color: getCapDoSucKhoe(7, isDark).color },
+                { range: '4–6',  rank: 'C', label: 'Trung bình',color: getCapDoSucKhoe(5, isDark).color },
+                { range: '2–4',  rank: 'D', label: 'Kém',       color: getCapDoSucKhoe(3, isDark).color },
+                { range: '0–2',  rank: 'E', label: 'Rất kém',   color: getCapDoSucKhoe(1, isDark).color },
               ].map(r => (
                 <Col span={24} key={r.rank} style={{ marginBottom: 4 }}>
                   <Flex align="center" gap={8}>
@@ -244,7 +430,7 @@ export default function DashboardPage() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Text style={{ color: r.color, fontSize: 11, fontWeight: 700 }}>{r.rank}</Text>
                     </div>
-                    <Text style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'monospace', width: 60 }}>
+                    <Text style={{ color: dimText, fontSize: 12, fontFamily: 'monospace', width: 60 }}>
                       {r.range}
                     </Text>
                     <Text style={{ color: r.color, fontSize: 12 }}>{r.label}</Text>

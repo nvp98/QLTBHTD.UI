@@ -9,6 +9,7 @@ type RawRule = Partial<ChiTieuRule> & {
   tenMuc?: string;
   diem_Si?: number;
   bieuThuc?: string;
+  loaiRule?: string;
 };
 
 const toRule = (r: RawRule): ChiTieuRule => ({
@@ -17,6 +18,7 @@ const toRule = (r: RawRule): ChiTieuRule => ({
   TenMuc:     r.TenMuc   ?? r.tenMuc   ?? '',
   Diem_Si:    Number(r.Diem_Si   ?? r.diem_Si   ?? 0),
   BieuThuc:   r.BieuThuc ?? r.bieuThuc ?? '',
+  LoaiRule:   r.LoaiRule ?? r.loaiRule ?? 'BANG_MUC',
 });
 
 export const chiTieuRuleApi = {

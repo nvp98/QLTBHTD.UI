@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ConfigProvider, theme } from 'antd';
 import { RouterProvider } from 'react-router-dom';
 import viVN from 'antd/locale/vi_VN';
@@ -12,8 +12,18 @@ function getInitialThemeMode(): ThemeMode {
   return saved === 'light' ? 'light' : 'dark';
 }
 
+/** Font đọc tốt tiếng Việt có dấu, chỉ dùng font hệ thống thật sự có sẵn (không phụ thuộc CDN/tải ngoài). */
+const FONT_STACK =
+  "'Segoe UI', -apple-system, BlinkMacSystemFont, 'Noto Sans', Roboto, Helvetica, Arial, sans-serif";
+
 export default function App() {
   const [mode, setMode] = useState<ThemeMode>(getInitialThemeMode);
+
+  // Đồng bộ data-theme trên <html> để CSS gốc (index.css) và mọi phần tử
+  // ngoài AntD luôn khớp đúng theme đang chọn, không lệ thuộc OS.
+  useEffect(() => {
+    document.documentElement.dataset.theme = mode;
+  }, [mode]);
 
   const toggleMode = () => {
     const nextMode: ThemeMode = mode === 'dark' ? 'light' : 'dark';
@@ -36,8 +46,8 @@ export default function App() {
           colorTextPlaceholder: '#9ca3af',
           colorPrimary: '#2563eb',
           borderRadius: 6,
-          fontFamily: "'IBM Plex Sans', 'Segoe UI', sans-serif",
-          fontSize: 13,
+          fontFamily: FONT_STACK,
+          fontSize: 14,
         },
         components: {
           Menu: {
@@ -104,8 +114,8 @@ export default function App() {
         colorTextPlaceholder: '#4b5563',
         colorPrimary: '#3b82f6',
         borderRadius: 6,
-        fontFamily: "'IBM Plex Sans', 'Segoe UI', sans-serif",
-        fontSize: 13,
+        fontFamily: FONT_STACK,
+        fontSize: 14,
       },
       components: {
         Menu: {
