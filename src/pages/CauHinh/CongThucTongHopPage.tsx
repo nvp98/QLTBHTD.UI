@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm,
+  Button, Card, Col, Flex, Form, Input, InputNumber, Modal, Popconfirm,
   Row, Select, Space, Table, Tag, Tooltip, Typography, message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -10,6 +10,9 @@ import { congThucTongHopApi, congThucBienApi } from '../../api/congThucTongHop';
 import { nhomChiTieuApi } from '../../api/nhomChiTieu';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
 import { chiTieuApi } from '../../api/chiTieu';
+import {
+  useNCalcToolbar, NCALC_TOOLBAR_TAG_STYLE, NCALC_OPERATORS, NCALC_PUNCTUATION, NCALC_FUNCTIONS,
+} from '../../hooks/useNCalcToolbar';
 import type {
   CongThucTongHop, CongThucBien,
   CreateCongThucTongHopDto, CreateCongThucBienDto,
@@ -42,13 +45,15 @@ const LOAI_CONG_THUC_SHORT: Record<string, string> = {
 };
 const loaiCongThucShort = (v?: string) => (v ? LOAI_CONG_THUC_SHORT[v] ?? v : '—');
 
-/** Nhãn tiếng Việt cho NguonBien — giá trị lưu DB giữ nguyên tiếng Anh. */
+/** Nhãn tiếng Việt cho NguonBien — giá trị lưu DB giữ nguyên tiếng Anh. Nguồn duy nhất,
+ * dùng cả cho cột hiển thị lẫn Select trong modal (tránh lệch chữ giữa 2 nơi). */
 const NGUON_BIEN_LABEL: Record<string, string> = {
   HANGSO: 'Hằng số',
-  CHITIEU: 'Điểm chỉ tiêu',
-  NHOM_CON: 'Điểm nhóm con',
+  CHITIEU: 'Điểm Sᵢ chỉ tiêu',
+  NHOM_CON: 'Điểm Sᵢ nhóm con',
 };
 const nguonBienLabel = (v?: string) => (v ? NGUON_BIEN_LABEL[v] ?? v : '—');
+const NGUON_BIEN_OPTIONS = Object.entries(NGUON_BIEN_LABEL).map(([value, label]) => ({ value, label }));
 
 function flattenCay(nodes: NhomChiTieuCay[]): NhomChiTieuCay[] {
   return nodes.flatMap(n => [n, ...flattenCay(n.NhomCon ?? [])]);
@@ -69,6 +74,8 @@ export default function CongThucTongHopPage() {
   const [ctModalOpen, setCtModalOpen] = useState(false);
   const [editingCt, setEditingCt]     = useState<CongThucTongHop | null>(null);
   const [ctForm]                      = Form.useForm();
+  const { ref: bieuThucCtRef, insertVar: insertCtVar, insertOp: insertCtOp, insertPunc: insertCtPunc, insertFunc: insertCtFunc } =
+    useNCalcToolbar(ctForm, 'BieuThuc');
 
   // Modal biến
   const [bienModalOpen, setBienModalOpen] = useState(false);
@@ -214,7 +221,7 @@ export default function CongThucTongHopPage() {
       title: 'Trạng thái',
       dataIndex: 'TrangThai',
       width: 100,
-      render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? 'ACTIVE' : 'Cũ'}</Tag>,
+      render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>,
     },
     {
       title: 'Biến',
@@ -232,6 +239,7 @@ export default function CongThucTongHopPage() {
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => {
             setEditingCt(rec);
+            setCurrentCongThuc(rec); // đảm bảo toolbar chèn biến hiện đúng biến của công thức đang sửa
             ctForm.setFieldsValue(rec);
             setCtModalOpen(true);
           }} />
@@ -260,16 +268,42 @@ export default function CongThucTongHopPage() {
       title: 'Nguồn dữ liệu',
       render: (_: unknown, r: CongThucBien) => {
         if (r.NguonBien === 'HANGSO') return <Text>{r.GiaTriHangSo}</Text>;
-        if (r.NguonBien === 'CHITIEU') return <Text>{r.TenChiTieu ?? r.ID_ChiTieuNguon}</Text>;
+        if (r.NguonBien === 'CHITIEU') return (
+          <>
+            <Text>{r.TenChiTieu ?? r.ID_ChiTieuNguon}</Text>
+            {r.ID_NhomCon && (
+              <Tooltip title="Trọng số Wᵢ của biến này lấy từ Nhóm chỉ tiêu này, không lấy từ Chỉ tiêu">
+                <Tag style={{ marginLeft: 6, borderStyle: 'dashed' }}>Wᵢ từ: {r.TenNhomCon ?? r.ID_NhomCon}</Tag>
+              </Tooltip>
+            )}
+          </>
+        );
         return <Text>{r.TenNhomCon ?? r.ID_NhomCon}</Text>;
       },
     },
     {
       title: 'Trọng số Wᵢ',
       dataIndex: 'TrongSo',
-      width: 100,
+      width: 110,
       align: 'center',
-      render: (v?: number | null) => v != null ? <Tag color="purple">{v}</Tag> : <Text type="secondary">—</Text>,
+      render: (v: number | null | undefined, r: CongThucBien) => {
+        if (v != null) return <Tag color="purple">{v}</Tag>;
+
+        // Trống ở CBM_CongThuc_Bien.TrongSo -> tra fallback: ưu tiên Wᵢ của Nhóm chỉ tiêu nếu biến có
+        // gắn ID_NhomCon (kể cả khi Nguồn dữ liệu là CHITIEU), rồi mới tới Wᵢ gốc của Chỉ tiêu.
+        let goc: number | null | undefined;
+        if (r.ID_NhomCon) {
+          goc = flattenCay(cay).find(n => n.ID_NhomChiTieu === r.ID_NhomCon)?.TrongSo_Wi;
+        } else if (r.NguonBien === 'CHITIEU') {
+          goc = chiTieus.find(c => c.ID_ChiTieu === r.ID_ChiTieuNguon)?.TrongSo_Wi || null;
+        }
+
+        return goc != null ? (
+          <Tooltip title="Chưa override riêng — tự động lấy từ Wᵢ gốc của Chỉ tiêu/Nhóm nguồn">
+            <Tag style={{ borderStyle: 'dashed' }}>{goc}</Tag>
+          </Tooltip>
+        ) : <Text type="secondary">—</Text>;
+      },
     },
     { title: 'Ghi chú', dataIndex: 'MoTa' },
     {
@@ -373,13 +407,53 @@ export default function CongThucTongHopPage() {
       >
         <Form form={ctForm} layout="vertical">
           <Form.Item name="ID_NhomChiTieu" hidden><Input /></Form.Item>
+
+          {!editingCt && (
+            <div style={{ marginBottom: 12, padding: '8px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, fontSize: 12 }}>
+              💡 Có thể để trống Biểu thức lúc tạo mới — tạo công thức trước, bấm vào "N biến" trong bảng để khai các biến (`Thêm biến`), rồi quay lại <b>Sửa</b> công thức này để ráp Biểu thức bằng các biến đã có (toolbar chèn biến bên dưới sẽ tự hiện).
+            </div>
+          )}
+
+          {editingCt && currentCongThuc && (currentCongThuc.DanhSachBien?.length ?? 0) > 0 && (
+            <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+              <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Bấm để chèn biến: </Text>
+              {currentCongThuc.DanhSachBien!.map(b => (
+                <Tag key={b.ID_Bien} color="orange" style={NCALC_TOOLBAR_TAG_STYLE} onClick={() => insertCtVar(b.MaBien)}>
+                  {b.MaBien}
+                </Tag>
+              ))}
+            </Flex>
+          )}
+          <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+            <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Toán tử: </Text>
+            {NCALC_OPERATORS.map(op => (
+              <Tag key={`ctop-${op}`} color="blue" style={{ ...NCALC_TOOLBAR_TAG_STYLE, minWidth: 30 }} onClick={() => insertCtOp(op)}>
+                {op}
+              </Tag>
+            ))}
+          </Flex>
+          <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+            <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Dấu: </Text>
+            {NCALC_PUNCTUATION.map(p => (
+              <Tag key={`ctpunc-${p}`} color="cyan" style={{ ...NCALC_TOOLBAR_TAG_STYLE, minWidth: 26 }} onClick={() => insertCtPunc(p)}>
+                {p}
+              </Tag>
+            ))}
+          </Flex>
+          <Flex wrap gap={6} style={{ marginBottom: 10 }}>
+            <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Hàm: </Text>
+            {NCALC_FUNCTIONS.map(f => (
+              <Tag key={`ctfunc-${f.fn}`} color="magenta" style={NCALC_TOOLBAR_TAG_STYLE} onClick={() => insertCtFunc(f.fn)}>
+                {f.label}
+              </Tag>
+            ))}
+          </Flex>
           <Form.Item
             name="BieuThuc"
             label="Biểu thức NCalc"
-            rules={[{ required: true, message: 'Nhập biểu thức' }]}
-            extra="Ví dụ: 0.6 * TS1 + 0.4 * TS2. LƯU Ý: nếu Loại công thức bên dưới là 'Trung bình trọng số' (WEIGHTED_AVG/WEIGHTED_AVG_SCALED), engine tự tính từ Trọng số Wᵢ khai ở từng biến và BỎ QUA nội dung ô này — chỉ cần nhập 1 công thức tham khảo để tự đọc lại sau."
+            extra="Ví dụ: 0.6 * TS1 + 0.4 * TS2. Có thể để trống nếu chưa khai biến. LƯU Ý: nếu Loại công thức bên dưới là 'Trung bình trọng số' (WEIGHTED_AVG/WEIGHTED_AVG_SCALED), engine tự tính từ Trọng số Wᵢ khai ở từng biến và BỎ QUA nội dung ô này — chỉ cần nhập 1 công thức tham khảo để tự đọc lại sau."
           >
-            <TextArea rows={4} style={{ fontFamily: 'monospace' }} />
+            <TextArea ref={bieuThucCtRef} rows={3} style={{ fontFamily: 'monospace', fontSize: 15 }} />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
@@ -401,7 +475,7 @@ export default function CongThucTongHopPage() {
           </Row>
           {editingCt && (
             <Form.Item name="TrangThai" label="Trạng thái">
-              <Select options={[{ value: 1, label: 'ACTIVE' }, { value: 0, label: 'Archived' }]} />
+              <Select options={[{ value: 1, label: 'Hoạt động' }, { value: 0, label: 'Ngừng' }]} />
             </Form.Item>
           )}
           <Form.Item name="MoTa" label="Mô tả">
@@ -424,11 +498,12 @@ export default function CongThucTongHopPage() {
             <Input placeholder="ví dụ: TS1, W1, Soqt" />
           </Form.Item>
           <Form.Item name="NguonBien" label="Nguồn biến" rules={[{ required: true }]}>
-            <Select options={[
-              { value: 'HANGSO', label: 'Hằng số' },
-              { value: 'CHITIEU', label: 'Điểm Si chỉ tiêu' },
-              { value: 'NHOM_CON', label: 'Điểm nhóm con' },
-            ]} />
+            <Select
+              options={NGUON_BIEN_OPTIONS}
+              onChange={() => bienForm.setFieldsValue({
+                ID_ChiTieuNguon: undefined, ID_NhomCon: undefined, GiaTriHangSo: undefined,
+              })}
+            />
           </Form.Item>
           <Form.Item
             noStyle
@@ -442,15 +517,41 @@ export default function CongThucTongHopPage() {
                 </Form.Item>
               );
               if (src === 'CHITIEU') return (
-                <Form.Item name="ID_ChiTieuNguon" label="Chỉ tiêu nguồn" rules={[{ required: true }]}>
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    placeholder="Chọn chỉ tiêu"
-                    options={chiTieuOptions}
-                    notFoundContent="Loại thiết bị này chưa có chỉ tiêu nào"
-                  />
-                </Form.Item>
+                <>
+                  <Form.Item name="ID_ChiTieuNguon" label="Chỉ tiêu nguồn (lấy điểm Sᵢ)" rules={[{ required: true }]}>
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      placeholder="Chọn chỉ tiêu"
+                      options={chiTieuOptions}
+                      notFoundContent="Loại thiết bị này chưa có chỉ tiêu nào"
+                      onChange={val => {
+                        // Chỉ tự-điền nếu chưa chọn riêng "Nguồn trọng số" bên dưới — tránh ghi đè lựa chọn cố ý.
+                        if (getFieldValue('ID_NhomCon')) return;
+                        const ct = chiTieus.find(c => c.ID_ChiTieu === val);
+                        if (ct?.TrongSo_Wi) bienForm.setFieldsValue({ TrongSo: ct.TrongSo_Wi });
+                      }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="ID_NhomCon"
+                    label="Nguồn trọng số (Nhóm chỉ tiêu, không bắt buộc)"
+                    tooltip="Để trống: Wᵢ tự lấy từ chính Chỉ tiêu nguồn ở trên. Chọn 1 Nhóm chỉ tiêu (vd hạng mục Sᵢ theo QT.40): Wᵢ sẽ lấy từ Nhóm này thay vì từ Chỉ tiêu — dùng khi trọng số 'chính danh' được quy định ở cấp hạng mục, không phải ở từng chỉ tiêu lẻ."
+                  >
+                    <Select
+                      allowClear
+                      showSearch
+                      optionFilterProp="label"
+                      placeholder="Để trống = lấy Wᵢ từ Chỉ tiêu nguồn ở trên"
+                      options={childNhomOptions}
+                      onChange={val => {
+                        if (!val) return;
+                        const nhom = flattenCay(cay).find(n => n.ID_NhomChiTieu === val);
+                        if (nhom?.TrongSo_Wi != null) bienForm.setFieldsValue({ TrongSo: nhom.TrongSo_Wi });
+                      }}
+                    />
+                  </Form.Item>
+                </>
               );
               if (src === 'NHOM_CON') return (
                 <Form.Item name="ID_NhomCon" label="Nhóm con" rules={[{ required: true }]}>
@@ -460,20 +561,60 @@ export default function CongThucTongHopPage() {
                     placeholder="Chọn nhóm con"
                     options={childNhomOptions}
                     notFoundContent="Nhóm này chưa có nhóm con — tạo tại trang Cây chỉ tiêu"
+                    onChange={val => {
+                      const nhom = flattenCay(cay).find(n => n.ID_NhomChiTieu === val);
+                      if (nhom?.TrongSo_Wi != null) bienForm.setFieldsValue({ TrongSo: nhom.TrongSo_Wi });
+                    }}
                   />
                 </Form.Item>
               );
               return null;
             }}
           </Form.Item>
-          <Form.Item name="TrongSo" label="Trọng số Wᵢ"
-            tooltip={
-              currentCongThuc?.LoaiCongThuc === 'WEIGHTED_AVG' || currentCongThuc?.LoaiCongThuc === 'WEIGHTED_AVG_SCALED'
-                ? "Công thức nhóm này kiểu \"Trung bình trọng số\" — engine TỰ tính ΣSiWi/ΣWi (hoặc /(3·ΣWi)×10) từ trọng số khai ở đây, KHÔNG cần tự viết hệ số vào ô Biểu thức NCalc phía trên."
-                : "Chỉ có tác dụng khi Loại công thức của nhóm là \"Trung bình trọng số\" (WEIGHTED_AVG/WEIGHTED_AVG_SCALED). Với loại khác (Biểu thức tự do...), để trống — hệ số phải viết trực tiếp trong Biểu thức NCalc."
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, cur) =>
+              prev.NguonBien !== cur.NguonBien ||
+              prev.ID_ChiTieuNguon !== cur.ID_ChiTieuNguon ||
+              prev.ID_NhomCon !== cur.ID_NhomCon ||
+              prev.TrongSo !== cur.TrongSo
             }
           >
-            <InputNumber style={{ width: '100%' }} step={0.1} placeholder="Để trống nếu công thức không phải WEIGHTED_AVG(_SCALED)" />
+            {({ getFieldValue }) => {
+              const src = getFieldValue('NguonBien');
+
+              // Tra "trọng số gốc" (Wᵢ đã lưu sẵn ở Chỉ tiêu/Nhóm được chọn làm nguồn biến) — ưu tiên
+              // ID_NhomCon nếu có (kể cả khi src=CHITIEU, tức đã chọn riêng "Nguồn trọng số"), khớp
+              // đúng thứ tự ưu tiên phía backend (ScoringEngine).
+              let goc: number | null | undefined;
+              let ten = '';
+              const idNhomTrongSo = getFieldValue('ID_NhomCon');
+              if (idNhomTrongSo && (src === 'CHITIEU' || src === 'NHOM_CON')) {
+                const nhom = flattenCay(cay).find(n => n.ID_NhomChiTieu === idNhomTrongSo);
+                if (nhom) { goc = nhom.TrongSo_Wi; ten = nhom.TenNhom; }
+              } else if (src === 'CHITIEU') {
+                const ct = chiTieus.find(c => c.ID_ChiTieu === getFieldValue('ID_ChiTieuNguon'));
+                if (ct) { goc = ct.TrongSo_Wi || null; ten = ct.TenChiTieu; }
+              }
+
+              const placeholder = ten
+                ? (goc != null ? `Để trống = tự lấy Wᵢ = ${goc} từ "${ten}"` : `"${ten}" chưa có Wᵢ riêng — để trống sẽ mặc định = 1`)
+                : 'Để trống nếu công thức không phải WEIGHTED_AVG(_SCALED)';
+
+              return (
+                <>
+                  <Form.Item name="TrongSo" label="Trọng số Wᵢ"
+                    tooltip={
+                      currentCongThuc?.LoaiCongThuc === 'WEIGHTED_AVG' || currentCongThuc?.LoaiCongThuc === 'WEIGHTED_AVG_SCALED'
+                        ? "Công thức nhóm này kiểu \"Trung bình trọng số\" — engine TỰ tính ΣSiWi/ΣWi (hoặc /(3·ΣWi)×10) từ trọng số khai ở đây, KHÔNG cần tự viết hệ số vào ô Biểu thức NCalc phía trên."
+                        : "Chỉ có tác dụng khi Loại công thức của nhóm là \"Trung bình trọng số\" (WEIGHTED_AVG/WEIGHTED_AVG_SCALED). Với loại khác (Biểu thức tự do...), để trống — hệ số phải viết trực tiếp trong Biểu thức NCalc."
+                    }
+                  >
+                    <InputNumber style={{ width: '100%' }} step={0.1} placeholder={placeholder} />
+                  </Form.Item>
+                </>
+              );
+            }}
           </Form.Item>
           <Form.Item name="MoTa" label="Mô tả">
             <Input />

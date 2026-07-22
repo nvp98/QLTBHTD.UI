@@ -124,8 +124,8 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
       collapsedWidth={64}
       width={220}
       style={{
-        background: isDark ? '#0a0f1a' : '#ffffff',
-        borderRight: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`,
+        background: isDark ? '#0a2540' : '#ffffff',
+        borderRight: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
         height: '100vh',
         position: 'sticky',
         top: 0,
@@ -138,7 +138,7 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
         {/* ── Logo ── */}
         <Flex align="center" justify="center" style={{
           padding: collapsed ? '18px 0' : '14px 20px',
-          borderBottom: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`,
+          borderBottom: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
           flexShrink: 0, minHeight: 80,
           transition: 'padding 0.25s ease',
         }}>
@@ -173,7 +173,7 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
           gap={collapsed ? 0 : 10}
           style={{
             padding: collapsed ? '14px 0' : '12px 16px',
-            borderTop: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`,
+            borderTop: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
             flexShrink: 0,
             transition: 'padding 0.25s ease',
           }}

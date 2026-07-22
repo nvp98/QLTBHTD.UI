@@ -430,7 +430,7 @@ export default function CayThietBiPage() {
     return keys;
   }, [treeData]);
 
-  const borderColor = isDark ? '#1f2937' : '#e5e7eb';
+  const borderColor = isDark ? '#1e4a72' : '#e5e7eb';
   const mutedColor = isDark ? '#9ca3af' : '#6b7280';
 
   return (
@@ -457,7 +457,7 @@ export default function CayThietBiPage() {
                 hoverable
                 onClick={() => setFilterCssk(active ? 'all' : opt.value)}
                 style={{
-                  background: active ? info.bg : (isDark ? '#0d1117' : '#ffffff'),
+                  background: active ? info.bg : (isDark ? '#0e2c4a' : '#ffffff'),
                   border: `1px solid ${active ? info.border : borderColor}`,
                   boxShadow: active ? `0 0 0 1px ${info.border}` : undefined,
                   cursor: 'pointer',
@@ -477,7 +477,7 @@ export default function CayThietBiPage() {
       <Row gutter={16}>
         <Col span={selection ? 14 : 24}>
           <Card
-            style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${borderColor}` }}
+            style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${borderColor}` }}
             styles={{ body: { padding: '16px 20px' } }}
             loading={loading}
           >
@@ -517,7 +517,7 @@ export default function CayThietBiPage() {
             {filtersOpen && (
               <div style={{
                 marginBottom: 14, padding: '12px 14px', borderRadius: 8,
-                background: isDark ? '#111827' : '#f9fafb', border: `1px solid ${borderColor}`,
+                background: isDark ? '#123a5e' : '#f9fafb', border: `1px solid ${borderColor}`,
               }}>
                 <Space wrap size={12}>
                   <div>

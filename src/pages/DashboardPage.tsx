@@ -99,12 +99,12 @@ export default function DashboardPage() {
 
   useEffect(() => { load(); loadSucKhoe(); }, [load, loadSucKhoe]);
 
-  const panelBg = isDark ? '#0d1117' : '#ffffff';
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
-  const itemBg = isDark ? '#111827' : '#f9fafb';
+  const panelBg = isDark ? '#0e2c4a' : '#ffffff';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
+  const itemBg = isDark ? '#123a5e' : '#f9fafb';
   const titleColor = isDark ? '#f9fafb' : '#111827';
   const dimText = isDark ? '#9ca3af' : '#6b7280';
-  const formulaBoxBg = isDark ? '#111827' : '#eff6ff';
+  const formulaBoxBg = isDark ? '#123a5e' : '#eff6ff';
 
   return (
     <div style={{ color: titleColor }}>

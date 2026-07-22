@@ -46,8 +46,8 @@ export default function Topbar({ collapsed, onCollapse }: TopbarProps) {
 
   return (
     <Header style={{
-      background: isDark ? '#0d1117' : '#ffffff',
-      borderBottom: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`,
+      background: isDark ? '#0a2540' : '#ffffff',
+      borderBottom: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
       padding: '0 24px',
       height: 'auto',
       lineHeight: 'normal',

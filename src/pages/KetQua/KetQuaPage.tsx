@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Card, Typography, Flex, Table, Button, message, Progress } from 'antd';
+import { Card, Typography, Flex, Table, Button, message, Progress, Segmented } from 'antd';
 import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
@@ -22,6 +22,7 @@ export default function KetQuaPage() {
   const isDark = mode === 'dark';
   const [phieus, setPhieus] = useState<PhieuKiemTra[]>([]);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'latest' | 'all'>('latest');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +45,13 @@ export default function KetQuaPage() {
       return acc;
     }, {})
   ).sort((a, b) => (a.TongDiem_Soqt ?? 10) - (b.TongDiem_Soqt ?? 10));
+
+  // Tất cả phiếu (mọi lần kiểm tra, mọi thiết bị) — mới nhất lên trước
+  const allPhieusSorted = [...phieus].sort(
+    (a, b) => new Date(b.NgayKiemTra).getTime() - new Date(a.NgayKiemTra).getTime()
+  );
+
+  const displayedPhieus = viewMode === 'all' ? allPhieusSorted : latestPhieus;
 
   const columns = [
     {
@@ -80,7 +88,7 @@ export default function KetQuaPage() {
             size="small"
             showInfo={false}
             strokeColor={getCapDoSucKhoe(v, isDark).color}
-            trailColor={isDark ? '#1f2937' : '#e5e7eb'}
+            trailColor={isDark ? '#1e4a72' : '#e5e7eb'}
             style={{ width: 80 }}
           />
           <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontFamily: 'monospace', fontSize: 13 }}>
@@ -108,9 +116,26 @@ export default function KetQuaPage() {
       </Flex>
 
       <Card
-        style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
+        style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}
-        title={`Danh sách kết quả — ${latestPhieus.length} thiết bị`}
+        title={
+          <Flex align="center" gap={12} wrap>
+            <span>
+              {viewMode === 'all'
+                ? `Danh sách kết quả — ${phieus.length} phiếu`
+                : `Danh sách kết quả — ${latestPhieus.length} thiết bị`}
+            </span>
+            <Segmented
+              size="small"
+              value={viewMode}
+              onChange={v => setViewMode(v as 'latest' | 'all')}
+              options={[
+                { label: 'Mới nhất mỗi thiết bị', value: 'latest' },
+                { label: 'Tất cả phiếu', value: 'all' },
+              ]}
+            />
+          </Flex>
+        }
       >
         {phieus.length === 0 && !loading ? (
           <Flex vertical align="center" gap={12} style={{ padding: '40px 0' }}>
@@ -121,12 +146,12 @@ export default function KetQuaPage() {
           </Flex>
         ) : (
           <Table
-            dataSource={latestPhieus}
+            dataSource={displayedPhieus}
             columns={columns}
             rowKey="ID_Phieu"
             loading={loading}
             size="small"
-            pagination={{ pageSize: 15, showTotal: t => `Tổng ${t} thiết bị`, showSizeChanger: true }}
+            pagination={{ pageSize: 15, showTotal: t => `Tổng ${t} ${viewMode === 'all' ? 'phiếu' : 'thiết bị'}`, showSizeChanger: true }}
           />
         )}
       </Card>

@@ -20,8 +20,8 @@ export default function NhapLieuPage() {
   const isDark = mode === 'dark';
 
   const titleColor = isDark ? '#f9fafb' : '#111827';
-  const panelBg = isDark ? '#0d1117' : '#ffffff';
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
+  const panelBg = isDark ? '#0e2c4a' : '#ffffff';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
 
   return (
     <div style={{ color: titleColor }}>

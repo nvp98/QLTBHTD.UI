@@ -47,7 +47,7 @@ export function capDoKeyOf(diem: number): CapDoKey {
 export function getCapDoSucKhoe(diem: number | null | undefined, isDark: boolean): CapDoInfo {
   if (diem == null) {
     return isDark
-      ? { key: 'chuaTinh', label: 'Chưa tính', color: '#6b7280', bg: '#1f2937', border: '#374151' }
+      ? { key: 'chuaTinh', label: 'Chưa tính', color: '#6b7280', bg: '#1e4a72', border: '#374151' }
       : { key: 'chuaTinh', label: 'Chưa tính', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' };
   }
   const palette = isDark ? DARK : LIGHT;

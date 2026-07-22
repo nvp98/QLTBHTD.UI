@@ -21,8 +21,8 @@ export default function StatCard({ title, value, suffix, icon, color = '#3b82f6'
     <Card
       onClick={onClick}
       style={{
-        background: isDark ? '#0d1117' : '#ffffff',
-        border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`,
+        background: isDark ? '#0e2c4a' : '#ffffff',
+        border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
         cursor: onClick ? 'pointer' : 'default',
       }}
       styles={{ body: { padding: '16px 20px' } }}

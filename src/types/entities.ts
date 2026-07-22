@@ -74,8 +74,13 @@ export interface NhomChiTieu {
   CoCongThuc?: boolean;
   PhienBan: number;
   TrangThai: number;
+  /** Trọng số canonical của nhóm khi tham gia công thức nhóm cha (NHOM_CON) — vd "Chất lượng dầu" Wi=6 trong TS1. */
+  TrongSo_Wi?: number | null;
 }
-export interface CreateNhomChiTieuDto { TenNhom: string; ID_LoaiThietBi: number; PhienBan: number; TrangThai: number }
+export interface CreateNhomChiTieuDto {
+  TenNhom: string; ID_LoaiThietBi: number; PhienBan: number; TrangThai: number;
+  ID_NhomCha?: number | null; CapDo?: number; LoaiNhom?: string; TrongSo_Wi?: number | null;
+}
 export interface UpdateNhomChiTieuDto extends CreateNhomChiTieuDto {}
 
 // ─── Chỉ Tiêu ─────────────────────────────────────────────────────────────
@@ -218,6 +223,13 @@ export interface UpdatePhieuKiemTraDto {
 }
 
 // ─── Chi Tiết Kiểm Tra ────────────────────────────────────────────────────
+/** 1 giá trị biến đầu vào thô (vd T_tren=48) đã lưu cho 1 chỉ tiêu trong 1 phiếu cụ thể. */
+export interface ChiTietInputValueDto {
+  MaInput: string;
+  TenInput?: string;
+  GiaTriSo: number;
+}
+
 export interface ChiTietKiemTra {
   ID_ChiTiet: number;
   IDPhieu: number;
@@ -227,6 +239,18 @@ export interface ChiTietKiemTra {
   GiaTriNhap_Chu?: string;
   Diem_Si_DatDuoc?: number;
   GhiChu?: string;
+  /** Giá trị Input thô khi chỉ tiêu dùng Rule/Formula nhiều biến — trống nếu chỉ tiêu nhập 1 giá trị đơn. */
+  DanhSachInput?: ChiTietInputValueDto[];
+}
+
+/** 1 lần đo trong quá khứ của cùng 1 chỉ tiêu, cùng 1 thiết bị — dùng cho modal "Lịch sử đo". */
+export interface LichSuChiTieu {
+  ID_Phieu: number;
+  NgayKiemTra: string;
+  GiaTriNhap_So?: number;
+  GiaTriNhap_Chu?: string;
+  Diem_Si_DatDuoc?: number;
+  DanhSachInput?: ChiTietInputValueDto[];
 }
 
 export interface CreateChiTietKiemTraDto {

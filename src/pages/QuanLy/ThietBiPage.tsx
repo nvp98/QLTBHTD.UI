@@ -211,7 +211,7 @@ export default function ThietBiPage() {
         </Text>
       </div>
 
-      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
+      <Card style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
           <Space wrap>
@@ -343,7 +343,7 @@ export default function ThietBiPage() {
               ['Trạng thái',    trangThaiTag(detail.TrangThai)],
               ['Ghi chú',       detail.GhiChu ?? '—'],
             ].map(([label, value]) => (
-              <Row key={String(label)} style={{ marginBottom: 10, borderBottom: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}`, paddingBottom: 10 }}>
+              <Row key={String(label)} style={{ marginBottom: 10, borderBottom: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`, paddingBottom: 10 }}>
                 <Col span={10}>
                   <Text style={{ color: '#6b7280', fontSize: 13 }}>{label}</Text>
                 </Col>

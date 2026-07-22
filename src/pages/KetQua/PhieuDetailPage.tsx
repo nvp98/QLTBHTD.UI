@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Typography, Flex, Tag, Button, Spin, Progress,
-  Table, Divider, message,
+  Table, Divider, message, Modal, Space, Tooltip,
 } from 'antd';
-import { ArrowLeftOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, FileTextOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
 import { tinhDiemApi } from '../../api/tinhDiem';
-import type { PhieuKiemTraDetailDto, ChiTietKiemTra } from '../../types/entities';
+import type { PhieuKiemTraDetailDto, ChiTietKiemTra, LichSuChiTieu } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 import { getCapDoSucKhoe, capDoKeyOf } from '../../theme/capDoSucKhoe';
 
@@ -37,6 +37,26 @@ export default function PhieuDetailPage() {
   const [phieu, setPhieu] = useState<PhieuKiemTraDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
+
+  // Modal "Lịch sử đo" — tất cả các lần đo trước đây của 1 chỉ tiêu trên cùng thiết bị,
+  // KHÔNG liên quan tới fallback "lấy Si gần nhất" dùng khi tính điểm nhóm (chỉ dùng để xem xu hướng).
+  const [lichSuOpen, setLichSuOpen] = useState(false);
+  const [lichSuLoading, setLichSuLoading] = useState(false);
+  const [lichSuChiTieu, setLichSuChiTieu] = useState<{ ten: string; data: LichSuChiTieu[] } | null>(null);
+
+  const openLichSu = async (ct: ChiTietKiemTra) => {
+    if (!phieu) return;
+    setLichSuOpen(true);
+    setLichSuLoading(true);
+    try {
+      const data = await phieuKiemTraApi.getLichSuChiTieu(phieu.ID_ThietBi, ct.ID_ChiTieu);
+      setLichSuChiTieu({ ten: ct.TenChiTieu ?? '', data });
+    } catch {
+      message.error('Không thể tải lịch sử đo');
+    } finally {
+      setLichSuLoading(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -80,14 +100,27 @@ export default function PhieuDetailPage() {
     },
     {
       title: 'Giá trị đo',
-      dataIndex: 'GiaTriNhap_So',
       key: 'gtso',
-      width: 120,
-      render: (v?: number) => (
-        <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontFamily: 'monospace' }}>
-          {v !== undefined && v !== null ? v : <span style={{ color: isDark ? '#4b5563' : '#9ca3af' }}>—</span>}
-        </Text>
-      ),
+      width: 220,
+      render: (_: unknown, r: ChiTietKiemTra) => {
+        if (r.GiaTriNhap_So !== undefined && r.GiaTriNhap_So !== null)
+          return (
+            <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontFamily: 'monospace' }}>
+              {r.GiaTriNhap_So}
+            </Text>
+          );
+        if (r.DanhSachInput && r.DanhSachInput.length > 0)
+          return (
+            <Space size={4} wrap>
+              {r.DanhSachInput.map(iv => (
+                <Tag key={iv.MaInput} style={{ fontFamily: 'monospace', fontSize: 11, margin: 0 }}>
+                  {iv.MaInput}={iv.GiaTriSo}
+                </Tag>
+              ))}
+            </Space>
+          );
+        return <span style={{ color: isDark ? '#4b5563' : '#9ca3af' }}>—</span>;
+      },
     },
     {
       title: 'Giá trị chữ',
@@ -114,7 +147,7 @@ export default function PhieuDetailPage() {
               size="small"
               showInfo={false}
               strokeColor={c}
-              trailColor={isDark ? '#1f2937' : '#e5e7eb'}
+              trailColor={isDark ? '#1e4a72' : '#e5e7eb'}
               style={{ width: 70 }}
             />
             <Text style={{ color: c, fontFamily: 'monospace', fontSize: 12 }}>
@@ -130,6 +163,16 @@ export default function PhieuDetailPage() {
       key: 'ghichu',
       render: (v?: string) => (
         <Text style={{ color: isDark ? '#9ca3af' : '#6b7280', fontSize: 12 }}>{v || '—'}</Text>
+      ),
+    },
+    {
+      title: '',
+      key: 'lichsu',
+      width: 48,
+      render: (_: unknown, r: ChiTietKiemTra) => (
+        <Tooltip title="Xem lịch sử đo (tất cả các phiếu trước)">
+          <Button size="small" type="text" icon={<HistoryOutlined />} onClick={() => openLichSu(r)} />
+        </Tooltip>
       ),
     },
   ];
@@ -171,7 +214,7 @@ export default function PhieuDetailPage() {
       <Row gutter={[16, 16]}>
         {/* Thông tin phiếu */}
         <Col xs={24} lg={8}>
-          <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
+          <Card style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
             styles={{ body: { padding: 20 } }}>
             <Title level={5} style={{ color: isDark ? '#f9fafb' : '#111827', marginTop: 0, marginBottom: 16 }}>
               Thông tin phiếu
@@ -189,7 +232,7 @@ export default function PhieuDetailPage() {
               </div>
             ))}
 
-            <Divider style={{ borderColor: isDark ? '#1f2937' : '#e5e7eb', margin: '16px 0' }} />
+            <Divider style={{ borderColor: isDark ? '#1e4a72' : '#e5e7eb', margin: '16px 0' }} />
 
             {/* CSSK */}
             {ri && phieu.TongDiem_Soqt !== undefined && phieu.TongDiem_Soqt !== null ? (
@@ -237,8 +280,8 @@ export default function PhieuDetailPage() {
                 <Tag style={{ marginLeft: 4 }}>{phieu.ChiTiets?.length ?? 0} chỉ tiêu</Tag>
               </Flex>
             }
-            style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
-            styles={{ header: { color: isDark ? '#f9fafb' : '#111827', borderBottom: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }, body: { padding: 0 } }}
+            style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
+            styles={{ header: { color: isDark ? '#f9fafb' : '#111827', borderBottom: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }, body: { padding: 0 } }}
           >
             <Table<ChiTietKiemTra>
               dataSource={phieu.ChiTiets ?? []}
@@ -251,6 +294,56 @@ export default function PhieuDetailPage() {
           </Card>
         </Col>
       </Row>
+
+      {/* Modal Lịch sử đo — toàn bộ các lần đo trước đây của chỉ tiêu này trên cùng thiết bị */}
+      <Modal
+        title={`Lịch sử đo — ${lichSuChiTieu?.ten ?? ''}`}
+        open={lichSuOpen}
+        onCancel={() => setLichSuOpen(false)}
+        footer={<Button onClick={() => setLichSuOpen(false)}>Đóng</Button>}
+        width={720}
+      >
+        <Spin spinning={lichSuLoading}>
+          <Table
+            dataSource={lichSuChiTieu?.data ?? []}
+            rowKey="ID_Phieu"
+            size="small"
+            pagination={{ pageSize: 10 }}
+            locale={{ emptyText: 'Chưa có lần đo nào trước đây' }}
+            columns={[
+              { title: 'Ngày kiểm tra', dataIndex: 'NgayKiemTra', width: 110, render: fmtDate },
+              {
+                title: 'Giá trị đo',
+                key: 'gt',
+                render: (_: unknown, r: LichSuChiTieu) => {
+                  if (r.GiaTriNhap_So !== undefined && r.GiaTriNhap_So !== null)
+                    return <Text style={{ fontFamily: 'monospace' }}>{r.GiaTriNhap_So}</Text>;
+                  if (r.DanhSachInput && r.DanhSachInput.length > 0)
+                    return (
+                      <Space size={4} wrap>
+                        {r.DanhSachInput.map(iv => (
+                          <Tag key={iv.MaInput} style={{ fontFamily: 'monospace', fontSize: 11, margin: 0 }}>
+                            {iv.MaInput}={iv.GiaTriSo}
+                          </Tag>
+                        ))}
+                      </Space>
+                    );
+                  return <Text style={{ color: '#9ca3af' }}>—</Text>;
+                },
+              },
+              {
+                title: 'Điểm Sᵢ',
+                dataIndex: 'Diem_Si_DatDuoc',
+                width: 90,
+                render: (v?: number) =>
+                  v !== undefined && v !== null
+                    ? <Text style={{ color: getCapDoSucKhoe(v, isDark).color, fontFamily: 'monospace' }}>{v}</Text>
+                    : <Text style={{ color: '#9ca3af' }}>—</Text>,
+              },
+            ]}
+          />
+        </Spin>
+      </Modal>
     </div>
   );
 }

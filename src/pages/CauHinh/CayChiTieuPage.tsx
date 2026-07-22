@@ -21,7 +21,11 @@ import type {
 const { Title, Text } = Typography;
 
 /** Nhãn tiếng Việt cho LoaiNhom — giá trị lưu DB vẫn giữ nguyên 'LEAF'/'COMPOSITE'. */
-const loaiNhomLabel = (v?: string) => (v === 'COMPOSITE' ? 'Tổng hợp' : 'Đo lường');
+const loaiNhomLabel = (v?: string) => (v === 'COMPOSITE' ? 'Chỉ số sức khỏe' : 'Hạng mục');
+
+/** Nhãn tiếng Việt cho LoaiTinhDiem — giá trị lưu DB giữ nguyên 'Nguong'/'Rule'/'LF'. */
+const loaiTinhDiemLabel = (v?: string | null) =>
+  v === 'Rule' ? 'Biểu thức' : v === 'LF' ? 'Mang tải (LF)' : 'Ngưỡng';
 
 function flattenCay(nodes: NhomChiTieuCay[]): NhomChiTieuCay[] {
   return nodes.flatMap(n => [n, ...flattenCay(n.NhomCon ?? [])]);
@@ -51,6 +55,9 @@ function buildTreeData(nodes: NhomChiTieuCay[], handlers: TreeHandlers): DataNod
             </Tag>
           )}
           <Tag>{`Cấp ${n.CapDo}`}</Tag>
+          {n.TrongSo_Wi != null && (
+            <Tag color="purple" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{`Wᵢ=${n.TrongSo_Wi}`}</Tag>
+          )}
         </Space>
         <Space size={2} onClick={e => e.stopPropagation()}>
           {n.LoaiNhom === 'COMPOSITE' && (
@@ -175,6 +182,7 @@ export default function CayChiTieuPage() {
         CapDo: editingNhom.CapDo,
         PhienBan: editingNhom.PhienBan,
         TrangThai: editingNhom.TrangThai,
+        TrongSo_Wi: editingNhom.TrongSo_Wi ?? undefined,
       });
     } else if (parentNode) {
       nhomForm.setFieldsValue({
@@ -184,6 +192,7 @@ export default function CayChiTieuPage() {
         CapDo: Math.max(1, parentNode.CapDo - 1),
         PhienBan: 1,
         TrangThai: 1,
+        TrongSo_Wi: undefined,
       });
     } else {
       nhomForm.setFieldsValue({
@@ -193,6 +202,7 @@ export default function CayChiTieuPage() {
         CapDo: 1,
         PhienBan: 1,
         TrangThai: 1,
+        TrongSo_Wi: undefined,
       });
     }
   }, [nhomModalOpen, editingNhom, parentNode, nhomForm]);
@@ -218,6 +228,7 @@ export default function CayChiTieuPage() {
         LoaiNhom: v.LoaiNhom,
         PhienBan: v.PhienBan,
         TrangThai: v.TrangThai,
+        TrongSo_Wi: v.TrongSo_Wi ?? null,
       };
       if (editingNhom) {
         await nhomChiTieuApi.update(editingNhom.ID_NhomChiTieu, dto as UpdateNhomChiTieuV2Dto);
@@ -321,7 +332,9 @@ export default function CayChiTieuPage() {
       title: 'Kiểu điểm', dataIndex: 'LoaiTinhDiem', width: 110, align: 'center',
       render: v => v === 'Rule'
         ? <Tag color="purple" icon={<FunctionOutlined />}>Biểu thức</Tag>
-        : <Tag color="blue">Ngưỡng</Tag>,
+        : v === 'LF'
+        ? <Tag color="magenta">Mang tải (LF)</Tag>
+        : <Tag color="blue">{loaiTinhDiemLabel(v)}</Tag>,
     },
     {
       title: 'Trạng thái', dataIndex: 'TrangThai', width: 100, align: 'center',
@@ -414,6 +427,12 @@ export default function CayChiTieuPage() {
                 </div>
                 <div><Text strong>Cấp độ: </Text><Text>{selectedNode.CapDo}</Text></div>
                 <div>
+                  <Text strong>Trọng số Wᵢ (khi tham gia công thức nhóm cha): </Text>
+                  {selectedNode.TrongSo_Wi != null
+                    ? <Tag color="purple" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{selectedNode.TrongSo_Wi}</Tag>
+                    : <Text style={{ color: '#6b7280' }}>— chưa đặt (mặc định = 1)</Text>}
+                </div>
+                <div>
                   <Text strong>Nhóm cha: </Text>
                   <Text>
                     {selectedNode.ID_NhomCha != null
@@ -483,10 +502,10 @@ export default function CayChiTieuPage() {
             <Input placeholder="VD: Phân tích khí hòa tan (DGA)" />
           </Form.Item>
           <Form.Item name="LoaiNhom" label="Loại nhóm" rules={[{ required: true }]}
-            tooltip="Đo lường: chứa chỉ tiêu con trực tiếp (nơi nhập số đo). Tổng hợp: gộp điểm từ các nhóm con khác qua công thức.">
+            tooltip="Hạng mục: chứa chỉ tiêu con trực tiếp (nơi nhập số đo). Chỉ số sức khỏe: gộp điểm từ các nhóm con khác qua công thức.">
             <Radio.Group buttonStyle="solid">
-              <Radio.Button value="LEAF">Đo lường — chứa chỉ tiêu con</Radio.Button>
-              <Radio.Button value="COMPOSITE">Tổng hợp — gộp nhóm con</Radio.Button>
+              <Radio.Button value="LEAF">Hạng mục — chứa chỉ tiêu con</Radio.Button>
+              <Radio.Button value="COMPOSITE">Chỉ số sức khỏe — gộp nhóm con</Radio.Button>
             </Radio.Group>
           </Form.Item>
           <Form.Item name="ID_NhomCha" label="Nhóm cha" tooltip="Để trống nếu đây là nhóm gốc">
@@ -501,6 +520,10 @@ export default function CayChiTieuPage() {
             tooltip="1 = tầng lá, số càng lớn càng ở tầng tổng hợp cao hơn"
             rules={[{ required: true }]}>
             <InputNumber style={{ width: '100%' }} min={1} />
+          </Form.Item>
+          <Form.Item name="TrongSo_Wi" label="Trọng số Wᵢ (khi tham gia công thức nhóm cha)"
+            tooltip="Dùng khi nhóm này được chọn làm biến NHOM_CON trong công thức của 1 nhóm COMPOSITE khác (vd 'Chất lượng dầu' Wi=6 khi tham gia TS1). Để trống = coi như đồng trọng số (Wi=1) trừ khi công thức có override riêng.">
+            <InputNumber style={{ width: '100%' }} min={0} step={0.5} placeholder="Để trống nếu không cần" />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
@@ -543,6 +566,7 @@ export default function CayChiTieuPage() {
             <Radio.Group buttonStyle="solid">
               <Radio.Button value="Nguong">Ngưỡng</Radio.Button>
               <Radio.Button value="Rule">Biểu thức (Rule)</Radio.Button>
+              <Radio.Button value="LF">Mang tải (LF)</Radio.Button>
             </Radio.Group>
           </Form.Item>
           <Form.Item name="TrangThai" label="Trạng thái" rules={[{ required: true }]}>

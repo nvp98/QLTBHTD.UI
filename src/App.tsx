@@ -101,18 +101,28 @@ export default function App() {
       };
     }
 
+    // Bộ token "Dark Navy Theme" đã chốt (xem index.css :root[data-theme='dark'] cho bản CSS var
+    // tương ứng — 2 nơi này PHẢI khớp nhau khi sửa màu sau này).
     return {
       algorithm: theme.darkAlgorithm,
       token: {
-        colorBgContainer: '#0d1117',
-        colorBgElevated: '#111827',
-        colorBgLayout: '#060c14',
-        colorBorder: '#1f2937',
-        colorBorderSecondary: '#374151',
-        colorText: '#f9fafb',
-        colorTextSecondary: '#9ca3af',
-        colorTextPlaceholder: '#4b5563',
-        colorPrimary: '#3b82f6',
+        colorBgContainer: '#0e2c4a',      // --bg-card
+        colorBgElevated: '#1d365d',       // --bg-modal
+        colorBgLayout: '#0a2540',         // --bg-sidebar — tối hơn card, để card luôn nổi rõ kể cả
+                                           // ngoài vùng có gradient nền (overlay phẳng, iframe con...)
+        colorBorder: '#1e4a72',           // --border-default
+        colorBorderSecondary: '#163a5c',  // --divider
+        colorText: '#e8eef5',             // --text-primary
+        colorTextSecondary: '#9fb3c8',    // --text-secondary
+        colorTextTertiary: '#8098b0',     // --text-muted
+        colorTextPlaceholder: '#7a91a8',  // --text-placeholder
+        colorPrimary: '#4d66d1',          // --accent-600
+        colorPrimaryHover: '#5b74db',     // --accent-500
+        colorPrimaryActive: '#3f56b8',    // --accent-700 — đậm hơn hover để phân biệt pressed
+        colorSuccess: '#34d399',
+        colorWarning: '#fbbf24',
+        colorError: '#f87171',
+        colorInfo: '#38bdf8',
         borderRadius: 6,
         fontFamily: FONT_STACK,
         fontSize: 14,
@@ -121,12 +131,12 @@ export default function App() {
         Menu: {
           darkItemBg: 'transparent',
           itemBg: 'transparent',
-          itemSelectedBg: '#1e3a5f',
-          itemSelectedColor: '#93c5fd',
-          itemColor: '#9ca3af',
-          itemHoverColor: '#e5e7eb',
-          itemHoverBg: '#111827',
-          groupTitleColor: '#374151',
+          itemSelectedBg: '#1a4570',       // --bg-active
+          itemSelectedColor: '#e8eef5',    // --text-primary
+          itemColor: '#9fb3c8',            // --text-secondary
+          itemHoverColor: '#e8eef5',       // --text-primary
+          itemHoverBg: '#16416b',          // --bg-hover
+          groupTitleColor: '#8098b0',      // --text-muted
           groupTitleFontSize: 10,
         },
         Card: {
@@ -134,36 +144,51 @@ export default function App() {
           headerFontSize: 14,
         },
         Table: {
-          headerBg: '#111827',
-          headerColor: '#9ca3af',
-          rowHoverBg: '#111827',
-          borderColor: '#1f2937',
-          bodySortBg: '#0d1117',
+          headerBg: '#0e2c4a',   // --bg-card
+          headerColor: '#9fb3c8',
+          rowHoverBg: '#16416b', // --bg-hover
+          borderColor: '#1e4a72',
+          bodySortBg: '#0e2c4a',
         },
         Modal: {
-          contentBg: '#111827',
-          headerBg: '#111827',
-          footerBg: '#111827',
+          contentBg: '#1d365d',  // --bg-modal
+          headerBg: '#1d365d',
+          footerBg: '#1d365d',
         },
         Select: {
-          selectorBg: '#111827',
-          optionSelectedBg: '#1e3a5f',
+          selectorBg: '#16294d',       // --bg-input
+          colorBorder: '#3a6ea3',      // --border-input (rõ ranh giới hơn viền mặc định)
+          optionSelectedBg: '#1a4570', // --bg-active
         },
         Input: {
-          activeBg: '#111827',
-          hoverBg: '#111827',
+          activeBg: '#16294d',
+          hoverBg: '#16294d',
+          colorBorder: '#3a6ea3',
+          hoverBorderColor: '#2c5f8f',
+          activeBorderColor: '#5b74db',
         },
         InputNumber: {
-          activeBg: '#111827',
+          activeBg: '#16294d',
+          colorBorder: '#3a6ea3',
+          hoverBorderColor: '#2c5f8f',
+          activeBorderColor: '#5b74db',
         },
         Segmented: {
-          itemSelectedBg: '#1d4ed8',
+          itemSelectedBg: '#4d66d1',
           itemSelectedColor: '#fff',
-          trackBg: 'transparent',
+          trackBg: '#16294d',   // --bg-input — đồng bộ cấu trúc vùng chứa với Input/Select
         },
         Tag: {
-          defaultBg: '#1f2937',
-          defaultColor: '#9ca3af',
+          defaultBg: '#163a5c',  // --bg-tag (riêng, không dùng chung với --border-default nữa)
+          defaultColor: '#e8eef5', // --text-primary — đảm bảo đạt AA trên nền --bg-tag
+        },
+        Button: {
+          defaultBg: '#8a93a4',
+          defaultColor: '#12182a',       // --text-on-neutral-btn — đạt AA trên nền xám
+          defaultBorderColor: '#8a93a4',
+          defaultHoverBg: '#9aa2b1',
+          defaultHoverColor: '#12182a',
+          defaultHoverBorderColor: '#9aa2b1',
         },
       },
     };

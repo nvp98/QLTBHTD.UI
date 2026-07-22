@@ -132,6 +132,13 @@ export default function NhomChiTieuPage() {
       render: v => <Tag>v{v}</Tag>,
     },
     {
+      title: 'Trọng số Wᵢ', dataIndex: 'TrongSo_Wi', key: 'trongso', width: 110, align: 'center',
+      render: v => v != null
+        ? <Tag color="purple" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{v}</Tag>
+        : <Text style={{ color: '#6b7280', fontSize: 12 }}>—</Text>,
+      sorter: (a, b) => (a.TrongSo_Wi ?? 0) - (b.TrongSo_Wi ?? 0),
+    },
+    {
       title: 'Trạng thái', dataIndex: 'TrangThai', key: 'status', width: 130,
       render: v => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>,
       filters: [{ text: 'Hoạt động', value: 1 }, { text: 'Ngừng', value: 0 }],
@@ -164,7 +171,7 @@ export default function NhomChiTieuPage() {
         </Text>
       </div>
 
-      <Card style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
+      <Card style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
           <Space wrap>
@@ -210,6 +217,10 @@ export default function NhomChiTieuPage() {
           <Form.Item name="PhienBan" label="Phiên bản tiêu chuẩn"
             rules={[{ required: true }]} tooltip="Phiên bản quy trình CBM áp dụng">
             <InputNumber style={{ width: '100%' }} min={1} placeholder="1" />
+          </Form.Item>
+          <Form.Item name="TrongSo_Wi" label="Trọng số Wᵢ (khi tham gia công thức nhóm cha)"
+            tooltip="Dùng khi nhóm này được chọn làm biến NHOM_CON trong công thức của 1 nhóm COMPOSITE khác (vd 'Chất lượng dầu' Wi=6 khi tham gia TS1). Để trống = coi như đồng trọng số (Wi=1) trừ khi công thức có override riêng.">
+            <InputNumber style={{ width: '100%' }} min={0} step={0.5} placeholder="Để trống nếu không cần" />
           </Form.Item>
           <Form.Item name="TrangThai" label="Trạng thái" rules={[{ required: true }]}>
             <Select options={[{ label: 'Hoạt động', value: 1 }, { label: 'Ngừng', value: 0 }]} />

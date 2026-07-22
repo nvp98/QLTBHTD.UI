@@ -120,7 +120,7 @@ function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: stri
             )}
             {d.value !== null && (
               <>
-                <circle cx={x} cy={yOf(d.value)} r={4} fill={color} stroke={isDark ? '#0d1117' : '#fff'} strokeWidth={2} />
+                <circle cx={x} cy={yOf(d.value)} r={4} fill={color} stroke={isDark ? '#0e2c4a' : '#fff'} strokeWidth={2} />
                 <title>{`${d.label}: ${d.value.toFixed(1)}`}</title>
               </>
             )}
@@ -135,8 +135,8 @@ function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: stri
 function TabTongHop({ isDark }: { isDark: boolean }) {
   const [data, setData] = useState<ThongKeTongHopDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const panelBg = isDark ? '#0d1117' : '#ffffff';
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
+  const panelBg = isDark ? '#0e2c4a' : '#ffffff';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
   const tc = isDark ? '#f9fafb' : '#111827';
 
   useEffect(() => {
@@ -216,7 +216,7 @@ function TabTongHop({ isDark }: { isDark: boolean }) {
                   percent={pct}
                   showInfo={false}
                   strokeColor={lv.color}
-                  trailColor={isDark ? '#1f2937' : '#e5e7eb'}
+                  trailColor={isDark ? '#1e4a72' : '#e5e7eb'}
                   size="small"
                 />
               </Col>
@@ -255,8 +255,8 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [history, setHistory] = useState<LichSuCSSKDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const panelBg = isDark ? '#0d1117' : '#ffffff';
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
+  const panelBg = isDark ? '#0e2c4a' : '#ffffff';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
   const tc = isDark ? '#f9fafb' : '#111827';
 
   useEffect(() => {
@@ -297,7 +297,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
         <Flex align="center" gap={8}>
           <Progress percent={v * 10} size="small" showInfo={false}
             strokeColor={getCapDo(v, isDark).color}
-            trailColor={isDark ? '#1f2937' : '#e5e7eb'} style={{ width: 80 }} />
+            trailColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
           <Text style={{ color: getCapDo(v, isDark).color, fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
             {v.toFixed(1)}
           </Text>
@@ -394,8 +394,8 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
 function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
   const [data, setData] = useState<BaoCaoTramItemDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const panelBg = isDark ? '#0d1117' : '#ffffff';
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
+  const panelBg = isDark ? '#0e2c4a' : '#ffffff';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
   const tc = isDark ? '#f9fafb' : '#111827';
 
   useEffect(() => {
@@ -446,7 +446,7 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
           <Text style={{ color: tc, fontFamily: 'monospace' }}>{v}/{r.tongThietBi}</Text>
           {r.tongThietBi > 0 && (
             <Progress percent={Math.round((v / r.tongThietBi) * 100)} size={[50, 4]}
-              showInfo={false} strokeColor="#3b82f6" trailColor={isDark ? '#1f2937' : '#e5e7eb'} />
+              showInfo={false} strokeColor="#3b82f6" trailColor={isDark ? '#1e4a72' : '#e5e7eb'} />
           )}
         </Flex>
       ) },
@@ -516,7 +516,7 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
   const navigate = useNavigate();
   const [data, setData] = useState<CanhBaoThietBiDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
   const tc = isDark ? '#f9fafb' : '#111827';
 
   useEffect(() => {
@@ -549,7 +549,7 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
         <Flex align="center" gap={8}>
           <Progress percent={r.tongDiem_Soqt * 10} size="small" showInfo={false}
             strokeColor={getCapDo(r.tongDiem_Soqt, isDark).color}
-            trailColor={isDark ? '#1f2937' : '#e5e7eb'} style={{ width: 80 }} />
+            trailColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
           <Text style={{ color: getCapDo(r.tongDiem_Soqt, isDark).color, fontFamily: 'monospace', fontWeight: 600 }}>
             {r.tongDiem_Soqt.toFixed(1)}
           </Text>
@@ -620,7 +620,7 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
             )}
           </Flex>
         }
-        style={{ background: isDark ? '#0d1117' : '#ffffff', border: `1px solid ${panelBorder}` }}
+        style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${panelBorder}` }}
         styles={{ header: { color: tc, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '8px 0' } }}>
         {data.length === 0 && !loading ? (
           <Flex vertical align="center" gap={12} style={{ padding: '40px 0' }}>

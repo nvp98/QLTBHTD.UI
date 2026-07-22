@@ -11,7 +11,9 @@ export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { mode } = useThemeMode();
 
-  const contentBg = mode === 'dark' ? '#060c14' : '#f3f4f6';
+  const contentBg = mode === 'dark'
+    ? 'linear-gradient(to bottom, #0b2c4d, #123e6b)'
+    : '#f3f4f6';
 
   return (
     <Layout style={{ height: '100vh', overflow: 'hidden' }}>

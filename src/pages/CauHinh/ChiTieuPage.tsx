@@ -10,6 +10,9 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { InputRef } from 'antd';
+import {
+  useNCalcToolbar, NCALC_TOOLBAR_TAG_STYLE, NCALC_OPERATORS, NCALC_PUNCTUATION, NCALC_FUNCTIONS,
+} from '../../hooks/useNCalcToolbar';
 import { chiTieuApi }      from '../../api/chiTieu';
 import { nguongApi }       from '../../api/nguong';
 import { nhomChiTieuApi }  from '../../api/nhomChiTieu';
@@ -125,7 +128,7 @@ interface ExprBuilderProps {
 }
 
 function ExprBuilder({ tree, varOpts, isDark, onChange }: ExprBuilderProps) {
-  const groupBg     = isDark ? '#0d1117' : '#f8f4ff';
+  const groupBg     = isDark ? '#0e2c4a' : '#f8f4ff';
   const groupBorder = isDark ? '#312e81' : '#d1c4e9';
   const previewBg   = isDark ? '#060810' : '#f3f0ff';
   const previewBd   = isDark ? '#4c1d95' : '#c4b5fd';
@@ -375,7 +378,7 @@ function VarManager({ chiTieuId, inputs, isDark, onRefresh }: VarManagerProps) {
     catch { message.error('Lỗi xóa biến'); }
   };
 
-  const panelBg  = isDark ? '#0d1117' : '#f0fdf4';
+  const panelBg  = isDark ? '#0e2c4a' : '#f0fdf4';
   const panelBd  = isDark ? '#14532d' : '#86efac';
 
   return (
@@ -530,7 +533,7 @@ function NguongPanel({
     catch { message.error('Lỗi xóa ngưỡng'); }
   };
 
-  const borderColor = isDark ? '#1f2937' : '#e5e7eb';
+  const borderColor = isDark ? '#1e4a72' : '#e5e7eb';
 
   const cols: ColumnsType<Nguong> = [
     {
@@ -600,7 +603,7 @@ function NguongPanel({
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#060c14' : '#f9fafb', borderRadius: 8, border: `1px solid ${borderColor}` }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f9fafb', borderRadius: 8, border: `1px solid ${borderColor}` }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
         <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: 600 }}>
           <SettingOutlined style={{ marginRight: 6 }} />Ngưỡng điểm · {chiTieuName}
@@ -626,7 +629,7 @@ function NguongPanel({
         open={modalOpen}
         onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
-        confirmLoading={saving} destroyOnHidden width={760}
+        confirmLoading={saving} destroyOnHidden width={900}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="ID_ChiTieu" hidden><InputNumber /></Form.Item>
@@ -687,7 +690,7 @@ function NguongPanel({
                   const lOp = cd != null ? (cdBG ? '≥' : '>') : '', rOp = ct != null ? (ctBG ? '≤' : '<') : '';
                   const expr = [lOp && `x ${lOp} ${lo}`, rOp && `x ${rOp} ${hi}`].filter(Boolean).join(' và ');
                   return (
-                    <div style={{ padding: '7px 12px', background: isDark ? '#0d1117' : '#eff6ff', borderRadius: 6, border: `1px solid ${isDark ? '#1e3a5f' : '#bfdbfe'}`, marginBottom: 8 }}>
+                    <div style={{ padding: '7px 12px', background: isDark ? '#0e2c4a' : '#eff6ff', borderRadius: 6, border: `1px solid ${isDark ? '#1e3a5f' : '#bfdbfe'}`, marginBottom: 8 }}>
                       <Text style={{ color: '#6b7280', fontSize: 11 }}>Điều kiện: </Text>
                       <Text code style={{ color: '#93c5fd', fontSize: 12 }}>{expr || '(chưa nhập)'}</Text>
                     </div>
@@ -802,7 +805,7 @@ function InputPanel({
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#060c14' : '#f0fdf4', borderRadius: 8, border: `1px solid ${isDark ? '#14532d' : '#86efac'}`, marginBottom: 12 }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f0fdf4', borderRadius: 8, border: `1px solid ${isDark ? '#14532d' : '#86efac'}`, marginBottom: 12 }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
         <Text style={{ color: '#22c55e', fontSize: 12, fontWeight: 600 }}>
           <FunctionOutlined style={{ marginRight: 6 }} />Biến đầu vào · {chiTieuName}
@@ -824,7 +827,7 @@ function InputPanel({
         open={modalOpen}
         onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
-        confirmLoading={saving} destroyOnHidden width={460}
+        confirmLoading={saving} destroyOnHidden width={580}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="ID_ChiTieu" hidden><InputNumber /></Form.Item>
@@ -918,7 +921,7 @@ function ThamSoManager({
   return (
     <Modal
       title={<Space><FunctionOutlined style={{ color: '#f59e0b' }} />Tham số Formula <Tag color="orange">{formula.MaKetQua}</Tag></Space>}
-      open onCancel={onClose} footer={null} width={640} destroyOnHidden
+      open onCancel={onClose} footer={null} width={800} destroyOnHidden
     >
       <Table<ChiTieuFormulaThamSo>
         dataSource={data} columns={cols} rowKey="ID_ThamSo"
@@ -994,6 +997,7 @@ function FormulaPanel({
   const [thamSoFor, setThamSoFor] = useState<ChiTieuFormula | null>(null);
   const [loaiFormula, setLoaiFormula] = useState('NCALC');
   const [form] = Form.useForm();
+  const { ref: bieuThucRef, insertVar, insertOp, insertPunc, insertFunc } = useNCalcToolbar(form, 'BieuThuc');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1046,7 +1050,13 @@ function FormulaPanel({
       render: v => <Text code style={{ color: '#f59e0b', fontWeight: 700 }}>{v}</Text> },
     { title: 'Thứ tự', dataIndex: 'ThuTu', key: 'thutu', width: 70, align: 'center' },
     { title: 'Loại', dataIndex: 'LoaiFormula', key: 'loai', width: 100, align: 'center',
-      render: v => <Tag color={v === 'FUNCTION' ? 'geekblue' : 'orange'} style={{ fontSize: 10 }}>{v}</Tag> },
+      render: v => (
+        <Tooltip title={v === 'FUNCTION' ? 'Hàm đã đăng ký (FormulaFunctionRegistry)' : 'Biểu thức NCalc'}>
+          <Tag color={v === 'FUNCTION' ? 'geekblue' : 'orange'} style={{ fontSize: 10, cursor: 'help' }}>
+            {v === 'FUNCTION' ? 'Hàm' : 'NCalc'}
+          </Tag>
+        </Tooltip>
+      ) },
     { title: 'Biểu thức / Hàm', key: 'expr',
       render: (_, r) => (
         <Text code style={{ fontSize: 12, color: isDark ? '#fcd34d' : '#b45309' }}>
@@ -1067,7 +1077,7 @@ function FormulaPanel({
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#060c14' : '#fffbeb', borderRadius: 8, border: `1px solid ${isDark ? '#78350f' : '#fde68a'}`, marginBottom: 12 }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#fffbeb', borderRadius: 8, border: `1px solid ${isDark ? '#78350f' : '#fde68a'}`, marginBottom: 12 }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
         <Text style={{ color: '#d97706', fontSize: 12, fontWeight: 600 }}>
           <FunctionOutlined style={{ marginRight: 6 }} />Formula (giá trị trung gian) · {chiTieuName}
@@ -1091,7 +1101,7 @@ function FormulaPanel({
           {editing ? 'Cập nhật formula' : 'Thêm formula'}
           <Tag color="orange">{chiTieuName}</Tag></Space>}
         open={modalOpen} onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
-        okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy" confirmLoading={saving} destroyOnHidden width={560}
+        okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy" confirmLoading={saving} destroyOnHidden width={760}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="ID_ChiTieu" hidden><InputNumber /></Form.Item>
@@ -1117,10 +1127,56 @@ function FormulaPanel({
             </Radio.Group>
           </Form.Item>
           {loaiFormula === 'NCALC' ? (
-            <Form.Item name="BieuThuc" label="Biểu thức" rules={[{ required: true }]}
-              tooltip="Dùng tên biến khai báo ở nút 'Tham số'. VD: T_tren - T_duoi">
-              <Input.TextArea rows={2} placeholder="T_tren - T_duoi" style={{ fontFamily: 'monospace' }} />
-            </Form.Item>
+            <>
+              {(inputs.length > 0 || data.some(f => f.ID_Formula !== editing?.ID_Formula)) && (
+                <Flex wrap gap={4} style={{ marginBottom: 6 }}>
+                  <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Bấm để chèn biến: </Text>
+                  {inputs.map(i => (
+                    <Tag key={`input-${i.ID_Input}`} color="green" style={NCALC_TOOLBAR_TAG_STYLE}
+                      onClick={() => insertVar(i.MaInput)}>
+                      {i.MaInput}
+                    </Tag>
+                  ))}
+                  {data.filter(f => f.ID_Formula !== editing?.ID_Formula).map(f => (
+                    <Tag key={`formula-${f.ID_Formula}`} color="orange" style={NCALC_TOOLBAR_TAG_STYLE}
+                      onClick={() => insertVar(f.MaKetQua)}>
+                      {f.MaKetQua}
+                    </Tag>
+                  ))}
+                </Flex>
+              )}
+              <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Toán tử: </Text>
+                {NCALC_OPERATORS.map(op => (
+                  <Tag key={`op-${op}`} color="blue" style={{ ...NCALC_TOOLBAR_TAG_STYLE, minWidth: 30 }}
+                    onClick={() => insertOp(op)}>
+                    {op}
+                  </Tag>
+                ))}
+              </Flex>
+              <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Dấu: </Text>
+                {NCALC_PUNCTUATION.map(p => (
+                  <Tag key={`punc-${p}`} color="cyan" style={{ ...NCALC_TOOLBAR_TAG_STYLE, minWidth: 26 }}
+                    onClick={() => insertPunc(p)}>
+                    {p}
+                  </Tag>
+                ))}
+              </Flex>
+              <Flex wrap gap={6} style={{ marginBottom: 10 }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Hàm: </Text>
+                {NCALC_FUNCTIONS.map(f => (
+                  <Tag key={`func-${f.fn}`} color="magenta" style={NCALC_TOOLBAR_TAG_STYLE}
+                    onClick={() => insertFunc(f.fn)}>
+                    {f.label}
+                  </Tag>
+                ))}
+              </Flex>
+              <Form.Item name="BieuThuc" label="Biểu thức" rules={[{ required: true }]}
+                tooltip="Bấm vào biến/toán tử/hàm ở trên để chèn đúng, tránh gõ tay sai so với mã biến đã khai báo. VD: T_tren - T_duoi">
+                <Input.TextArea ref={bieuThucRef} rows={3} placeholder="T_tren - T_duoi" style={{ fontFamily: 'monospace', fontSize: 15 }} />
+              </Form.Item>
+            </>
           ) : (
             <Form.Item name="TenFunction" label="Tên hàm" rules={[{ required: true }]}
               tooltip="Tên hàm đã đăng ký trong FormulaFunctionRegistry (backend)">
@@ -1164,8 +1220,17 @@ function RulePanel({
   const [logicTree, setTree]  = useState<LogicTree>([newGroup()]);
   const [loaiRule, setLoaiRule] = useState<'BANG_MUC' | 'CONG_THUC'>('BANG_MUC');
   const [form]                = Form.useForm();
+  const {
+    ref: bieuThucRawRef, insertVar: insertRuleVar, insertOp: insertRuleOp,
+    insertPunc: insertRulePunc, insertFunc: insertRuleFunc,
+  } = useNCalcToolbar(form, 'BieuThucRaw');
 
-  const varOpts = inputs.map(i => ({ value: i.MaInput, label: `${i.MaInput} — ${i.TenInput}` }));
+  // Biến khả dụng cho Rule = Input thô (khi không qua Formula) + kết quả Formula (MaKetQua, vd DT1/DT2)
+  // — ChiTieuScoringService.TinhDiemTuFormulaAsync bind Rule thẳng vào giá trị Formula, không phải Si_xxx.
+  const varOpts = [
+    ...inputs.map(i => ({ value: i.MaInput, label: `${i.MaInput} — ${i.TenInput}` })),
+    ...formulas.map(f => ({ value: f.MaKetQua, label: `${f.MaKetQua} — kết quả Formula` })),
+  ];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1224,7 +1289,7 @@ function RulePanel({
     catch { message.error('Lỗi xóa quy tắc'); }
   };
 
-  const borderColor = isDark ? '#1f2937' : '#e5e7eb';
+  const borderColor = isDark ? '#1e4a72' : '#e5e7eb';
 
   const cols: ColumnsType<ChiTieuRule> = [
     { title: 'Loại', dataIndex: 'LoaiRule', key: 'loairule', width: 96, align: 'center',
@@ -1259,7 +1324,7 @@ function RulePanel({
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#060c14' : '#f9fafb', borderRadius: 8, border: `1px solid ${borderColor}` }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f9fafb', borderRadius: 8, border: `1px solid ${borderColor}` }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
         <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: 600 }}>
           <FunctionOutlined style={{ marginRight: 6 }} />Quy tắc biểu thức · {chiTieuName}
@@ -1287,7 +1352,7 @@ function RulePanel({
         open={modalOpen}
         onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
-        confirmLoading={saving} destroyOnHidden width={780}
+        confirmLoading={saving} destroyOnHidden width={920}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="ID_ChiTieu" hidden><InputNumber /></Form.Item>
@@ -1331,19 +1396,47 @@ function RulePanel({
                 <InputNumber />
               </Form.Item>
               {formulas.length > 0 && (
-                <Flex wrap gap={4} style={{ marginBottom: 8 }}>
-                  <Text style={{ color: '#6b7280', fontSize: 11, alignSelf: 'center' }}>Biến khả dụng: </Text>
+                <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+                  <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Bấm để chèn biến: </Text>
                   {formulas.map(f => (
-                    <Tag key={f.ID_Formula} color="orange" style={{ fontSize: 10 }}>
-                      <code>Si_{f.MaKetQua}</code>
+                    <Tag key={f.ID_Formula} color="orange" style={NCALC_TOOLBAR_TAG_STYLE}
+                      onClick={() => insertRuleVar(f.MaKetQua)}>
+                      {f.MaKetQua}
                     </Tag>
                   ))}
                 </Flex>
               )}
-              <Form.Item name="BieuThucRaw" label="Biểu thức NCalc (gộp Si từ các Formula)"
+              <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Toán tử: </Text>
+                {NCALC_OPERATORS.map(op => (
+                  <Tag key={`rop-${op}`} color="blue" style={{ ...NCALC_TOOLBAR_TAG_STYLE, minWidth: 30 }}
+                    onClick={() => insertRuleOp(op)}>
+                    {op}
+                  </Tag>
+                ))}
+              </Flex>
+              <Flex wrap gap={6} style={{ marginBottom: 6 }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Dấu: </Text>
+                {NCALC_PUNCTUATION.map(p => (
+                  <Tag key={`rpunc-${p}`} color="cyan" style={{ ...NCALC_TOOLBAR_TAG_STYLE, minWidth: 26 }}
+                    onClick={() => insertRulePunc(p)}>
+                    {p}
+                  </Tag>
+                ))}
+              </Flex>
+              <Flex wrap gap={6} style={{ marginBottom: 10 }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, alignSelf: 'center' }}>Hàm: </Text>
+                {NCALC_FUNCTIONS.map(f => (
+                  <Tag key={`rfunc-${f.fn}`} color="magenta" style={NCALC_TOOLBAR_TAG_STYLE}
+                    onClick={() => insertRuleFunc(f.fn)}>
+                    {f.label}
+                  </Tag>
+                ))}
+              </Flex>
+              <Form.Item name="BieuThucRaw" label="Biểu thức NCalc (kết luận Si từ kết quả Formula)"
                 rules={[{ required: true, message: 'Nhập biểu thức' }]}
-                tooltip='Ten bien = "Si_" + MaKetQua cua tung Formula. Vi du: Min(Si_DT1, Si_DT2)'>
-                <Input.TextArea rows={2} placeholder="Min(Si_DT1, Si_DT2)" style={{ fontFamily: 'monospace' }} />
+                tooltip='Bấm vào biến/toán tử/hàm ở trên để chèn đúng, tránh gõ tay sai casing (NCalc phân biệt hoa/thường). Biến là giá trị Formula thô (vd DT1, DT2), không phải Si đã tra ngưỡng. VD: If(DT1<=3 && DT2<=10, 3, If(DT1<=10 && DT2<=20, 2, If(DT1<=15 && DT2<=40, 1, 0)))'>
+                <Input.TextArea ref={bieuThucRawRef} rows={3} placeholder="If(DT1<=3 && DT2<=10, 3, ...)" style={{ fontFamily: 'monospace', fontSize: 15 }} />
               </Form.Item>
             </>
           )}
@@ -1409,7 +1502,7 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
     catch { message.error('Lỗi xóa mức'); }
   };
 
-  const borderColor = isDark ? '#1f2937' : '#e5e7eb';
+  const borderColor = isDark ? '#1e4a72' : '#e5e7eb';
 
   const cols: ColumnsType<ChiTieuPhanLoaiNguong> = [
     { title: 'Mã mức', dataIndex: 'MaMuc', key: 'ma', width: 90,
@@ -1440,7 +1533,7 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#060c14' : '#fdf4ff', borderRadius: 8, border: `1px solid ${isDark ? '#4c1d95' : '#e9d5ff'}`, marginBottom: 12 }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#fdf4ff', borderRadius: 8, border: `1px solid ${isDark ? '#4c1d95' : '#e9d5ff'}`, marginBottom: 12 }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
         <Text style={{ color: '#a855f7', fontSize: 12, fontWeight: 600 }}>
           <CalendarOutlined style={{ marginRight: 6 }} />Mức phân loại theo tháng (N0..N4) · {chiTieuName}
@@ -1465,7 +1558,7 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
         open={modalOpen}
         onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
-        confirmLoading={saving} destroyOnHidden width={520}
+        confirmLoading={saving} destroyOnHidden width={640}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={12}>
@@ -1710,7 +1803,7 @@ export default function ChiTieuPage() {
       </div>
 
       <Card
-        style={{ background: isDark ? '#0d1117' : '#fff', border: `1px solid ${isDark ? '#1f2937' : '#e5e7eb'}` }}
+        style={{ background: isDark ? '#0e2c4a' : '#fff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}
       >
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
@@ -1763,7 +1856,7 @@ export default function ChiTieuPage() {
         onOk={handleSubmit}
         onCancel={() => { form.resetFields(); setModalOpen(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm mới'} cancelText="Hủy"
-        confirmLoading={saving} width={520} destroyOnHidden
+        confirmLoading={saving} width={640} destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="ID_NhomChiTieu" label="Nhóm chỉ tiêu"
@@ -1788,7 +1881,7 @@ export default function ChiTieuPage() {
               <Radio.Button value="LF"><CalendarOutlined /> Mang tải (LF)</Radio.Button>
             </Radio.Group>
           </Form.Item>
-          <Divider style={{ borderColor: isDark ? '#1f2937' : '#e5e7eb', margin: '8px 0' }} />
+          <Divider style={{ borderColor: isDark ? '#1e4a72' : '#e5e7eb', margin: '8px 0' }} />
           <Form.Item name="TrangThai" label="Trạng thái" rules={[{ required: true }]}>
             <Select options={[{ label: 'Hoạt động', value: 1 }, { label: 'Ngừng', value: 0 }]} />
           </Form.Item>

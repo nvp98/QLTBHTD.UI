@@ -216,9 +216,9 @@ export default function TaoPhieuKiemTraPage() {
 
   const titleColor  = isDark ? '#f9fafb' : '#111827';
   const textColor   = isDark ? '#9ca3af' : '#4b5563';
-  const panelBg     = isDark ? '#111827' : '#ffffff';
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
-  const itemBg      = isDark ? '#0d1117' : '#f9fafb';
+  const panelBg     = isDark ? '#123a5e' : '#ffffff';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
+  const itemBg      = isDark ? '#0e2c4a' : '#f9fafb';
 
   const handleSave = async () => {
     if (!selectedTB) return;
@@ -331,7 +331,7 @@ export default function TaoPhieuKiemTraPage() {
                       ['Nhãn hiệu', selectedTB.NhanHieu ?? '—'],
                       ['Năm SX', String(selectedTB.NamSanXuat ?? '—')],
                     ].map(([k, v]) => (
-                      <Tag key={k} style={{ background: isDark ? '#1f2937' : '#f3f4f6', border: `1px solid ${isDark ? '#374151' : '#d1d5db'}`, color: textColor }}>
+                      <Tag key={k} style={{ background: isDark ? '#1e4a72' : '#f3f4f6', border: `1px solid ${isDark ? '#374151' : '#d1d5db'}`, color: textColor }}>
                         {k}: <strong style={{ color: titleColor }}>{v}</strong>
                       </Tag>
                     ))}
@@ -458,7 +458,7 @@ export default function TaoPhieuKiemTraPage() {
                                                 fontSize: 11,
                                                 padding: '1px 5px',
                                                 borderRadius: 4,
-                                                background: isDark ? '#1f2937' : '#f3f4f6',
+                                                background: isDark ? '#1e4a72' : '#f3f4f6',
                                                 color: isDark ? '#a78bfa' : '#7c3aed',
                                                 border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
                                               }}>
@@ -509,7 +509,7 @@ export default function TaoPhieuKiemTraPage() {
                                           <div style={{ overflowX: 'auto' }}>
                                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                               <thead>
-                                                <tr style={{ background: isDark ? '#1f2937' : '#f3f4f6' }}>
+                                                <tr style={{ background: isDark ? '#1e4a72' : '#f3f4f6' }}>
                                                   <th style={{ padding: '6px 10px', textAlign: 'left', color: textColor, fontWeight: 500 }}>Mức</th>
                                                   <th style={{ padding: '6px 10px', textAlign: 'left', color: textColor, fontWeight: 500 }}>Điều kiện biểu thức</th>
                                                   <th style={{ padding: '6px 10px', textAlign: 'center', color: textColor, fontWeight: 500 }}>Điểm</th>
@@ -525,7 +525,7 @@ export default function TaoPhieuKiemTraPage() {
                                                     <td style={{ padding: '6px 10px' }}>
                                                       <code style={{
                                                         fontSize: 11,
-                                                        background: isDark ? '#1f2937' : '#f5f3ff',
+                                                        background: isDark ? '#1e4a72' : '#f5f3ff',
                                                         padding: '3px 7px',
                                                         borderRadius: 4,
                                                         color: isDark ? '#c4b5fd' : '#6d28d9',

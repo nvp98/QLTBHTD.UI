@@ -23,9 +23,9 @@ export default function BaoCaoPage() {
   const navigate = useNavigate();
 
   const titleColor = isDark ? '#f9fafb' : '#111827';
-  const panelBg = isDark ? '#0d1117' : '#ffffff';
-  const panelBorder = isDark ? '#1f2937' : '#e5e7eb';
-  const itemBg = isDark ? '#111827' : '#f9fafb';
+  const panelBg = isDark ? '#0e2c4a' : '#ffffff';
+  const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
+  const itemBg = isDark ? '#123a5e' : '#f9fafb';
 
   return (
     <div style={{ color: titleColor }}>
@@ -112,7 +112,7 @@ export default function BaoCaoPage() {
               </Flex>
             </div>
             <Flex vertical align="center" justify="center" style={{ padding: '40px 0' }}>
-              <div style={{ fontSize: 48, color: isDark ? '#1f2937' : '#9ca3af', marginBottom: 16 }}>{tpl.icon}</div>
+              <div style={{ fontSize: 48, color: isDark ? '#1e4a72' : '#9ca3af', marginBottom: 16 }}>{tpl.icon}</div>
               <Text style={{ color: '#4b5563', fontSize: 15, textAlign: 'center' }}>
                 Chức năng xuất báo cáo sẽ được tích hợp với dữ liệu phiếu kiểm tra thực tế.
               </Text>

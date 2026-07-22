@@ -2,7 +2,7 @@ import { api } from './client';
 import type {
   PhieuKiemTra, PhieuKiemTraDetailDto,
   CreatePhieuKiemTraDto, UpdatePhieuKiemTraDto,
-  ChiTietKiemTra, PagedResult,
+  ChiTietKiemTra, ChiTietInputValueDto, LichSuChiTieu, PagedResult,
 } from '../types/entities';
 
 const BASE = '/api/phieukiemtra';
@@ -20,6 +20,18 @@ type PhieuKiemTraRaw = Partial<PhieuKiemTra> & {
   ghiChuChung?: string;
 };
 
+type ChiTietInputValueRaw = Partial<ChiTietInputValueDto> & {
+  maInput?: string;
+  tenInput?: string;
+  giaTriSo?: number;
+};
+
+const toInputValue = (raw: ChiTietInputValueRaw): ChiTietInputValueDto => ({
+  MaInput:  raw.MaInput  ?? raw.maInput  ?? '',
+  TenInput: raw.TenInput ?? raw.tenInput,
+  GiaTriSo: Number(raw.GiaTriSo ?? raw.giaTriSo ?? 0),
+});
+
 type ChiTietKiemTraRaw = Partial<ChiTietKiemTra> & {
   iD_ChiTiet?: number;
   idPhieu?: number;
@@ -29,9 +41,17 @@ type ChiTietKiemTraRaw = Partial<ChiTietKiemTra> & {
   giaTriNhap_Chu?: string;
   diem_Si_DatDuoc?: number;
   ghiChu?: string;
+  danhSachInput?: ChiTietInputValueRaw[];
 };
 
-type PhieuKiemTraDetailRaw = PhieuKiemTraRaw & { chiTiets?: ChiTietKiemTraRaw[] };
+type LichSuChiTieuRaw = Partial<LichSuChiTieu> & {
+  iD_Phieu?: number;
+  ngayKiemTra?: string;
+  giaTriNhap_So?: number;
+  giaTriNhap_Chu?: string;
+  diem_Si_DatDuoc?: number;
+  danhSachInput?: ChiTietInputValueRaw[];
+};
 
 const toChiTietKiemTra = (raw: ChiTietKiemTraRaw): ChiTietKiemTra => ({
   ID_ChiTiet:      Number(raw.ID_ChiTiet ?? raw.iD_ChiTiet ?? 0),
@@ -42,6 +62,16 @@ const toChiTietKiemTra = (raw: ChiTietKiemTraRaw): ChiTietKiemTra => ({
   GiaTriNhap_Chu:  raw.GiaTriNhap_Chu  ?? raw.giaTriNhap_Chu,
   Diem_Si_DatDuoc: raw.Diem_Si_DatDuoc ?? raw.diem_Si_DatDuoc,
   GhiChu:          raw.GhiChu          ?? raw.ghiChu,
+  DanhSachInput:   (raw.DanhSachInput ?? raw.danhSachInput)?.map(toInputValue),
+});
+
+const toLichSuChiTieu = (raw: LichSuChiTieuRaw): LichSuChiTieu => ({
+  ID_Phieu:        Number(raw.ID_Phieu ?? raw.iD_Phieu ?? 0),
+  NgayKiemTra:     raw.NgayKiemTra     ?? raw.ngayKiemTra     ?? '',
+  GiaTriNhap_So:   raw.GiaTriNhap_So   ?? raw.giaTriNhap_So,
+  GiaTriNhap_Chu:  raw.GiaTriNhap_Chu  ?? raw.giaTriNhap_Chu,
+  Diem_Si_DatDuoc: raw.Diem_Si_DatDuoc ?? raw.diem_Si_DatDuoc,
+  DanhSachInput:   (raw.DanhSachInput ?? raw.danhSachInput)?.map(toInputValue),
 });
 
 const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
@@ -92,6 +122,8 @@ export const phieuKiemTraApi = {
     (await api.get<PhieuKiemTraRaw[]>(`${BASE}/by-ngay?tuNgay=${tuNgay}&denNgay=${denNgay}`)).map(toPhieu),
   getById:   async (id: number) => toPhieu(await api.get<PhieuKiemTraRaw>(`${BASE}/${id}`)),
   getDetail: async (id: number) => toPhieuDetail(await api.get<PhieuKiemTraDetailRaw>(`${BASE}/${id}/detail`)),
+  getLichSuChiTieu: async (idThietBi: number, idChiTieu: number) =>
+    (await api.get<LichSuChiTieuRaw[]>(`${BASE}/lich-su-chi-tieu/${idThietBi}/${idChiTieu}`)).map(toLichSuChiTieu),
   create:    async (dto: CreatePhieuKiemTraDto) => toPhieu(await api.post<PhieuKiemTraRaw>(BASE, dto)),
   update:    async (id: number, dto: UpdatePhieuKiemTraDto) => toPhieu(await api.put<PhieuKiemTraRaw>(`${BASE}/${id}`, dto)),
   delete:    (id: number) => api.delete(`${BASE}/${id}`),
