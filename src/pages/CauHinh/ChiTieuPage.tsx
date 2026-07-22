@@ -313,7 +313,7 @@ function ExprBuilder({ tree, varOpts, isDark, onChange }: ExprBuilderProps) {
             <Button
               size="small" type="dashed" icon={<PlusOutlined />}
               onClick={() => addLine(group.id)}
-              style={{ width: '100%', marginTop: 4, borderColor: '#818cf8', color: '#818cf8' }}
+              style={{ width: '100%', marginTop: 4, borderColor: '#818cf8', color: '#818cf8', background: 'rgba(129,140,248,0.15)' }}
             >
               + Thêm điều kiện VÀ
             </Button>
@@ -324,7 +324,7 @@ function ExprBuilder({ tree, varOpts, isDark, onChange }: ExprBuilderProps) {
       {/* Add group */}
       <Button
         type="dashed" icon={<PlusOutlined />} onClick={addGroup}
-        style={{ width: '100%', marginTop: 8, borderColor: '#7c3aed', color: '#7c3aed' }}
+        style={{ width: '100%', marginTop: 8, borderColor: '#7c3aed', color: '#7c3aed', background: 'rgba(124,58,237,0.15)' }}
       >
         + Thêm nhóm HOẶC
       </Button>
@@ -811,7 +811,7 @@ function InputPanel({
           <FunctionOutlined style={{ marginRight: 6 }} />Biến đầu vào · {chiTieuName}
         </Text>
         <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed"
-          style={{ borderColor: '#22c55e', color: '#22c55e' }}>
+          style={{ borderColor: '#22c55e', color: '#22c55e', background: 'rgba(34,197,94,0.15)' }}>
           Thêm biến
         </Button>
       </Flex>
@@ -1083,7 +1083,7 @@ function FormulaPanel({
           <FunctionOutlined style={{ marginRight: 6 }} />Formula (giá trị trung gian) · {chiTieuName}
         </Text>
         <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed"
-          style={{ borderColor: '#d97706', color: '#d97706' }}>
+          style={{ borderColor: '#d97706', color: '#d97706', background: 'rgba(217,119,6,0.15)' }}>
           Thêm formula
         </Button>
       </Flex>
@@ -1539,7 +1539,7 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
           <CalendarOutlined style={{ marginRight: 6 }} />Mức phân loại theo tháng (N0..N4) · {chiTieuName}
         </Text>
         <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed"
-          style={{ borderColor: '#a855f7', color: '#a855f7' }}>
+          style={{ borderColor: '#a855f7', color: '#a855f7', background: 'rgba(168,85,247,0.15)' }}>
           Thêm mức
         </Button>
       </Flex>

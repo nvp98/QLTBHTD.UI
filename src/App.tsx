@@ -183,12 +183,14 @@ export default function App() {
           defaultColor: '#e8eef5', // --text-primary — đảm bảo đạt AA trên nền --bg-tag
         },
         Button: {
-          defaultBg: '#8a93a4',
-          defaultColor: '#12182a',       // --text-on-neutral-btn — đạt AA trên nền xám
-          defaultBorderColor: '#8a93a4',
-          defaultHoverBg: '#9aa2b1',
-          defaultHoverColor: '#12182a',
-          defaultHoverBorderColor: '#9aa2b1',
+          // Sáng hơn bản trước — nút icon nhỏ (size="small", chỉ có icon, không chữ) trong bảng
+          // trước đó bị "chìm" vào nền navy vì diện tích nền hiển thị quá nhỏ để nhận ra màu xám cũ.
+          defaultBg: '#9aa5bd',
+          defaultColor: '#0d1424',          // chữ/icon tối, tương phản mạnh trên nền sáng này
+          defaultBorderColor: '#c3cbdb',    // viền sáng để rõ ranh giới nút dù nền xung quanh tối
+          defaultHoverBg: '#b3bcce',
+          defaultHoverColor: '#0d1424',
+          defaultHoverBorderColor: '#dfe4ee',
         },
       },
     };
