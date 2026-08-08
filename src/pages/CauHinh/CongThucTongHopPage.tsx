@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Button, Card, Col, Flex, Form, Input, InputNumber, Modal, Popconfirm,
+  Alert, Button, Card, Checkbox, Col, Flex, Form, Input, InputNumber, Modal, Popconfirm,
   Row, Select, Space, Table, Tag, Tooltip, Typography, message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined, EditOutlined,
+  ExperimentOutlined, PlayCircleOutlined, PlusOutlined,
+} from '@ant-design/icons';
 import { congThucTongHopApi, congThucBienApi } from '../../api/congThucTongHop';
+import { congThucTestCaseApi } from '../../api/congThucTestCase';
 import { nhomChiTieuApi } from '../../api/nhomChiTieu';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
 import { chiTieuApi } from '../../api/chiTieu';
@@ -14,9 +18,9 @@ import {
   useNCalcToolbar, NCALC_TOOLBAR_TAG_STYLE, NCALC_OPERATORS, NCALC_PUNCTUATION, NCALC_FUNCTIONS,
 } from '../../hooks/useNCalcToolbar';
 import type {
-  CongThucTongHop, CongThucBien,
-  CreateCongThucTongHopDto, CreateCongThucBienDto,
-  NhomChiTieuCay, LoaiThietBi, ChiTieu,
+  CongThucTongHop, CongThucBien, CongThucTestCase,
+  CreateCongThucTongHopDto, CreateCongThucBienDto, CreateCongThucTestCaseDto,
+  NhomChiTieuCay, LoaiThietBi, ChiTieu, VongLapKetQua,
 } from '../../types/entities';
 
 const { Title, Text } = Typography;
@@ -30,6 +34,7 @@ const LOAI_CONG_THUC_OPTIONS = [
   { value: 'LINEAR_COMBINE', label: 'Cộng dồn hiệu chỉnh — kiểu CHI (điểm cha + Xᵢ/Yᵢ)' },
   { value: 'PRODUCT', label: 'Nhân hệ số — kiểu DGA (Sdga × Sr)' },
   { value: 'CUSTOM_MONTHLY_CLASSIFY', label: 'Phân loại theo tháng — kiểu LF (mức mang tải)' },
+  { value: 'MIN_BIEN', label: 'Nhỏ nhất trong các biến — kiểu Sm (lịch sử bảo dưỡng)' },
 ];
 const loaiCongThucLabel = (v?: string) =>
   LOAI_CONG_THUC_OPTIONS.find(o => o.value === v)?.label ?? v ?? '—';
@@ -42,6 +47,7 @@ const LOAI_CONG_THUC_SHORT: Record<string, string> = {
   LINEAR_COMBINE: 'CHI',
   PRODUCT: 'DGA',
   CUSTOM_MONTHLY_CLASSIFY: 'LF',
+  MIN_BIEN: 'Sm',
 };
 const loaiCongThucShort = (v?: string) => (v ? LOAI_CONG_THUC_SHORT[v] ?? v : '—');
 
@@ -59,6 +65,18 @@ function flattenCay(nodes: NhomChiTieuCay[]): NhomChiTieuCay[] {
   return nodes.flatMap(n => [n, ...flattenCay(n.NhomCon ?? [])]);
 }
 
+/** API trả lỗi cấu hình (vd VongLapCauHinhException) dạng JSON {"error":"..."} trong body —
+ * bóc ra hiển thị đúng thông điệp thay vì message chung chung. */
+function extractApiErrorMessage(e: unknown, macDinh: string): string {
+  if (e instanceof Error) {
+    try {
+      const parsed = JSON.parse(e.message) as { error?: string };
+      if (parsed.error) return parsed.error;
+    } catch { /* không phải JSON — dùng mặc định */ }
+  }
+  return macDinh;
+}
+
 export default function CongThucTongHopPage() {
   const [searchParams] = useSearchParams();
 
@@ -69,6 +87,7 @@ export default function CongThucTongHopPage() {
   const [loading, setLoading]       = useState(false);
   const [selectedLoai, setSelectedLoai] = useState<number | null>(null);
   const [selectedNhom, setSelectedNhom] = useState<number | null>(null);
+  const [vongLap, setVongLap] = useState<VongLapKetQua | null>(null);
 
   // Modal công thức
   const [ctModalOpen, setCtModalOpen] = useState(false);
@@ -82,6 +101,7 @@ export default function CongThucTongHopPage() {
   const [editingBien, setEditingBien]     = useState<CongThucBien | null>(null);
   const [bienForm]                        = Form.useForm();
   const [currentCongThuc, setCurrentCongThuc] = useState<CongThucTongHop | null>(null);
+  const [chiHienLienQuan, setChiHienLienQuan] = useState(true);
 
   useEffect(() => {
     loaiThietBiApi.getActive().then(setLoais).catch(() => message.error('Lỗi tải loại thiết bị'));
@@ -91,30 +111,55 @@ export default function CongThucTongHopPage() {
   const compositeNhoms = useMemo(() => flatNhoms.filter(n => n.LoaiNhom === 'COMPOSITE'), [flatNhoms]);
   const selectedNode = flatNhoms.find(n => n.ID_NhomChiTieu === selectedNhom) ?? null;
   const childNhomOptions = (selectedNode?.NhomCon ?? []).map(n => ({ value: n.ID_NhomChiTieu, label: n.TenNhom }));
-  const chiTieuOptions = chiTieus.map(c => ({
+  // Khi bật "Chỉ hiện chỉ tiêu liên quan": lọc còn chỉ tiêu thuộc chính nhóm đang chọn hoặc các
+  // nhóm con của nó — tránh chọn nhầm chỉ tiêu của nhóm khác khi ráp biến cho công thức. Người
+  // dùng tự tắt toggle khi cần tham chiếu chỉ tiêu ở nhóm khác (không phải hậu duệ) — tránh kiểu
+  // lỗi "im lặng chặn" nếu chỉ dựa vào fallback tự động lúc danh sách lọc rỗng.
+  const relevantNhomIds = selectedNode
+    ? new Set(flattenCay([selectedNode]).map(n => n.ID_NhomChiTieu))
+    : null;
+  const chiTieusHienThi = (chiHienLienQuan && relevantNhomIds)
+    ? chiTieus.filter(c => relevantNhomIds.has(c.ID_NhomChiTieu))
+    : chiTieus;
+  const chiTieuOptions = chiTieusHienThi.map(c => ({
     value: c.ID_ChiTieu,
     label: c.TenNhom ? `${c.TenChiTieu} — ${c.TenNhom}` : c.TenChiTieu,
   }));
 
-  const handleSelectNhom = useCallback(async (id: number) => {
-    setSelectedNhom(id);
-    setCurrentCongThuc(null);
+  const fetchCongThucs = useCallback(async (id: number) => {
     setLoading(true);
     try {
       const data = await congThucTongHopApi.getByNhom(id);
       setCongThucs(data);
+      return data;
     } catch {
       message.error('Lỗi tải công thức');
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const handleSelectNhom = useCallback(async (id: number) => {
+    setSelectedNhom(id);
+    setCurrentCongThuc(null);
+    await fetchCongThucs(id);
+  }, [fetchCongThucs]);
+
+  // Tải lại danh sách công thức sau khi thêm/sửa/xóa 1 biến (hoặc sửa công thức) NHƯNG giữ panel
+  // "Biến trong công thức" đang mở — khác handleSelectNhom (dùng khi đổi hẳn sang nhóm khác, phải
+  // đóng panel). Không giữ nguyên state cũ vì DanhSachBien đã đổi, phải đồng bộ lại từ dữ liệu mới.
+  const refreshCongThucsGiuPanel = useCallback(async (id: number) => {
+    const data = await fetchCongThucs(id);
+    setCurrentCongThuc(prev => prev ? (data.find(ct => ct.ID_CongThuc === prev.ID_CongThuc) ?? null) : prev);
+  }, [fetchCongThucs]);
 
   const handleSelectLoai = useCallback(async (id: number, autoNhom?: number) => {
     setSelectedLoai(id);
     setSelectedNhom(null);
     setCongThucs([]);
     setCurrentCongThuc(null);
+    setVongLap(null);
     try {
       const [cayData, cts] = await Promise.all([
         nhomChiTieuApi.getCay(id),
@@ -126,6 +171,8 @@ export default function CongThucTongHopPage() {
     } catch {
       message.error('Lỗi tải nhóm chỉ tiêu / chỉ tiêu');
     }
+    // Config Validator mục 3.2 — quét vòng lặp tham chiếu toàn bộ cây của loại thiết bị này.
+    congThucTongHopApi.validateVongLap(id).then(setVongLap).catch(() => {});
   }, [handleSelectNhom]);
 
   // Tự động chọn loại thiết bị + nhóm khi được điều hướng từ trang Cây chỉ tiêu (?nhom=ID)
@@ -158,7 +205,7 @@ export default function CongThucTongHopPage() {
         message.success('Đã tạo công thức mới');
       }
       setCtModalOpen(false);
-      if (selectedNhom) handleSelectNhom(selectedNhom);
+      if (selectedNhom) refreshCongThucsGiuPanel(selectedNhom);
     } catch (e: unknown) {
       if (e instanceof Error && 'errorFields' in (e as object)) return;
       message.error('Lỗi lưu công thức');
@@ -193,10 +240,10 @@ export default function CongThucTongHopPage() {
         message.success('Đã thêm biến');
       }
       setBienModalOpen(false);
-      if (selectedNhom) handleSelectNhom(selectedNhom);
+      if (selectedNhom) refreshCongThucsGiuPanel(selectedNhom);
     } catch (e: unknown) {
       if (e instanceof Error && 'errorFields' in (e as object)) return;
-      message.error('Lỗi lưu biến');
+      message.error(extractApiErrorMessage(e, 'Lỗi lưu biến'));
     }
   };
 
@@ -315,7 +362,7 @@ export default function CongThucTongHopPage() {
           <Popconfirm title="Xóa biến?" onConfirm={() =>
             congThucBienApi.delete(r.ID_Bien).then(() => {
               message.success('Đã xóa');
-              if (selectedNhom) handleSelectNhom(selectedNhom);
+              if (selectedNhom) refreshCongThucsGiuPanel(selectedNhom);
             })
           }>
             <Button size="small" danger icon={<DeleteOutlined />} />
@@ -328,6 +375,14 @@ export default function CongThucTongHopPage() {
   return (
     <div style={{ padding: 24 }}>
       <Title level={3}>Cấu hình công thức tổng hợp</Title>
+
+      {vongLap?.CoVongLap && (
+        <Alert
+          type="error" showIcon style={{ marginBottom: 16 }}
+          message="Phát hiện VÒNG LẶP tham chiếu trong cây công thức tổng hợp"
+          description={`Đường đi: ${vongLap.DuongDi.join(' → ')} — nhóm ở cuối trùng nhóm đầu, chỉ số CSSK của các nhóm trong vòng lặp này sẽ LỖI khi tính điểm (VongLapNhomChiTieuException). Sửa lại biến NHOM_CON gây vòng lặp trước khi dùng.`}
+        />
+      )}
 
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
@@ -396,6 +451,10 @@ export default function CongThucTongHopPage() {
         )}
       </Row>
 
+      {currentCongThuc && (
+        <TestCasePanel congThuc={currentCongThuc} />
+      )}
+
       {/* Modal công thức */}
       <Modal
         title={editingCt ? 'Sửa công thức' : 'Tạo công thức mới'}
@@ -451,14 +510,14 @@ export default function CongThucTongHopPage() {
           <Form.Item
             name="BieuThuc"
             label="Biểu thức NCalc"
-            extra="Ví dụ: 0.6 * TS1 + 0.4 * TS2. Có thể để trống nếu chưa khai biến. LƯU Ý: nếu Loại công thức bên dưới là 'Trung bình trọng số' (WEIGHTED_AVG/WEIGHTED_AVG_SCALED), engine tự tính từ Trọng số Wᵢ khai ở từng biến và BỎ QUA nội dung ô này — chỉ cần nhập 1 công thức tham khảo để tự đọc lại sau."
+            extra="Ví dụ: 0.6 * TS1 + 0.4 * TS2. Có thể để trống nếu chưa khai biến. LƯU Ý: nếu Loại công thức bên dưới là 'Trung bình trọng số' (WEIGHTED_AVG/WEIGHTED_AVG_SCALED) hoặc 'Nhỏ nhất trong các biến' (MIN_BIEN), engine tự tính trực tiếp từ các biến và BỎ QUA nội dung ô này — chỉ cần nhập 1 công thức tham khảo để tự đọc lại sau."
           >
             <TextArea ref={bieuThucCtRef} rows={3} style={{ fontFamily: 'monospace', fontSize: 15 }} />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="LoaiCongThuc" label="Loại công thức"
-                tooltip="'Trung bình trọng số' (2 loại WEIGHTED_AVG*): engine TỰ tính ΣSiWi/ΣWi từ Trọng số Wᵢ khai ở từng biến, bỏ qua ô Biểu thức. Các loại khác: biểu thức phía trên mới là thứ thực sự được tính.">
+                tooltip="'Trung bình trọng số' (2 loại WEIGHTED_AVG*): engine TỰ tính ΣSiWi/ΣWi từ Trọng số Wᵢ khai ở từng biến, bỏ qua ô Biểu thức. 'Nhỏ nhất trong các biến' (MIN_BIEN): engine TỰ lấy MIN của toàn bộ biến, cũng bỏ qua ô Biểu thức — dùng cho công thức kiểu Sm (MIN nhiều bộ phận), không cần viết Min() lồng nhau tay. Các loại khác: biểu thức phía trên mới là thứ thực sự được tính.">
                 <Select options={LOAI_CONG_THUC_OPTIONS} />
               </Form.Item>
             </Col>
@@ -518,6 +577,16 @@ export default function CongThucTongHopPage() {
               );
               if (src === 'CHITIEU') return (
                 <>
+                  {relevantNhomIds && (
+                    <Form.Item label={null} style={{ marginBottom: 8 }}>
+                      <Checkbox
+                        checked={chiHienLienQuan}
+                        onChange={e => setChiHienLienQuan(e.target.checked)}
+                      >
+                        Chỉ hiện chỉ tiêu thuộc nhóm "{selectedNode?.TenNhom}" (và nhóm con)
+                      </Checkbox>
+                    </Form.Item>
+                  )}
                   <Form.Item name="ID_ChiTieuNguon" label="Chỉ tiêu nguồn (lấy điểm Sᵢ)" rules={[{ required: true }]}>
                     <Select
                       showSearch
@@ -622,5 +691,158 @@ export default function CongThucTongHopPage() {
         </Form>
       </Modal>
     </div>
+  );
+}
+
+// ─── TestCasePanel — Formula Test: lưu bộ test case mẫu + chạy lại (regression) ────────────
+function TestCasePanel({ congThuc }: { congThuc: CongThucTongHop }) {
+  const [data, setData] = useState<CongThucTestCase[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<CongThucTestCase | null>(null);
+  const [form] = Form.useForm();
+
+  const isWeightedAvg = congThuc.LoaiCongThuc === 'WEIGHTED_AVG' || congThuc.LoaiCongThuc === 'WEIGHTED_AVG_SCALED' || congThuc.LoaiCongThuc === 'MIN_BIEN';
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setData(await congThucTestCaseApi.getByCongThuc(congThuc.ID_CongThuc)); }
+    catch { message.error('Không thể tải test case'); }
+    finally { setLoading(false); }
+  }, [congThuc.ID_CongThuc]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const bienMauInput = useMemo(() => {
+    const obj: Record<string, number> = {};
+    for (const b of congThuc.DanhSachBien) obj[b.MaBien] = 0;
+    return JSON.stringify(obj, null, 2);
+  }, [congThuc.DanhSachBien]);
+
+  const openCreate = () => {
+    setEditing(null);
+    form.setFieldsValue({ TenTestCase: '', InputJson: bienMauInput, KetQuaMongDoi: undefined, MoTa: '' });
+    setModalOpen(true);
+  };
+  const openEdit = (r: CongThucTestCase) => {
+    setEditing(r);
+    form.setFieldsValue(r);
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      const v = await form.validateFields();
+      try { JSON.parse(v.InputJson); }
+      catch { message.error('Input JSON không hợp lệ'); setSaving(false); return; }
+
+      if (editing) await congThucTestCaseApi.update(editing.ID_TestCase, v);
+      else await congThucTestCaseApi.create({ ...v, ID_CongThuc: congThuc.ID_CongThuc } as CreateCongThucTestCaseDto);
+      message.success(editing ? 'Đã cập nhật test case' : 'Đã thêm test case');
+      setModalOpen(false);
+      load();
+    } catch (e: unknown) {
+      if (e instanceof Error && 'errorFields' in (e as object)) return;
+      message.error('Lỗi lưu test case');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    try { await congThucTestCaseApi.delete(id); message.success('Đã xóa test case'); load(); }
+    catch { message.error('Lỗi xóa test case'); }
+  };
+
+  const handleRunAll = async () => {
+    setRunning(true);
+    try {
+      const ketQua = await congThucTestCaseApi.run(congThuc.ID_CongThuc);
+      setData(ketQua);
+      const soDat = ketQua.filter(r => r.DatLanCuoi).length;
+      if (ketQua.length === 0) message.info('Chưa có test case nào — bấm "Thêm test case" trước.');
+      else if (soDat === ketQua.length) message.success(`Đạt toàn bộ ${ketQua.length}/${ketQua.length} test case.`);
+      else message.warning(`Chỉ đạt ${soDat}/${ketQua.length} test case — công thức có thể vừa bị sửa lệch kết quả.`);
+    } catch { message.error('Lỗi chạy test'); }
+    finally { setRunning(false); }
+  };
+
+  const cols: ColumnsType<CongThucTestCase> = [
+    { title: 'Tên test case', dataIndex: 'TenTestCase', key: 'ten' },
+    { title: 'Input', dataIndex: 'InputJson', key: 'input',
+      render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
+    { title: 'Kỳ vọng', dataIndex: 'KetQuaMongDoi', key: 'kyvong', width: 90, align: 'right' },
+    { title: 'Thực tế (lần cuối)', dataIndex: 'KetQuaThucTeLanCuoi', key: 'thucte', width: 130, align: 'right',
+      render: (v, r) => r.LoiLanCuoi
+        ? <Tooltip title={r.LoiLanCuoi}><Text type="danger" style={{ fontSize: 12 }}>Lỗi</Text></Tooltip>
+        : v ?? '—' },
+    { title: 'Kết quả', key: 'ketqua', width: 100, align: 'center',
+      render: (_, r) => r.DatLanCuoi == null
+        ? <Tag>Chưa chạy</Tag>
+        : r.DatLanCuoi
+          ? <Tag color="success" icon={<CheckCircleOutlined />}>Đạt</Tag>
+          : <Tag color="error" icon={<CloseCircleOutlined />}>Fail</Tag> },
+    { title: '', key: 'actions', width: 76, align: 'center',
+      render: (_, r) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Popconfirm title="Xóa test case này?" okText="Xóa" cancelText="Hủy"
+            okButtonProps={{ danger: true }} onConfirm={() => handleDelete(r.ID_TestCase)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ) },
+  ];
+
+  return (
+    <Card
+      style={{ marginTop: 16 }}
+      title={<Space><ExperimentOutlined />Test case (Formula Test) · v{congThuc.PhienBan}</Space>}
+      extra={
+        <Space>
+          <Button size="small" icon={<PlusOutlined />} onClick={openCreate}>Thêm test case</Button>
+          <Button size="small" type="primary" icon={<PlayCircleOutlined />} loading={running} onClick={handleRunAll}>
+            Chạy test
+          </Button>
+        </Space>
+      }
+    >
+      {isWeightedAvg && (
+        <Alert
+          type="warning" showIcon style={{ marginBottom: 12 }}
+          message="Công thức kiểu &quot;Trung bình trọng số&quot; (WEIGHTED_AVG/WEIGHTED_AVG_SCALED) hoặc &quot;Nhỏ nhất trong các biến&quot; (MIN_BIEN) không evaluate ô Biểu thức NCalc — engine tự tính trực tiếp từ các biến, nên chạy test ở đây sẽ KHÔNG phản ánh đúng kết quả thật."
+        />
+      )}
+      <Table<CongThucTestCase>
+        dataSource={data} columns={cols} rowKey="ID_TestCase"
+        loading={loading} size="small" pagination={false}
+        locale={{ emptyText: `Chưa có test case — dùng để chạy lại (regression) mỗi khi sửa công thức` }}
+      />
+      <Modal
+        title={editing ? 'Sửa test case' : 'Thêm test case'}
+        open={modalOpen}
+        onOk={handleSubmit} onCancel={() => setModalOpen(false)}
+        okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
+        confirmLoading={saving} destroyOnHidden width={560}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="TenTestCase" label="Tên test case" rules={[{ required: true }]}>
+            <Input placeholder="VD: Sdga = Sc·St·Sr trường hợp Sc=2.1" />
+          </Form.Item>
+          <Form.Item name="InputJson" label="Input (JSON — tên biến : giá trị giả lập)"
+            rules={[{ required: true }]}
+            tooltip="Điền đúng tên biến đã khai trong công thức (xem cột 'Biến trong công thức' ở bảng bên trên).">
+            <TextArea rows={5} style={{ fontFamily: 'monospace' }} />
+          </Form.Item>
+          <Form.Item name="KetQuaMongDoi" label="Kết quả mong đợi" rules={[{ required: true }]}>
+            <InputNumber style={{ width: '100%' }} step={0.01} />
+          </Form.Item>
+          <Form.Item name="MoTa" label="Mô tả">
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Card>
   );
 }

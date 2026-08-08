@@ -27,6 +27,7 @@ import NhapLieuDongPage    from '../pages/NhapLieu/NhapLieuDongPage';
 // Kết quả & Báo cáo
 import KetQuaPage      from '../pages/KetQua/KetQuaPage';
 import PhieuDetailPage from '../pages/KetQua/PhieuDetailPage';
+import LichSuPage      from '../pages/KetQua/LichSuPage';
 import BaoCaoPage      from '../pages/BaoCao/BaoCaoPage';
 
 // Thống kê
@@ -62,8 +63,9 @@ const router = createBrowserRouter([
       { path: 'nhap-lieu/dong',             element: <NhapLieuDongPage /> },
 
       // ── Kết quả & Báo cáo ─────────────────────────────────────────────────
-      { path: 'ket-qua',      element: <KetQuaPage /> },
-      { path: 'ket-qua/:id',  element: <PhieuDetailPage /> },
+      { path: 'ket-qua',           element: <KetQuaPage /> },
+      { path: 'ket-qua/lich-su',   element: <LichSuPage /> },
+      { path: 'ket-qua/:id',       element: <PhieuDetailPage /> },
       { path: 'bao-cao',      element: <BaoCaoPage /> },
       { path: 'thong-ke',     element: <ThongKePage /> },
     ],

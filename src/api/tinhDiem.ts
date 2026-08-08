@@ -82,6 +82,18 @@ export const tinhDiemApi = {
 
   nhapLieu: async (idPhieu: number, request: NhapPhieuRequest) =>
     toNhapPhieuResponse(await api.post<NhapPhieuResponseRaw>(`${BASE_CT}/phieu/${idPhieu}`, request)),
+
+  /** Tính lại Sᵢ + khuyến cáo hành động cho MỌI chỉ tiêu đã có dữ liệu trong phiếu (dùng dữ liệu đã lưu,
+   * không cần nhập lại) rồi tính lại CSSK tổng — khác tinhTongDiem (chỉ gộp lại từ Sᵢ cũ, không tính lại Sᵢ). */
+  tinhLaiSi: async (idPhieu: number) => {
+    const r = await api.post<{ IDPhieu?: number; iDPhieu?: number; TongDiem_Soqt?: number | null; tongDiem_Soqt?: number | null }>(
+      `${BASE}/tinh-lai-si/${idPhieu}`, {}
+    );
+    return {
+      IDPhieu: Number(r.IDPhieu ?? r.iDPhieu ?? 0),
+      TongDiem_Soqt: r.TongDiem_Soqt ?? r.tongDiem_Soqt ?? null,
+    };
+  },
 };
 
 // Helper: tính điểm một nhóm và trả về cây con

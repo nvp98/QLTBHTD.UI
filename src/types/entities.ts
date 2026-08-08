@@ -92,10 +92,12 @@ export interface ChiTieu {
   TenChiTieu: string;
   TrongSo_Wi: number;
   TrangThai: number;
-  /** 'Nguong' | 'Rule' | 'LF' — null/undefined = 'Nguong' */
+  /** 'Nguong' | 'Rule' | 'LF' | 'TOC_DO_SINH_KHI' — null/undefined = 'Nguong' */
   LoaiTinhDiem?: string | null;
+  /** Ngưỡng L1 (ppm) — chỉ dùng khi LoaiTinhDiem='TOC_DO_SINH_KHI' */
+  GiaTri_L1?: number | null;
 }
-export interface CreateChiTieuDto { ID_NhomChiTieu: number; TenChiTieu: string; TrongSo_Wi: number; TrangThai: number; LoaiTinhDiem?: string | null }
+export interface CreateChiTieuDto { ID_NhomChiTieu: number; TenChiTieu: string; TrongSo_Wi: number; TrangThai: number; LoaiTinhDiem?: string | null; GiaTri_L1?: number | null }
 export interface UpdateChiTieuDto extends CreateChiTieuDto {}
 
 // ─── Chỉ Tiêu Input (biến đầu vào) ───────────────────────────────────────
@@ -105,9 +107,61 @@ export interface ChiTieuInput {
   MaInput:     string;
   TenInput:    string;
   MaOutput?:   string | null;
+  /** 'MANUAL' (mặc định, nhập tay) | 'CHITIEU_CUNG_PHIEU' (tự lấy giá trị 1 chỉ tiêu khác cùng phiếu)
+   * | 'THIETBI_THONGSO' (tự lấy thông số kỹ thuật cố định của thiết bị, vd Ir) */
+  NguonGiaTri:     string;
+  ID_ChiTieuNguon?: number | null;
+  TenChiTieuNguon?: string | null;
+  MaThongSoThietBi?: string | null;
 }
-export interface CreateChiTieuInputDto { ID_ChiTieu: number; MaInput: string; TenInput: string }
+export interface CreateChiTieuInputDto {
+  ID_ChiTieu: number; MaInput: string; TenInput: string;
+  NguonGiaTri: string; ID_ChiTieuNguon?: number | null; MaThongSoThietBi?: string | null;
+}
 export interface UpdateChiTieuInputDto extends CreateChiTieuInputDto {}
+
+// ─── Danh mục thông số dùng chung (vd Ir) ──────────────────────────────────
+export interface ThongSo {
+  ID_ThongSo: number;
+  MaThongSo:  string;
+  TenThongSo: string;
+  DonVi?:     string | null;
+  LoaiDuLieu: string;
+  TrangThai:  number;
+  GhiChu?:    string | null;
+}
+export interface CreateThongSoDto {
+  MaThongSo: string; TenThongSo: string; DonVi?: string | null;
+  LoaiDuLieu?: string; TrangThai?: number; GhiChu?: string | null;
+}
+export interface UpdateThongSoDto extends CreateThongSoDto {}
+
+// ─── Thông số kỹ thuật thiết bị (nhãn máy, vd Ir) — trỏ tới CBM_ThongSo ───────
+export interface ThietBiThongSo {
+  ID_ThietBi_ThongSo: number;
+  ID_ThietBi: number;
+  ID_ThongSo: number;
+  MaThongSo:  string;
+  TenThongSo: string;
+  DonVi?:     string | null;
+  GiaTri:     number;
+  GhiChu?:    string | null;
+}
+export interface CreateThietBiThongSoDto {
+  ID_ThietBi: number; ID_ThongSo: number;
+  GiaTri: number; GhiChu?: string | null;
+}
+export interface UpdateThietBiThongSoDto {
+  ID_ThongSo: number;
+  GiaTri: number; GhiChu?: string | null;
+}
+export interface ThietBiThongSoUsage {
+  ID_ThietBi_ThongSo: number;
+  ID_ThietBi: number;
+  TenThietBi: string;
+  GiaTri: number;
+  GhiChu?: string | null;
+}
 
 // ─── Chỉ Tiêu Rule (quy tắc biểu thức) ──────────────────────────────────
 export interface ChiTieuRule {
@@ -118,8 +172,10 @@ export interface ChiTieuRule {
   BieuThuc:   string;
   /** 'BANG_MUC' (mặc định) hoặc 'CONG_THUC' (biểu thức NCalc số gộp nhiều Si, vd Min(Si_DT1,Si_DT2)) */
   LoaiRule:   string;
+  /** Hành động khuyến cáo khi chỉ tiêu rơi vào mức này — lưu snapshot vào ChiTietKiemTra lúc chấm điểm. */
+  HanhDongKhuyenCao?: string | null;
 }
-export interface CreateChiTieuRuleDto { ID_ChiTieu: number; TenMuc: string; Diem_Si: number; BieuThuc: string; LoaiRule?: string }
+export interface CreateChiTieuRuleDto { ID_ChiTieu: number; TenMuc: string; Diem_Si: number; BieuThuc: string; LoaiRule?: string; HanhDongKhuyenCao?: string | null }
 export interface UpdateChiTieuRuleDto extends CreateChiTieuRuleDto {}
 
 // ─── Formula (Input → giá trị trung gian, không chấm điểm) ─────────────────
@@ -172,6 +228,8 @@ export interface Nguong {
   MaKetQua?: string | null;
   /** Biểu thức NCalc (AND/OR). Nếu có, ưu tiên hơn CanDuoi/CanTren. */
   BieuThuc_Logic?: string | null;
+  /** Hành động khuyến cáo khi chỉ tiêu rơi vào mức này — lưu snapshot vào ChiTietKiemTra lúc chấm điểm. */
+  HanhDongKhuyenCao?: string | null;
 }
 export interface CreateNguongDto {
   ID_ChiTieu: number;
@@ -182,6 +240,7 @@ export interface CreateNguongDto {
   CanTren_BaoGom: boolean;
   BieuThuc_Logic?: string | null;
   MaKetQua?: string | null;
+  HanhDongKhuyenCao?: string | null;
 }
 export interface UpdateNguongDto extends CreateNguongDto {}
 
@@ -235,9 +294,13 @@ export interface ChiTietKiemTra {
   IDPhieu: number;
   ID_ChiTieu: number;
   TenChiTieu?: string;
+  ID_NhomChiTieu?: number;
+  TenNhom?: string;
   GiaTriNhap_So?: number;
   GiaTriNhap_Chu?: string;
   Diem_Si_DatDuoc?: number;
+  /** Snapshot khuyến cáo tại thời điểm chấm điểm — giữ nguyên dù sau này sửa lại nội dung gốc. */
+  HanhDongKhuyenCao?: string | null;
   GhiChu?: string;
   /** Giá trị Input thô khi chỉ tiêu dùng Rule/Formula nhiều biến — trống nếu chỉ tiêu nhập 1 giá trị đơn. */
   DanhSachInput?: ChiTietInputValueDto[];
@@ -250,6 +313,7 @@ export interface LichSuChiTieu {
   GiaTriNhap_So?: number;
   GiaTriNhap_Chu?: string;
   Diem_Si_DatDuoc?: number;
+  HanhDongKhuyenCao?: string | null;
   DanhSachInput?: ChiTietInputValueDto[];
 }
 
@@ -363,6 +427,69 @@ export interface UpdateCongThucBienDto {
   GiaTriHangSo?: number | null;
   TrongSo?: number | null;
   MoTa?: string | null;
+}
+
+// ─── Formula Test (test case cho công thức tổng hợp) ─────────────────────────
+export interface CongThucTestCase {
+  ID_TestCase: number;
+  ID_CongThuc: number;
+  TenTestCase: string;
+  InputJson: string;
+  KetQuaMongDoi: number;
+  KetQuaThucTeLanCuoi?: number | null;
+  DatLanCuoi?: boolean | null;
+  ThoiGianChayCuoi?: string | null;
+  LoiLanCuoi?: string | null;
+  MoTa?: string | null;
+}
+export interface CreateCongThucTestCaseDto {
+  ID_CongThuc: number;
+  TenTestCase: string;
+  InputJson: string;
+  KetQuaMongDoi: number;
+  MoTa?: string | null;
+}
+export interface UpdateCongThucTestCaseDto {
+  TenTestCase: string;
+  InputJson: string;
+  KetQuaMongDoi: number;
+  MoTa?: string | null;
+}
+
+// ─── Config Validator ─────────────────────────────────────────────────────────
+export interface NguongValidationIssue {
+  Loai: 'GAP' | 'OVERLAP';
+  MoTa: string;
+}
+export interface VongLapKetQua {
+  CoVongLap: boolean;
+  DuongDi: number[];
+}
+
+// ─── Lịch sử đo + tính toán theo thiết bị/nhóm chỉ tiêu ──────────────────────
+export interface LichSuChiTieuCol {
+  ID_ChiTieu: number;
+  TenChiTieu: string;
+}
+export interface LichSuGiaTri {
+  GiaTri?: number | null;
+  Si?: number | null;
+}
+export interface LichSuHang {
+  ID_Phieu: number;
+  NgayKiemTra: string;
+  SoPhieu?: string | null;
+  DiemNhom?: number | null;
+  /** Key = ID_ChiTieu (chuỗi số, do JSON object key luôn là string). */
+  GiaTriTheoChiTieu: Record<string, LichSuGiaTri>;
+}
+export interface LichSuNhom {
+  ID_ThietBi: number;
+  TenThietBi: string;
+  ID_NhomChiTieu: number;
+  TenNhom: string;
+  ChiTieus: LichSuChiTieuCol[];
+  Hang: LichSuHang[];
 }
 
 // ─── Kết quả tính điểm nhóm ──────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { Nguong, CreateNguongDto, UpdateNguongDto, PagedResult } from '../types/entities';
+import type { Nguong, CreateNguongDto, UpdateNguongDto, PagedResult, NguongValidationIssue } from '../types/entities';
 
 const BASE = '/api/nguong';
 
@@ -14,6 +14,7 @@ type NguongApiRaw = Partial<Nguong> & {
   canTren_BaoGom?: boolean;
   bieuThuc_Logic?: string | null;
   maKetQua?: string | null;
+  hanhDongKhuyenCao?: string | null;
 };
 
 const toNguong = (raw: NguongApiRaw): Nguong => ({
@@ -27,6 +28,7 @@ const toNguong = (raw: NguongApiRaw): Nguong => ({
   CanTren_BaoGom: raw.CanTren_BaoGom ?? raw.canTren_BaoGom ?? false,
   BieuThuc_Logic: raw.BieuThuc_Logic ?? raw.bieuThuc_Logic ?? null,
   MaKetQua:       raw.MaKetQua ?? raw.maKetQua ?? null,
+  HanhDongKhuyenCao: raw.HanhDongKhuyenCao ?? raw.hanhDongKhuyenCao ?? null,
 });
 
 type PagedRaw = PagedResult<NguongApiRaw>;
@@ -56,4 +58,12 @@ export const nguongApi = {
   create:       async (dto: CreateNguongDto) => toNguong(await api.post<NguongApiRaw>(BASE, dto)),
   update:       async (id: number, dto: UpdateNguongDto) => toNguong(await api.put<NguongApiRaw>(`${BASE}/${id}`, dto)),
   delete:       (id: number) => api.delete(`${BASE}/${id}`),
+  validate:     async (idChiTieu: number) => {
+    type Raw = Partial<NguongValidationIssue> & { loai?: string; moTa?: string };
+    const res = await api.get<Raw[]>(`${BASE}/validate/${idChiTieu}`);
+    return res.map(r => ({
+      Loai: (r.Loai ?? r.loai ?? 'GAP') as NguongValidationIssue['Loai'],
+      MoTa: r.MoTa ?? r.moTa ?? '',
+    }));
+  },
 };

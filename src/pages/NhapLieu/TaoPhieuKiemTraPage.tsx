@@ -187,6 +187,7 @@ export default function TaoPhieuKiemTraPage() {
             ID_ChiTieu: ct.ID_ChiTieu,
             MaInput:    v,
             TenInput:   v,
+            NguonGiaTri: 'MANUAL',
           }));
         }
       }
@@ -307,7 +308,7 @@ export default function TaoPhieuKiemTraPage() {
               <Title level={5} style={{ color: titleColor, marginTop: 0 }}>Chọn thiết bị cần kiểm tra</Title>
               <Form layout="vertical">
                 <Form.Item label={<Text style={{ color: textColor }}>Lọc theo trạm</Text>}>
-                  <Select value={filterTram} onChange={setFilterTram} style={{ width: '100%' }}
+                  <Select value={filterTram} onChange={setFilterTram} style={{ width: '100%' }} size="large"
                     options={[{ label: 'Tất cả trạm', value: 'all' }, ...trams.map(t => ({ label: t.TenTram, value: t.IDTram }))]}
                   />
                 </Form.Item>
@@ -345,7 +346,7 @@ export default function TaoPhieuKiemTraPage() {
                     <Select
                       value={selectedNhomId}
                       onChange={setSelectedNhomId}
-                      style={{ width: '100%' }}
+                      style={{ width: '100%' }} size="large"
                       options={[
                         { label: '📋 Kiểm tra toàn diện (tất cả nhóm)', value: CHON_TAT_CA },
                         ...nhoms.map(n => ({ label: n.TenNhom, value: n.ID_NhomChiTieu })),
@@ -358,6 +359,7 @@ export default function TaoPhieuKiemTraPage() {
                   extra={<Text style={{ color: '#4b5563', fontSize: 11 }}>Để trống = lấy ngày giờ hiện tại lúc lưu phiếu</Text>}>
                   <DatePicker
                     style={{ width: '100%' }}
+                    size="large"
                     value={ngayKiemTra}
                     onChange={setNgayKiemTra}
                     format="DD/MM/YYYY"
@@ -366,7 +368,7 @@ export default function TaoPhieuKiemTraPage() {
                   />
                 </Form.Item>
                 <Form.Item label={<Text style={{ color: textColor }}>Kỹ thuật viên</Text>}>
-                  <Input value={nguoiKT} onChange={e => setNguoiKT(e.target.value)} placeholder="Họ tên kỹ thuật viên" />
+                  <Input size="large" value={nguoiKT} onChange={e => setNguoiKT(e.target.value)} placeholder="Họ tên kỹ thuật viên" />
                 </Form.Item>
               </Form>
             </Card>
@@ -394,10 +396,21 @@ export default function TaoPhieuKiemTraPage() {
                       styles={{ header: { borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
                       <Row gutter={[16, 14]}>
                         {nhom.chiTieus.map(ct => {
-                          const inputs = chiTieuInputs[ct.ID_ChiTieu];
+                          const inputsAll = chiTieuInputs[ct.ID_ChiTieu];
+                          // Biến nguồn 'CHITIEU_CUNG_PHIEU' (tự lấy từ chỉ tiêu khác cùng phiếu,
+                          // vd TDCG = tổng 6 khí) hoặc 'THIETBI_THONGSO' (tự lấy thông số kỹ thuật
+                          // cố định của thiết bị, vd Ir) — không hiện ô nhập, người vận hành không
+                          // cần biết tới sự tồn tại của nó.
+                          const inputs = inputsAll?.filter(inp =>
+                            inp.NguonGiaTri !== 'CHITIEU_CUNG_PHIEU' && inp.NguonGiaTri !== 'THIETBI_THONGSO');
                           const isRule = !!(inputs && inputs.length > 0);
                           const isLF   = ct.LoaiTinhDiem === 'LF';
                           const rules  = chiTieuRules[ct.ID_ChiTieu] ?? [];
+
+                          // Có Input cấu hình nhưng SAU KHI lọc không còn biến nào cần nhập tay
+                          // (toàn bộ đều tự tính từ chỉ tiêu khác) — ẩn hẳn khỏi form, không rơi về
+                          // ô nhập đơn thông thường (chỉ tiêu này không dùng GiaTriNhap_So).
+                          if (inputsAll && inputsAll.length > 0 && (!inputs || inputs.length === 0)) return null;
 
                           /* ── Chỉ tiêu loại Biểu thức (Rule) ── */
                           if (isRule) {
@@ -423,9 +436,6 @@ export default function TaoPhieuKiemTraPage() {
                                       {ct.TenChiTieu}
                                     </Text>
                                     <Tag color="purple" style={{ fontSize: 10 }}>Biểu thức logic</Tag>
-                                    <Tag style={{ fontSize: 10, color: textColor }}>
-                                      Trọng số: {ct.TrongSo_Wi}
-                                    </Tag>
                                     {allFilled
                                       ? <Tag color="success" style={{ fontSize: 10 }}>Đã nhập đủ</Tag>
                                       : <Tag color="default" style={{ fontSize: 10 }}>{filledCount}/{inputs.length} biến</Tag>
@@ -466,9 +476,11 @@ export default function TaoPhieuKiemTraPage() {
                                               </code>
                                             </Flex>
                                             <InputNumber
+                                              size="large"
                                               style={{
                                                 width: '100%',
                                                 background: panelBg,
+                                                fontSize: 17,
                                                 borderColor: isFilled
                                                   ? (isDark ? '#4ade80' : '#86efac')
                                                   : (isDark ? '#374151' : '#d1d5db'),
@@ -585,17 +597,16 @@ export default function TaoPhieuKiemTraPage() {
                                 <Flex align="center" gap={6} wrap="wrap" style={{ marginBottom: 8 }}>
                                   <div style={{ width: 3, height: 16, borderRadius: 2, background: '#3b82f6', flexShrink: 0 }} />
                                   <Text style={{ color: titleColor, fontSize: 13, flex: 1 }}>{ct.TenChiTieu}</Text>
-                                  <Tag style={{ fontSize: 10, margin: 0, color: textColor }}>
-                                    Trọng số: {ct.TrongSo_Wi}
-                                  </Tag>
                                 </Flex>
 
                                 {/* InputNumber + badge điểm dự kiến */}
                                 <Flex align="center" gap={8}>
                                   <InputNumber
+                                    size="large"
                                     style={{
                                       flex: 1,
                                       background: panelBg,
+                                      fontSize: 18,
                                       borderColor: isDark ? '#374151' : '#d1d5db',
                                     }}
                                     value={val}
@@ -609,7 +620,7 @@ export default function TaoPhieuKiemTraPage() {
                                   {previewScore !== null && (
                                     <Tag
                                       color={scoreTagColor(previewScore)}
-                                      style={{ margin: 0, fontWeight: 700, fontSize: 13, padding: '0 10px', lineHeight: '22px' }}
+                                      style={{ margin: 0, fontWeight: 700, fontSize: 15, padding: '0 12px', lineHeight: '30px' }}
                                     >
                                       {previewScore}/10
                                     </Tag>
@@ -699,7 +710,7 @@ export default function TaoPhieuKiemTraPage() {
               )}
               <Form layout="vertical">
                 <Form.Item label={<Text style={{ color: textColor }}>Ghi chú chung</Text>}>
-                  <TextArea rows={3} value={ghiChu} onChange={e => setGhiChu(e.target.value)}
+                  <TextArea size="large" rows={3} value={ghiChu} onChange={e => setGhiChu(e.target.value)}
                     placeholder="Nhận xét, ghi chú về đợt kiểm tra..." />
                 </Form.Item>
               </Form>

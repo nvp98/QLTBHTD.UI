@@ -37,9 +37,12 @@ type ChiTietKiemTraRaw = Partial<ChiTietKiemTra> & {
   idPhieu?: number;
   iD_ChiTieu?: number;
   tenChiTieu?: string;
+  iD_NhomChiTieu?: number;
+  tenNhom?: string;
   giaTriNhap_So?: number;
   giaTriNhap_Chu?: string;
   diem_Si_DatDuoc?: number;
+  hanhDongKhuyenCao?: string | null;
   ghiChu?: string;
   danhSachInput?: ChiTietInputValueRaw[];
 };
@@ -50,6 +53,7 @@ type LichSuChiTieuRaw = Partial<LichSuChiTieu> & {
   giaTriNhap_So?: number;
   giaTriNhap_Chu?: string;
   diem_Si_DatDuoc?: number;
+  hanhDongKhuyenCao?: string | null;
   danhSachInput?: ChiTietInputValueRaw[];
 };
 
@@ -58,9 +62,12 @@ const toChiTietKiemTra = (raw: ChiTietKiemTraRaw): ChiTietKiemTra => ({
   IDPhieu:         Number(raw.IDPhieu    ?? raw.idPhieu    ?? 0),
   ID_ChiTieu:      Number(raw.ID_ChiTieu ?? raw.iD_ChiTieu ?? 0),
   TenChiTieu:      raw.TenChiTieu      ?? raw.tenChiTieu,
+  ID_NhomChiTieu:  raw.ID_NhomChiTieu  ?? raw.iD_NhomChiTieu,
+  TenNhom:         raw.TenNhom         ?? raw.tenNhom,
   GiaTriNhap_So:   raw.GiaTriNhap_So   ?? raw.giaTriNhap_So,
   GiaTriNhap_Chu:  raw.GiaTriNhap_Chu  ?? raw.giaTriNhap_Chu,
   Diem_Si_DatDuoc: raw.Diem_Si_DatDuoc ?? raw.diem_Si_DatDuoc,
+  HanhDongKhuyenCao: raw.HanhDongKhuyenCao ?? raw.hanhDongKhuyenCao ?? null,
   GhiChu:          raw.GhiChu          ?? raw.ghiChu,
   DanhSachInput:   (raw.DanhSachInput ?? raw.danhSachInput)?.map(toInputValue),
 });
@@ -71,6 +78,7 @@ const toLichSuChiTieu = (raw: LichSuChiTieuRaw): LichSuChiTieu => ({
   GiaTriNhap_So:   raw.GiaTriNhap_So   ?? raw.giaTriNhap_So,
   GiaTriNhap_Chu:  raw.GiaTriNhap_Chu  ?? raw.giaTriNhap_Chu,
   Diem_Si_DatDuoc: raw.Diem_Si_DatDuoc ?? raw.diem_Si_DatDuoc,
+  HanhDongKhuyenCao: raw.HanhDongKhuyenCao ?? raw.hanhDongKhuyenCao ?? null,
   DanhSachInput:   (raw.DanhSachInput ?? raw.danhSachInput)?.map(toInputValue),
 });
 
@@ -88,6 +96,8 @@ const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
   CapDoCanhBao:    raw.CapDoCanhBao    ?? raw.capDoCanhBao,
   GhiChuChung:     raw.GhiChuChung     ?? raw.ghiChuChung,
 });
+
+type PhieuKiemTraDetailRaw = PhieuKiemTraRaw & { chiTiets?: ChiTietKiemTraRaw[] };
 
 const toPhieuDetail = (raw: PhieuKiemTraDetailRaw): PhieuKiemTraDetailDto => ({
   ...toPhieu(raw),

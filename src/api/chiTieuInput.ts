@@ -8,6 +8,10 @@ type RawInput = Partial<ChiTieuInput> & {
   iD_ChiTieu?: number;
   maInput?: string;
   tenInput?: string;
+  nguonGiaTri?: string;
+  iD_ChiTieuNguon?: number | null;
+  tenChiTieuNguon?: string | null;
+  maThongSoThietBi?: string | null;
 };
 
 const toInput = (r: RawInput): ChiTieuInput => ({
@@ -15,6 +19,10 @@ const toInput = (r: RawInput): ChiTieuInput => ({
   ID_ChiTieu: Number(r.ID_ChiTieu ?? r.iD_ChiTieu ?? 0),
   MaInput:    r.MaInput  ?? r.maInput  ?? '',
   TenInput:   r.TenInput ?? r.tenInput ?? '',
+  NguonGiaTri:     r.NguonGiaTri ?? r.nguonGiaTri ?? 'MANUAL',
+  ID_ChiTieuNguon: r.ID_ChiTieuNguon ?? r.iD_ChiTieuNguon ?? null,
+  TenChiTieuNguon: r.TenChiTieuNguon ?? r.tenChiTieuNguon ?? null,
+  MaThongSoThietBi: r.MaThongSoThietBi ?? r.maThongSoThietBi ?? null,
 });
 
 export const chiTieuInputApi = {

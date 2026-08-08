@@ -4,7 +4,7 @@ import {
   AppstoreOutlined, EnvironmentOutlined, ThunderboltOutlined,
   SettingOutlined, UnorderedListOutlined, EditOutlined,
   FileTextOutlined, BarChartOutlined, ApartmentOutlined,
-  BulbOutlined, FundOutlined,
+  BulbOutlined, FundOutlined, HistoryOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -80,6 +80,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'KẾT QUẢ & BÁO CÁO',
     items: [
       { key: '/ket-qua', label: 'Kết quả phân hạng', icon: <FundOutlined /> },
+      { key: '/ket-qua/lich-su', label: 'Lịch sử đo & tính toán', icon: <HistoryOutlined /> },
       { key: '/bao-cao', label: 'Báo cáo', icon: <FileTextOutlined /> },
     ],
   },
@@ -144,12 +145,12 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
         }}>
           {collapsed ? (
             <Tooltip title="CBM Platform" placement="right">
-              <img src={logoSmall} alt="CBM"
-                style={{ width: 52, height: 52, objectFit: 'contain', cursor: 'default' }} />
+              <img src={logoSmall} alt="CBM" onClick={() => navigate('/dashboard')}
+                style={{ width: 52, height: 52, objectFit: 'contain', cursor: 'pointer' }} />
             </Tooltip>
           ) : (
-            <img src={logoFull} alt="CBM Platform"
-              style={{ width: 200, height: 50, objectFit: 'contain' }} />
+            <img src={logoFull} alt="CBM Platform" onClick={() => navigate('/dashboard')}
+              style={{ width: 200, height: 50, objectFit: 'contain', cursor: 'pointer' }} />
           )}
         </Flex>
 

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Typography, Flex, Tag, Button, Spin, Progress,
-  Table, Divider, message, Modal, Space, Tooltip,
+  Table, Divider, message, Modal, Space, Tooltip, Collapse,
 } from 'antd';
 import { ArrowLeftOutlined, FileTextOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
@@ -37,6 +37,7 @@ export default function PhieuDetailPage() {
   const [phieu, setPhieu] = useState<PhieuKiemTraDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
+  const [recomputingSi, setRecomputingSi] = useState(false);
 
   // Modal "Lịch sử đo" — tất cả các lần đo trước đây của 1 chỉ tiêu trên cùng thiết bị,
   // KHÔNG liên quan tới fallback "lấy Si gần nhất" dùng khi tính điểm nhóm (chỉ dùng để xem xu hướng).
@@ -88,6 +89,24 @@ export default function PhieuDetailPage() {
       message.error(e?.response?.data?.Error ?? e?.message ?? 'Lỗi khi tính lại CSSK');
     } finally {
       setRecomputing(false);
+    }
+  };
+
+  const handleRecomputeSi = async () => {
+    if (!id) return;
+    setRecomputingSi(true);
+    try {
+      const res = await tinhDiemApi.tinhLaiSi(Number(id));
+      message.success(
+        res.TongDiem_Soqt != null
+          ? `Đã tính lại Sᵢ, khuyến cáo & CSSK: ${res.TongDiem_Soqt.toFixed(2)}/10`
+          : 'Đã tính lại Sᵢ & khuyến cáo cho từng chỉ tiêu.'
+      );
+      load();
+    } catch (e: any) {
+      message.error(e?.response?.data?.Error ?? e?.message ?? 'Lỗi khi tính lại Sᵢ');
+    } finally {
+      setRecomputingSi(false);
     }
   };
 
@@ -158,6 +177,21 @@ export default function PhieuDetailPage() {
       },
     },
     {
+      title: 'Khuyến cáo hành động',
+      dataIndex: 'HanhDongKhuyenCao',
+      key: 'khuyencao',
+      width: 260,
+      render: (v?: string | null) => v ? (
+        <Tooltip title={v}>
+          <Text style={{ color: isDark ? '#fbbf24' : '#b45309', fontSize: 12, cursor: 'help' }}>
+            {v.length > 60 ? v.slice(0, 60) + '…' : v}
+          </Text>
+        </Tooltip>
+      ) : (
+        <Text style={{ color: isDark ? '#4b5563' : '#9ca3af', fontSize: 12 }}>—</Text>
+      ),
+    },
+    {
       title: 'Ghi chú',
       dataIndex: 'GhiChu',
       key: 'ghichu',
@@ -176,6 +210,17 @@ export default function PhieuDetailPage() {
       ),
     },
   ];
+
+  const nhomGroups = useMemo(() => {
+    const chiTiets = phieu?.ChiTiets ?? [];
+    const map = new Map<string, ChiTietKiemTra[]>();
+    for (const ct of chiTiets) {
+      const key = ct.TenNhom || 'Khác';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(ct);
+    }
+    return Array.from(map.entries()).map(([tenNhom, items]) => ({ tenNhom, items }));
+  }, [phieu]);
 
   if (loading) {
     return (
@@ -213,7 +258,7 @@ export default function PhieuDetailPage() {
 
       <Row gutter={[16, 16]}>
         {/* Thông tin phiếu */}
-        <Col xs={24} lg={8}>
+        <Col xs={24} lg={6}>
           <Card style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
             styles={{ body: { padding: 20 } }}>
             <Title level={5} style={{ color: isDark ? '#f9fafb' : '#111827', marginTop: 0, marginBottom: 16 }}>
@@ -242,7 +287,7 @@ export default function PhieuDetailPage() {
               }}>
                 <Text style={{ color: ri.color, fontSize: 40, fontWeight: 700,
                   fontFamily: 'monospace', lineHeight: 1, display: 'block' }}>
-                  {Number(phieu.TongDiem_Soqt).toFixed(1)}
+                  {Number(phieu.TongDiem_Soqt).toFixed(3)}
                 </Text>
                 <Text style={{ color: '#6b7280', fontSize: 12, display: 'block', marginTop: 4 }}>
                   / 10 — CSSK
@@ -258,20 +303,33 @@ export default function PhieuDetailPage() {
               <Text style={{ color: '#4b5563' }}>Chưa tính điểm</Text>
             )}
 
-            <Button
-              icon={<ReloadOutlined />}
-              loading={recomputing}
-              onClick={handleRecompute}
-              block
-              style={{ marginTop: 12 }}
-            >
-              Tính lại CSSK
-            </Button>
+            <Tooltip title="Chỉ gộp lại CSSK từ Sᵢ đã lưu — KHÔNG tính lại Sᵢ. Nếu vừa sửa Rule/Formula/Ngưỡng, dùng nút 'Tính lại Sᵢ' bên dưới thay vì nút này.">
+              <Button
+                icon={<ReloadOutlined />}
+                loading={recomputing}
+                onClick={handleRecompute}
+                block
+                style={{ marginTop: 12 }}
+              >
+                Tính lại CSSK
+              </Button>
+            </Tooltip>
+            <Tooltip title="Tính lại Sᵢ + khuyến cáo hành động cho TẤT CẢ chỉ tiêu">
+              <Button
+                icon={<ReloadOutlined />}
+                loading={recomputingSi}
+                onClick={handleRecomputeSi}
+                block
+                style={{ marginTop: 8 }}
+              >
+                Tính lại Sᵢ & khuyến cáo
+              </Button>
+            </Tooltip>
           </Card>
         </Col>
 
         {/* Bảng chi tiết chỉ tiêu */}
-        <Col xs={24} lg={16}>
+        <Col xs={24} lg={18}>
           <Card
             title={
               <Flex align="center" gap={8}>
@@ -283,13 +341,28 @@ export default function PhieuDetailPage() {
             style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
             styles={{ header: { color: isDark ? '#f9fafb' : '#111827', borderBottom: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }, body: { padding: 0 } }}
           >
-            <Table<ChiTietKiemTra>
-              dataSource={phieu.ChiTiets ?? []}
-              columns={columns}
-              rowKey="ID_ChiTiet"
-              size="small"
-              pagination={false}
-              style={{ background: 'transparent' }}
+            <Collapse
+              defaultActiveKey={nhomGroups.map(g => g.tenNhom)}
+              ghost
+              items={nhomGroups.map(g => ({
+                key: g.tenNhom,
+                label: (
+                  <Flex align="center" gap={8}>
+                    <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827' }}>{g.tenNhom}</Text>
+                    <Tag style={{ fontSize: 11 }}>{g.items.length} chỉ tiêu</Tag>
+                  </Flex>
+                ),
+                children: (
+                  <Table<ChiTietKiemTra>
+                    dataSource={g.items}
+                    columns={columns}
+                    rowKey="ID_ChiTiet"
+                    size="small"
+                    pagination={false}
+                    style={{ background: 'transparent' }}
+                  />
+                ),
+              }))}
             />
           </Card>
         </Col>
@@ -339,6 +412,13 @@ export default function PhieuDetailPage() {
                   v !== undefined && v !== null
                     ? <Text style={{ color: getCapDoSucKhoe(v, isDark).color, fontFamily: 'monospace' }}>{v}</Text>
                     : <Text style={{ color: '#9ca3af' }}>—</Text>,
+              },
+              {
+                title: 'Khuyến cáo hành động (tại thời điểm đo)',
+                dataIndex: 'HanhDongKhuyenCao',
+                render: (v?: string | null) => v
+                  ? <Text style={{ color: isDark ? '#fbbf24' : '#b45309', fontSize: 12 }}>{v}</Text>
+                  : <Text style={{ color: '#9ca3af' }}>—</Text>,
               },
             ]}
           />

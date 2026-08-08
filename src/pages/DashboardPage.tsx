@@ -40,6 +40,18 @@ const QUICK_ACTIONS = [
   { label: 'Nhập liệu kiểm tra',     path: '/nhap-lieu',                icon: <UnorderedListOutlined />, color: '#f97316' },
 ];
 
+/** Gom danh sách cảnh báo theo Trạm — giữ nguyên thứ tự trạm xuất hiện đầu tiên (tức trạm có
+ * thiết bị xấu nhất, vì canhBao đã được BE sắp xếp tăng dần theo TongDiem_Soqt trước đó). */
+function groupCanhBaoTheoTram(items: CanhBaoThietBiDto[]): { tenTram: string; items: CanhBaoThietBiDto[] }[] {
+  const order: string[] = [];
+  const map = new Map<string, CanhBaoThietBiDto[]>();
+  for (const r of items) {
+    if (!map.has(r.tenTram)) { map.set(r.tenTram, []); order.push(r.tenTram); }
+    map.get(r.tenTram)!.push(r);
+  }
+  return order.map(tenTram => ({ tenTram, items: map.get(tenTram)! }));
+}
+
 const WORKFLOW_STEPS = [
   { step: '01', title: 'Cấu hình loại TB',    desc: 'Thêm MBA, MC, DCL, CSV...',          path: '/quan-ly/loai-thiet-bi',  color: '#6366f1' },
   { step: '02', title: 'Tạo nhóm chỉ tiêu',  desc: 'Phân nhóm chỉ tiêu cho từng loại TB', path: '/cau-hinh/nhom-chi-tieu',  color: '#3b82f6' },
@@ -248,30 +260,41 @@ export default function DashboardPage() {
                 </Text>
               </Flex>
             ) : (
-              canhBao.slice(0, 8).map(r => {
-                const info = getCapDoSucKhoe(r.tongDiem_Soqt, isDark);
-                return (
-                  <div
-                    key={r.iD_ThietBi}
-                    onClick={() => navigate(`/ket-qua/${r.iD_Phieu}`)}
-                    style={{
-                      padding: '10px 20px', cursor: 'pointer', borderBottom: `1px solid ${panelBorder}`,
-                    }}
-                  >
-                    <Flex justify="space-between" align="center">
-                      <div style={{ minWidth: 0 }}>
-                        <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
-                          {r.tenThietBi}
-                        </Text>
-                        <Text style={{ color: dimText, fontSize: 11 }}>{r.tenTram}</Text>
+              groupCanhBaoTheoTram(canhBao.slice(0, 8)).map(nhom => (
+                <div key={nhom.tenTram}>
+                  <Flex align="center" gap={6} style={{
+                    padding: '6px 20px', background: itemBg,
+                    borderBottom: `1px solid ${panelBorder}`, borderTop: `1px solid ${panelBorder}`,
+                  }}>
+                    <EnvironmentOutlined style={{ color: dimText, fontSize: 11 }} />
+                    <Text strong style={{ color: dimText, fontSize: 11.5 }}>{nhom.tenTram}</Text>
+                    <Tag style={{ fontSize: 10, marginLeft: 'auto', lineHeight: '16px' }}>
+                      {nhom.items.length} thiết bị
+                    </Tag>
+                  </Flex>
+                  {nhom.items.map(r => {
+                    const info = getCapDoSucKhoe(r.tongDiem_Soqt, isDark);
+                    return (
+                      <div
+                        key={r.iD_ThietBi}
+                        onClick={() => navigate(`/ket-qua/${r.iD_Phieu}`)}
+                        style={{
+                          padding: '10px 20px 10px 32px', cursor: 'pointer', borderBottom: `1px solid ${panelBorder}`,
+                        }}
+                      >
+                        <Flex justify="space-between" align="center">
+                          <Text strong style={{ color: titleColor, fontSize: 13, minWidth: 0 }}>
+                            {r.tenThietBi}
+                          </Text>
+                          <Tag style={{ color: info.color, background: info.bg, borderColor: info.border, flexShrink: 0 }}>
+                            {r.tongDiem_Soqt?.toFixed(1) ?? '—'}
+                          </Tag>
+                        </Flex>
                       </div>
-                      <Tag style={{ color: info.color, background: info.bg, borderColor: info.border, flexShrink: 0 }}>
-                        {r.tongDiem_Soqt?.toFixed(1) ?? '—'}
-                      </Tag>
-                    </Flex>
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+              ))
             )}
             {canhBao.length > 8 && (
               <div style={{ padding: '10px 20px', textAlign: 'center' }}>

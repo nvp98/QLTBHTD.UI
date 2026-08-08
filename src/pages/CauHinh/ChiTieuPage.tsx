@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AutoComplete, Button, Card, Col, Divider, Flex, Form, Input,
+  Alert, AutoComplete, Button, Card, Col, Divider, Flex, Form, Input,
   InputNumber, Modal, Popconfirm, Radio, Row, Select, Space,
-  Switch, Table, Tag, Tooltip, Typography, message,
+  Switch, Table, Tabs, Tag, Tooltip, Typography, message,
 } from 'antd';
 import {
   CalendarOutlined, DeleteOutlined, EditOutlined, FunctionOutlined, PlusOutlined,
-  ReloadOutlined, SettingOutlined, UnorderedListOutlined,
+  ReloadOutlined, RiseOutlined, SettingOutlined, UnorderedListOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { InputRef } from 'antd';
@@ -21,10 +21,11 @@ import { chiTieuInputApi } from '../../api/chiTieuInput';
 import { chiTieuRuleApi }  from '../../api/chiTieuRule';
 import { chiTieuPhanLoaiApi } from '../../api/chiTieuPhanLoai';
 import { chiTieuFormulaApi, chiTieuFormulaThamSoApi } from '../../api/chiTieuFormula';
+import { thongSoApi } from '../../api/thongSo';
 import type {
   ChiTieu, ChiTieuInput, ChiTieuRule, ChiTieuPhanLoaiNguong,
   ChiTieuFormula, ChiTieuFormulaThamSo,
-  Nguong, NhomChiTieu, LoaiThietBi,
+  Nguong, NhomChiTieu, LoaiThietBi, NguongValidationIssue,
 } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 
@@ -366,7 +367,7 @@ function VarManager({ chiTieuId, inputs, isDark, onRefresh }: VarManagerProps) {
     if (inputs.some(i => i.MaInput === ma)) { message.error(`Biến "${ma}" đã tồn tại`); return; }
     setAdding(true);
     try {
-      await chiTieuInputApi.create({ ID_ChiTieu: chiTieuId, MaInput: ma, TenInput: ten });
+      await chiTieuInputApi.create({ ID_ChiTieu: chiTieuId, MaInput: ma, TenInput: ten, NguonGiaTri: 'MANUAL' });
       setMaInput(''); setTenInput('');
       onRefresh();
     } catch { message.error('Lỗi thêm biến'); }
@@ -449,8 +450,11 @@ function VarManager({ chiTieuId, inputs, isDark, onRefresh }: VarManagerProps) {
 
 // ─── NguongPanel ─────────────────────────────────────────────────────────────
 function NguongPanel({
-  chiTieuId, chiTieuName, formulas = [],
-}: { chiTieuId: number; chiTieuName: string; formulas?: ChiTieuFormula[] }) {
+  chiTieuId, chiTieuName, formulas = [], onNguongsChange,
+}: {
+  chiTieuId: number; chiTieuName: string; formulas?: ChiTieuFormula[];
+  onNguongsChange?: (items: Nguong[]) => void;
+}) {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
 
@@ -462,16 +466,26 @@ function NguongPanel({
   const [editing, setEditing]   = useState<Nguong | null>(null);
   const [condMode, setCondMode] = useState<'range' | 'logic'>('range');
   const [logicTree, setTree]    = useState<LogicTree>([newGroup()]);
+  const [validationIssues, setValidationIssues] = useState<NguongValidationIssue[]>([]);
   const [form]                  = Form.useForm();
 
   const varOpts = inputs.map(i => ({ value: i.MaInput, label: `${i.MaInput} — ${i.TenInput}` }));
 
   const loadNguongs = useCallback(async () => {
     setLoading(true);
-    try { setData(await nguongApi.getByChiTieu(chiTieuId)); }
+    try {
+      const items = await nguongApi.getByChiTieu(chiTieuId);
+      setData(items);
+      onNguongsChange?.(items);
+    }
     catch { message.error('Không thể tải ngưỡng'); }
     finally { setLoading(false); }
-  }, [chiTieuId]);
+  }, [chiTieuId, onNguongsChange]);
+
+  // Config Validator mục 3.1 — quét khoảng trống/chồng lấn mỗi khi danh sách ngưỡng đổi.
+  useEffect(() => {
+    nguongApi.validate(chiTieuId).then(setValidationIssues).catch(() => {});
+  }, [chiTieuId, data]);
 
   const loadInputs = useCallback(async () => {
     try { setInputs(await chiTieuInputApi.getByChiTieu(chiTieuId)); }
@@ -491,6 +505,7 @@ function NguongPanel({
         CanDuoi_BaoGom: editing.CanDuoi_BaoGom,
         CanTren_BaoGom: editing.CanTren_BaoGom,
         MaKetQua:       editing.MaKetQua ?? null,
+        HanhDongKhuyenCao: editing.HanhDongKhuyenCao ?? null,
       });
     } else {
       form.setFieldsValue({ ID_ChiTieu: chiTieuId, CanDuoi_BaoGom: true, CanTren_BaoGom: false, MaKetQua: null });
@@ -605,11 +620,28 @@ function NguongPanel({
   return (
     <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f9fafb', borderRadius: 8, border: `1px solid ${borderColor}` }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
-        <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: 600 }}>
+        <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 12, fontWeight: 600 }}>
           <SettingOutlined style={{ marginRight: 6 }} />Ngưỡng điểm · {chiTieuName}
         </Text>
         <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed">Thêm ngưỡng</Button>
       </Flex>
+
+      {validationIssues.length > 0 && (
+        <Alert
+          type="warning" showIcon style={{ marginBottom: 10, fontSize: 12 }}
+          message={`Phát hiện ${validationIssues.length} vấn đề khoảng trống/chồng lấn ngưỡng`}
+          description={
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {validationIssues.map((it, i) => (
+                <li key={i}>
+                  <Tag color={it.Loai === 'GAP' ? 'gold' : 'red'} style={{ fontSize: 10 }}>{it.Loai}</Tag>
+                  {it.MoTa}
+                </li>
+              ))}
+            </ul>
+          }
+        />
+      )}
 
       <Table<Nguong>
         dataSource={data} columns={cols} rowKey="ID_Nguong"
@@ -621,9 +653,9 @@ function NguongPanel({
       <Modal
         title={
           <Space>
-            <SettingOutlined style={{ color: '#8b5cf6' }} />
+            <SettingOutlined />
             {editing ? 'Cập nhật ngưỡng điểm' : 'Thêm ngưỡng điểm'}
-            <Tag color="purple" style={{ fontSize: 11 }}>{chiTieuName}</Tag>
+            <Tag style={{ fontSize: 11 }}>{chiTieuName}</Tag>
           </Space>
         }
         open={modalOpen}
@@ -637,7 +669,7 @@ function NguongPanel({
           {formulas.length > 0 && (
             <Form.Item name="MaKetQua" label="Áp dụng cho kết quả Formula"
               tooltip="Bỏ trống = áp trực tiếp lên giá trị nhập (chỉ tiêu không có Formula)">
-              <Select allowClear placeholder="— Áp trực tiếp lên giá trị nhập —"
+              <Select allowClear placeholder="— Áp trực tiếp lên giá trị nhập —" showSearch optionFilterProp="label"
                 options={formulas.map(f => ({ label: f.MaKetQua, value: f.MaKetQua }))} />
             </Form.Item>
           )}
@@ -728,6 +760,11 @@ function NguongPanel({
             tooltip="Điểm 0 – 10 khi giá trị thỏa mãn điều kiện trên">
             <InputNumber style={{ width: '100%' }} min={0} max={10} step={0.5} placeholder="0 – 10" />
           </Form.Item>
+
+          <Form.Item name="HanhDongKhuyenCao" label="Hành động khuyến cáo (khi mức này khớp)"
+            tooltip="Hiển thị lại cho kỹ sư khi xem chi tiết phiếu — lưu snapshot đúng nội dung tại thời điểm chấm điểm, sửa sau không ảnh hưởng phiếu cũ.">
+            <Input.TextArea rows={2} placeholder="VD: Tăng tần suất kiểm tra 6 tháng/lần, thực hiện thí nghiệm bổ trợ FDS..." />
+          </Form.Item>
         </Form>
       </Modal>
     </div>
@@ -735,9 +772,15 @@ function NguongPanel({
 }
 
 // ─── InputPanel ───────────────────────────────────────────────────────────────
+const NGUON_GIA_TRI_OPTIONS = [
+  { value: 'MANUAL', label: 'Nhập tay' },
+  { value: 'CHITIEU_CUNG_PHIEU', label: 'Lấy từ chỉ tiêu khác (cùng phiếu)' },
+  { value: 'THIETBI_THONGSO', label: 'Lấy từ thông số thiết bị (vd Ir)' },
+];
+
 function InputPanel({
-  chiTieuId, chiTieuName, onInputsChange,
-}: { chiTieuId: number; chiTieuName: string; onInputsChange: (inputs: ChiTieuInput[]) => void }) {
+  chiTieuId, chiTieuName, idNhomChiTieu, onInputsChange,
+}: { chiTieuId: number; chiTieuName: string; idNhomChiTieu: number; onInputsChange: (inputs: ChiTieuInput[]) => void }) {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
 
@@ -746,6 +789,8 @@ function InputPanel({
   const [modalOpen, setModal] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [editing, setEditing] = useState<ChiTieuInput | null>(null);
+  const [chiTieuCungNhom, setChiTieuCungNhom] = useState<ChiTieu[]>([]);
+  const [danhSachMaThongSo, setDanhSachMaThongSo] = useState<{ MaThongSo: string; TenThongSo: string }[]>([]);
   const [form]                = Form.useForm();
 
   const load = useCallback(async () => {
@@ -760,10 +805,24 @@ function InputPanel({
 
   useEffect(() => { load(); }, [load]);
 
+  // Nguồn "Lấy từ chỉ tiêu khác" chỉ hợp lý trong CÙNG nhóm (cùng phiếu đo cùng lúc) — loại trừ
+  // chính chỉ tiêu đang cấu hình để tránh tự tham chiếu chính nó.
+  useEffect(() => {
+    chiTieuApi.getByNhom(idNhomChiTieu)
+      .then(items => setChiTieuCungNhom(items.filter(c => c.ID_ChiTieu !== chiTieuId)))
+      .catch(() => message.error('Không thể tải danh sách chỉ tiêu cùng nhóm'));
+  }, [idNhomChiTieu, chiTieuId]);
+
+  useEffect(() => {
+    thongSoApi.getAll()
+      .then(items => setDanhSachMaThongSo(items.map(t => ({ MaThongSo: t.MaThongSo, TenThongSo: t.TenThongSo }))))
+      .catch(() => message.error('Không thể tải danh mục thông số'));
+  }, []);
+
   useEffect(() => {
     if (!modalOpen) return;
     if (editing) form.setFieldsValue(editing);
-    else         form.setFieldsValue({ ID_ChiTieu: chiTieuId });
+    else         form.setFieldsValue({ ID_ChiTieu: chiTieuId, NguonGiaTri: 'MANUAL' });
   }, [modalOpen, editing, chiTieuId, form]);
 
   const openCreate = () => { setEditing(null); setModal(true); };
@@ -789,9 +848,15 @@ function InputPanel({
   };
 
   const cols: ColumnsType<ChiTieuInput> = [
-    { title: 'Mã biến (NCalc)', dataIndex: 'MaInput', key: 'ma', width: 160,
+    { title: 'Mã biến (NCalc)', dataIndex: 'MaInput', key: 'ma', width: 140,
       render: v => <Text code style={{ color: '#34d399', fontSize: 12 }}>{v}</Text> },
     { title: 'Tên hiển thị', dataIndex: 'TenInput', key: 'ten' },
+    { title: 'Nguồn giá trị', key: 'nguon', width: 220,
+      render: (_, r) => r.NguonGiaTri === 'CHITIEU_CUNG_PHIEU'
+        ? <Tag color="cyan" style={{ fontSize: 11 }}>Tự lấy từ: {r.TenChiTieuNguon ?? r.ID_ChiTieuNguon}</Tag>
+        : r.NguonGiaTri === 'THIETBI_THONGSO'
+        ? <Tag color="geekblue" style={{ fontSize: 11 }}>Thông số TB: {r.MaThongSoThietBi}</Tag>
+        : <Tag style={{ fontSize: 11 }}>Nhập tay</Tag> },
     { title: '', key: 'actions', width: 76, align: 'center',
       render: (_, r) => (
         <Space>
@@ -805,13 +870,12 @@ function InputPanel({
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f0fdf4', borderRadius: 8, border: `1px solid ${isDark ? '#14532d' : '#86efac'}`, marginBottom: 12 }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f9fafb', borderRadius: 8, border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`, marginBottom: 12 }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
-        <Text style={{ color: '#22c55e', fontSize: 12, fontWeight: 600 }}>
+        <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 12, fontWeight: 600 }}>
           <FunctionOutlined style={{ marginRight: 6 }} />Biến đầu vào · {chiTieuName}
         </Text>
-        <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed"
-          style={{ borderColor: '#22c55e', color: '#22c55e', background: 'rgba(34,197,94,0.15)' }}>
+        <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed">
           Thêm biến
         </Button>
       </Flex>
@@ -821,9 +885,9 @@ function InputPanel({
         locale={{ emptyText: 'Chưa có biến — các biến này dùng làm tên biến trong biểu thức NCalc' }}
       />
       <Modal
-        title={<Space><FunctionOutlined style={{ color: '#22c55e' }} />
+        title={<Space><FunctionOutlined />
           {editing ? 'Cập nhật biến' : 'Thêm biến đầu vào'}
-          <Tag color="green" style={{ fontSize: 11 }}>{chiTieuName}</Tag></Space>}
+          <Tag style={{ fontSize: 11 }}>{chiTieuName}</Tag></Space>}
         open={modalOpen}
         onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
@@ -839,6 +903,45 @@ function InputPanel({
           <Form.Item name="TenInput" label="Tên hiển thị"
             rules={[{ required: true }]}>
             <Input placeholder="VD: Dòng điện động cơ (A)" />
+          </Form.Item>
+          <Form.Item name="NguonGiaTri" label="Nguồn giá trị" rules={[{ required: true }]}
+            tooltip="Nhập tay: người vận hành gõ số khi lập phiếu (mặc định). Lấy từ chỉ tiêu khác: tự động lấy giá trị đã đo của 1 chỉ tiêu khác CÙNG nhóm, CÙNG phiếu — dùng cho chỉ tiêu tự tính (vd TDCG = tổng 6 khí). Lấy từ thông số thiết bị: tự động lấy thông số kỹ thuật cố định (nhãn máy) đã khai ở trang Quản lý thiết bị — dùng cho hằng số không đổi giữa các lần đo (vd Ir). Cả 2 loại 'tự lấy' đều không hiện ô nhập trên form tạo phiếu.">
+            <Select
+              options={NGUON_GIA_TRI_OPTIONS}
+              onChange={() => form.setFieldsValue({ ID_ChiTieuNguon: undefined, MaThongSoThietBi: undefined })}
+            />
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, cur) => prev.NguonGiaTri !== cur.NguonGiaTri}
+          >
+            {({ getFieldValue }) => {
+              const nguon = getFieldValue('NguonGiaTri');
+              if (nguon === 'CHITIEU_CUNG_PHIEU') return (
+                <Form.Item name="ID_ChiTieuNguon" label="Chỉ tiêu nguồn (cùng nhóm)"
+                  rules={[{ required: true, message: 'Chọn chỉ tiêu nguồn' }]}>
+                  <Select
+                    showSearch optionFilterProp="label" placeholder="Chọn chỉ tiêu"
+                    options={chiTieuCungNhom.map(c => ({ value: c.ID_ChiTieu, label: c.TenChiTieu }))}
+                    notFoundContent="Nhóm này chưa có chỉ tiêu nào khác"
+                  />
+                </Form.Item>
+              );
+              if (nguon === 'THIETBI_THONGSO') return (
+                <Form.Item name="MaThongSoThietBi" label="Mã thông số thiết bị"
+                  rules={[{ required: true, message: 'Chọn hoặc nhập mã thông số' }, { pattern: /^\w+$/, message: 'Chỉ dùng chữ/số/_' }]}
+                  tooltip="Chọn mã đã khai cho thiết bị ở trang Quản lý thiết bị → Chi tiết thiết bị → Thông số kỹ thuật — hoặc gõ mã mới nếu chưa thiết bị nào có.">
+                  <AutoComplete
+                    options={danhSachMaThongSo.map(t => ({ value: t.MaThongSo, label: `${t.MaThongSo} — ${t.TenThongSo}` }))}
+                    filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+                    placeholder="VD: Ir_OLTC"
+                  >
+                    <Input style={{ fontFamily: 'monospace' }} />
+                  </AutoComplete>
+                </Form.Item>
+              );
+              return null;
+            }}
           </Form.Item>
         </Form>
       </Modal>
@@ -946,13 +1049,13 @@ function ThamSoManager({
 
         {nguonGiaTri === 'INPUT' && (
           <Form.Item name="MaInput" label="Biến Input" rules={[{ required: true }]}>
-            <Select placeholder="Chọn biến input"
+            <Select placeholder="Chọn biến input" showSearch optionFilterProp="label"
               options={inputs.map(i => ({ label: `${i.MaInput} — ${i.TenInput}`, value: i.MaInput }))} />
           </Form.Item>
         )}
         {nguonGiaTri === 'FORMULA_KETQUA' && (
           <Form.Item name="ID_FormulaNguon" label="Formula nguồn (ThuTu phải nhỏ hơn)" rules={[{ required: true }]}>
-            <Select placeholder="Chọn formula"
+            <Select placeholder="Chọn formula" showSearch optionFilterProp="label"
               options={otherFormulas.map(f => ({ label: `${f.MaKetQua} (ThuTu=${f.ThuTu})`, value: f.ID_Formula }))} />
           </Form.Item>
         )}
@@ -1077,13 +1180,12 @@ function FormulaPanel({
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#fffbeb', borderRadius: 8, border: `1px solid ${isDark ? '#78350f' : '#fde68a'}`, marginBottom: 12 }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f9fafb', borderRadius: 8, border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`, marginBottom: 12 }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
-        <Text style={{ color: '#d97706', fontSize: 12, fontWeight: 600 }}>
+        <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 12, fontWeight: 600 }}>
           <FunctionOutlined style={{ marginRight: 6 }} />Formula (giá trị trung gian) · {chiTieuName}
         </Text>
-        <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed"
-          style={{ borderColor: '#d97706', color: '#d97706', background: 'rgba(217,119,6,0.15)' }}>
+        <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed">
           Thêm formula
         </Button>
       </Flex>
@@ -1097,9 +1199,9 @@ function FormulaPanel({
       />
 
       <Modal
-        title={<Space><FunctionOutlined style={{ color: '#d97706' }} />
+        title={<Space><FunctionOutlined />
           {editing ? 'Cập nhật formula' : 'Thêm formula'}
-          <Tag color="orange">{chiTieuName}</Tag></Space>}
+          <Tag>{chiTieuName}</Tag></Space>}
         open={modalOpen} onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy" confirmLoading={saving} destroyOnHidden width={760}
       >
@@ -1207,8 +1309,11 @@ function FormulaPanel({
 
 // ─── RulePanel ────────────────────────────────────────────────────────────────
 function RulePanel({
-  chiTieuId, chiTieuName, inputs, formulas = [],
-}: { chiTieuId: number; chiTieuName: string; inputs: ChiTieuInput[]; formulas?: ChiTieuFormula[] }) {
+  chiTieuId, chiTieuName, inputs, formulas = [], onRulesChange,
+}: {
+  chiTieuId: number; chiTieuName: string; inputs: ChiTieuInput[]; formulas?: ChiTieuFormula[];
+  onRulesChange?: (items: ChiTieuRule[]) => void;
+}) {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
 
@@ -1234,10 +1339,14 @@ function RulePanel({
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setData(await chiTieuRuleApi.getByChiTieu(chiTieuId)); }
+    try {
+      const items = await chiTieuRuleApi.getByChiTieu(chiTieuId);
+      setData(items);
+      onRulesChange?.(items);
+    }
     catch { message.error('Không thể tải quy tắc'); }
     finally { setLoading(false); }
-  }, [chiTieuId]);
+  }, [chiTieuId, onRulesChange]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1247,6 +1356,7 @@ function RulePanel({
       form.setFieldsValue({
         ID_ChiTieu: editing.ID_ChiTieu, TenMuc: editing.TenMuc, Diem_Si: editing.Diem_Si,
         LoaiRule: editing.LoaiRule ?? 'BANG_MUC', BieuThucRaw: editing.BieuThuc,
+        HanhDongKhuyenCao: editing.HanhDongKhuyenCao,
       });
       setLoaiRule((editing.LoaiRule as 'BANG_MUC' | 'CONG_THUC') ?? 'BANG_MUC');
       setTree(parseToTree(editing.BieuThuc) ?? [newGroup()]);
@@ -1301,7 +1411,7 @@ function RulePanel({
     { title: 'Biểu thức', dataIndex: 'BieuThuc', key: 'bt',
       render: (v: string) => (
         <Tooltip title={<code style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>{v}</code>}>
-          <Text code style={{ fontSize: 15, color: '#0f0922', cursor: 'help' }}>
+          <Text code style={{ fontSize: 15, color: isDark ? '#e5e7eb' : '#111827', cursor: 'help' }}>
             {v.length > 80 ? v.slice(0, 80) + '…' : v}
           </Text>
         </Tooltip>
@@ -1326,7 +1436,7 @@ function RulePanel({
   return (
     <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f9fafb', borderRadius: 8, border: `1px solid ${borderColor}` }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
-        <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: 600 }}>
+        <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 12, fontWeight: 600 }}>
           <FunctionOutlined style={{ marginRight: 6 }} />Quy tắc biểu thức · {chiTieuName}
         </Text>
         <Space>
@@ -1346,9 +1456,9 @@ function RulePanel({
       />
 
       <Modal
-        title={<Space><FunctionOutlined style={{ color: '#8b5cf6' }} />
+        title={<Space><FunctionOutlined />
           {editing ? 'Cập nhật quy tắc' : 'Thêm quy tắc biểu thức'}
-          <Tag color="purple" style={{ fontSize: 11 }}>{chiTieuName}</Tag></Space>}
+          <Tag style={{ fontSize: 11 }}>{chiTieuName}</Tag></Space>}
         open={modalOpen}
         onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
@@ -1440,6 +1550,11 @@ function RulePanel({
               </Form.Item>
             </>
           )}
+
+          <Form.Item name="HanhDongKhuyenCao" label="Hành động khuyến cáo (khi mức này khớp)"
+            tooltip="Hiển thị lại cho kỹ sư khi xem chi tiết phiếu — lưu snapshot đúng nội dung tại thời điểm chấm điểm, sửa sau không ảnh hưởng phiếu cũ.">
+            <Input.TextArea rows={2} placeholder="VD: Tăng tần suất kiểm tra 6 tháng/lần, thực hiện thí nghiệm bổ trợ FDS..." />
+          </Form.Item>
         </Form>
       </Modal>
     </div>
@@ -1533,13 +1648,12 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
   ];
 
   return (
-    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#fdf4ff', borderRadius: 8, border: `1px solid ${isDark ? '#4c1d95' : '#e9d5ff'}`, marginBottom: 12 }}>
+    <div style={{ padding: '12px 16px', background: isDark ? '#0b2c4d' : '#f9fafb', borderRadius: 8, border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`, marginBottom: 12 }}>
       <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
-        <Text style={{ color: '#a855f7', fontSize: 12, fontWeight: 600 }}>
+        <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 12, fontWeight: 600 }}>
           <CalendarOutlined style={{ marginRight: 6 }} />Mức phân loại theo tháng (N0..N4) · {chiTieuName}
         </Text>
-        <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed"
-          style={{ borderColor: '#a855f7', color: '#a855f7', background: 'rgba(168,85,247,0.15)' }}>
+        <Button size="small" icon={<PlusOutlined />} onClick={openCreate} type="dashed">
           Thêm mức
         </Button>
       </Flex>
@@ -1552,9 +1666,9 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
         locale={{ emptyText: 'Chưa có mức nào — nhấn "Thêm mức" (VD: N0..N4)' }}
       />
       <Modal
-        title={<Space><CalendarOutlined style={{ color: '#a855f7' }} />
+        title={<Space><CalendarOutlined />
           {editing ? 'Sửa mức phân loại' : 'Thêm mức phân loại'}
-          <Tag color="purple" style={{ fontSize: 11 }}>{chiTieuName}</Tag></Space>}
+          <Tag style={{ fontSize: 11 }}>{chiTieuName}</Tag></Space>}
         open={modalOpen}
         onOk={handleSubmit} onCancel={() => { form.resetFields(); setModal(false); }}
         okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
@@ -1610,50 +1724,290 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
   );
 }
 
+// ─── Scoring flow summary ───────────────────────────────────────────────────
+// Phản ánh ĐÚNG thứ tự ưu tiên thật trong ChiTieuScoringService.TinhVaLuuDiemSiAsync
+// (backend) — KHÔNG chỉ dựa vào LoaiTinhDiem người dùng chọn, vì trong nhiều trường hợp
+// dữ liệu đã khai (Input/Formula/Rule/Ngưỡng) mới là thứ quyết định đường tính điểm thật,
+// bất kể LoaiTinhDiem là gì. Mục đích: cho người cấu hình thấy "sự thật" sẽ chạy, tránh
+// lệch giữa cái họ tưởng đã chọn và cái hệ thống thực sự dùng.
+interface FlowWarning { level: 'warning' | 'error'; text: string }
+interface FlowResult { steps: string[]; warnings: FlowWarning[] }
+
+function computeScoringFlow(
+  loaiTinhDiem: string | null | undefined,
+  inputs: ChiTieuInput[],
+  formulas: ChiTieuFormula[],
+  rules: ChiTieuRule[],
+  nguongs: Nguong[],
+): FlowResult {
+  const loai   = loaiTinhDiem ?? 'Nguong';
+  const nInput = inputs.length;
+  const congThuc = rules.filter(r => r.LoaiRule === 'CONG_THUC');
+  const bangMuc  = rules.filter(r => r.LoaiRule !== 'CONG_THUC');
+  const warnings: FlowWarning[] = [];
+  const steps: string[] = [];
+
+  // 1) LoaiTinhDiem === 'Rule' CHỈ thật sự tách nhánh khi có ≥1 biến Input —
+  //    khi đó Formula bị BỎ QUA hoàn toàn, tính thẳng Rule (Bảng mức) trên biến thô.
+  if (loai === 'Rule' && nInput > 0) {
+    steps.push(`${nInput} biến Input`, 'Rule (Bảng mức) trên biến thô', 'Sᵢ');
+    if (bangMuc.length === 0) {
+      warnings.push({ level: 'error', text: 'Đã chọn "Rule" và có biến Input, nhưng chưa có quy tắc Bảng mức nào — tính điểm sẽ luôn ra rỗng.' });
+    }
+    if (formulas.length > 0) {
+      warnings.push({ level: 'warning', text: `Có ${formulas.length} Formula đã khai nhưng sẽ KHÔNG được dùng — khi chọn "Rule" và có Input, hệ thống tính thẳng trên biến thô, bỏ qua Formula.` });
+    }
+    return { steps, warnings };
+  }
+
+  // 2) LF luôn tách riêng.
+  if (loai === 'LF') {
+    steps.push('Giá trị đo theo tháng', 'Phân loại N0–N4', 'LF (bình quân trượt 12 tháng)', 'Tra ngưỡng → Sᵢ');
+    if (nguongs.length === 0) {
+      warnings.push({ level: 'error', text: 'Chưa có ngưỡng nào cho LF — tính điểm sẽ luôn ra rỗng.' });
+    }
+    return { steps, warnings };
+  }
+
+  // 2b) TOC_DO_SINH_KHI cũng tách riêng, ngang hàng ưu tiên với LF trong backend.
+  if (loai === 'TOC_DO_SINH_KHI') {
+    steps.push('1 giá trị đo hiện tại', 'Tìm mốc đo gần nhất ~1 năm trước', 'Quy đổi %/năm theo Ngưỡng L1', 'Tra ngưỡng → Sᵢ');
+    if (nguongs.length === 0) {
+      warnings.push({ level: 'error', text: 'Chưa có ngưỡng %/năm nào — tính điểm sẽ luôn ra rỗng.' });
+    }
+    warnings.push({ level: 'warning', text: 'Lần đo đầu tiên của thiết bị (chưa có mốc ~1 năm trước) sẽ luôn ra Sᵢ rỗng — đây là hành vi có chủ đích, không phải lỗi.' });
+    return { steps, warnings };
+  }
+
+  // 3) Mọi trường hợp còn lại rơi vào nhánh "else" thật của backend — kể cả khi chọn
+  //    "Rule" nhưng KHÔNG có Input nào (lúc đó Rule bị bỏ qua, xử lý y hệt "Ngưỡng").
+  if (loai === 'Rule' && nInput === 0) {
+    warnings.push({ level: 'error', text: 'Đã chọn "Rule" nhưng chưa khai biến Input nào — hệ thống sẽ tự xử lý như "Ngưỡng" 1 giá trị đo, mọi Rule đã cấu hình đều bị bỏ qua.' });
+  }
+
+  if (nInput === 0) {
+    steps.push('1 giá trị đo', 'Tra Ngưỡng trực tiếp', 'Sᵢ');
+    if (nguongs.length === 0) {
+      warnings.push({ level: 'warning', text: 'Chưa có ngưỡng nào — tính điểm sẽ luôn ra rỗng.' });
+    }
+    return { steps, warnings };
+  }
+
+  if (formulas.length > 0) {
+    steps.push(`${nInput} biến Input`, `${formulas.length} Formula`);
+    if (congThuc.length > 0) {
+      steps.push('Rule (Công thức) gộp kết quả Formula', 'Sᵢ');
+      if (congThuc.length > 1) {
+        warnings.push({ level: 'warning', text: `Có ${congThuc.length} Rule "Công thức" — hệ thống chỉ dùng dòng ĐẦU TIÊN tìm thấy, các dòng còn lại bị bỏ qua.` });
+      }
+    } else if (bangMuc.length > 0) {
+      steps.push('Rule (Bảng mức) trên kết quả Formula', 'Sᵢ');
+    } else {
+      steps.push('Tra Ngưỡng theo từng Formula (MaKetQua)', 'Sᵢ');
+      if (formulas.length > 1) {
+        warnings.push({ level: 'error', text: `Có ${formulas.length} Formula nhưng chưa khai Rule để gộp — tính điểm sẽ LỖI khi chạy phiếu thật (hệ thống không biết gộp nhiều kết quả Formula thành 1 Sᵢ thế nào).` });
+      } else {
+        const maKq = formulas[0].MaKetQua;
+        if (!nguongs.some(n => n.MaKetQua === maKq)) {
+          warnings.push({ level: 'warning', text: `Chưa có Ngưỡng nào áp dụng cho kết quả Formula "${maKq}" — tính điểm sẽ ra rỗng.` });
+        }
+      }
+    }
+  } else {
+    steps.push(`${nInput} biến Input`, 'Ngưỡng đa biến (biểu thức logic)', 'Sᵢ');
+    if (!nguongs.some(n => !!n.BieuThuc_Logic)) {
+      warnings.push({ level: 'error', text: 'Có biến Input nhưng chưa có Ngưỡng nào dùng "Biểu thức logic" — tính điểm sẽ LỖI khi chạy phiếu thật.' });
+    }
+  }
+
+  return { steps, warnings };
+}
+
+function ScoringFlowSummary({
+  loaiTinhDiem, inputs, formulas, rules, nguongs, isDark,
+}: {
+  loaiTinhDiem: string | null | undefined;
+  inputs: ChiTieuInput[]; formulas: ChiTieuFormula[]; rules: ChiTieuRule[]; nguongs: Nguong[];
+  isDark: boolean;
+}) {
+  const { steps, warnings } = computeScoringFlow(loaiTinhDiem, inputs, formulas, rules, nguongs);
+
+  return (
+    <div style={{
+      padding: '10px 14px', marginBottom: 12, borderRadius: 8,
+      background: isDark ? '#04263d' : '#f0f9ff',
+      border: `1px solid ${isDark ? '#0e4a72' : '#bae6fd'}`,
+    }}>
+      <Flex align="center" wrap gap={6} style={{ marginBottom: warnings.length ? 8 : 0 }}>
+        <Text style={{ color: '#0ea5e9', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+          Luồng tính điểm thực tế:
+        </Text>
+        {steps.map((s, i) => (
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {i > 0 && <Text style={{ color: '#6b7280' }}>→</Text>}
+            <Tag color="cyan" style={{ margin: 0, fontSize: 11 }}>{s}</Tag>
+          </span>
+        ))}
+      </Flex>
+      {warnings.map((w, i) => (
+        <Alert
+          key={i} type={w.level} showIcon banner
+          message={w.text}
+          style={{ marginTop: i > 0 ? 6 : 0, fontSize: 12, padding: '4px 10px' }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── Expanded row ─────────────────────────────────────────────────────────────
 // Kiểu 'LF' vẫn tách riêng (PhanLoaiPanel + Nguong theo LF, không dùng Input/Formula/Rule).
 // Các kiểu còn lại (Nguong, Rule) hiện đủ 4 panel Input → Formula → Rule → Ngưỡng — một chỉ
 // tiêu 'Nguong' vẫn có thể cần Input+Formula+Rule(CONG_THUC) khi có nhiều Formula cần gộp Si
 // (vd Kiểm tra nhiệt độ: DT1/DT2 → Min), nên không còn tách UI cứng theo LoaiTinhDiem như trước.
+// Banner "Luồng tính điểm thực tế" ở trên các panel tính lại theo ĐÚNG logic dispatch thật
+// của ChiTieuScoringService — xem computeScoringFlow phía trên.
 function ExpandedRow({ record }: { record: ChiTieu }) {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [inputs, setInputs]     = useState<ChiTieuInput[]>([]);
   const [formulas, setFormulas] = useState<ChiTieuFormula[]>([]);
+  const [rules, setRules]       = useState<ChiTieuRule[]>([]);
+  const [nguongs, setNguongs]   = useState<Nguong[]>([]);
   const isLF = record.LoaiTinhDiem === 'LF';
+  const isTocDoSinhKhi = record.LoaiTinhDiem === 'TOC_DO_SINH_KHI';
   const handleInputsChange   = useCallback((items: ChiTieuInput[]) => setInputs(items), []);
   const handleFormulasChange = useCallback((items: ChiTieuFormula[]) => setFormulas(items), []);
+  const handleRulesChange    = useCallback((items: ChiTieuRule[]) => setRules(items), []);
+  const handleNguongsChange  = useCallback((items: Nguong[]) => setNguongs(items), []);
+
+  // TOC_DO_SINH_KHI: KHÔNG nhận giá trị nhập tay trực tiếp (không cần Input/Formula/Rule) — giá
+  // trị để tra ngưỡng do BE tự tính (TinhDiemTocDoSinhKhiAsync), nên chỉ cần đúng 1 tab Ngưỡng.
+  // (TDCG không còn là trường hợp đặc biệt nữa — nay chỉ là 1 chỉ tiêu 'Nguong' bình thường với
+  // Input nguồn 'CHITIEU_CUNG_PHIEU' + Formula + Ngưỡng, hiện đủ 4 tab như mọi chỉ tiêu khác.)
+  if (isTocDoSinhKhi) {
+    return (
+      <div style={{ padding: '8px 0' }}>
+        <ScoringFlowSummary
+          loaiTinhDiem={record.LoaiTinhDiem} inputs={[]} formulas={[]} rules={[]}
+          nguongs={nguongs} isDark={isDark}
+        />
+        <Tabs
+          size="small"
+          items={[
+            {
+              key: 'nguong',
+              label: <span><SettingOutlined /> Ngưỡng điểm (%/năm)</span>,
+              children: (
+                <NguongPanel
+                  chiTieuId={record.ID_ChiTieu} chiTieuName={record.TenChiTieu}
+                  onNguongsChange={handleNguongsChange}
+                />
+              ),
+              forceRender: true,
+            },
+          ]}
+        />
+      </div>
+    );
+  }
 
   if (isLF) {
     return (
       <div style={{ padding: '8px 0' }}>
-        <PhanLoaiPanel chiTieuId={record.ID_ChiTieu} chiTieuName={record.TenChiTieu} />
-        <NguongPanel chiTieuId={record.ID_ChiTieu} chiTieuName={record.TenChiTieu} />
+        <ScoringFlowSummary
+          loaiTinhDiem={record.LoaiTinhDiem} inputs={[]} formulas={[]} rules={[]}
+          nguongs={nguongs} isDark={isDark}
+        />
+        <Tabs
+          size="small"
+          items={[
+            {
+              key: 'phanloai',
+              label: <span><CalendarOutlined /> Mức phân loại (N0..N4)</span>,
+              children: <PhanLoaiPanel chiTieuId={record.ID_ChiTieu} chiTieuName={record.TenChiTieu} />,
+              forceRender: true,
+            },
+            {
+              key: 'nguong',
+              label: <span><SettingOutlined /> Ngưỡng điểm</span>,
+              children: (
+                <NguongPanel
+                  chiTieuId={record.ID_ChiTieu} chiTieuName={record.TenChiTieu}
+                  onNguongsChange={handleNguongsChange}
+                />
+              ),
+              forceRender: true,
+            },
+          ]}
+        />
       </div>
     );
   }
 
   return (
     <div style={{ padding: '8px 0' }}>
-      <InputPanel
-        chiTieuId={record.ID_ChiTieu}
-        chiTieuName={record.TenChiTieu}
-        onInputsChange={handleInputsChange}
+      <ScoringFlowSummary
+        loaiTinhDiem={record.LoaiTinhDiem} inputs={inputs} formulas={formulas}
+        rules={rules} nguongs={nguongs} isDark={isDark}
       />
-      <FormulaPanel
-        chiTieuId={record.ID_ChiTieu}
-        chiTieuName={record.TenChiTieu}
-        inputs={inputs}
-        onFormulasChange={handleFormulasChange}
-      />
-      <RulePanel
-        chiTieuId={record.ID_ChiTieu}
-        chiTieuName={record.TenChiTieu}
-        inputs={inputs}
-        formulas={formulas}
-      />
-      <NguongPanel
-        chiTieuId={record.ID_ChiTieu}
-        chiTieuName={record.TenChiTieu}
-        formulas={formulas}
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'input',
+            label: <span><FunctionOutlined /> Biến đầu vào{inputs.length > 0 ? ` (${inputs.length})` : ''}</span>,
+            children: (
+              <InputPanel
+                chiTieuId={record.ID_ChiTieu}
+                chiTieuName={record.TenChiTieu}
+                idNhomChiTieu={record.ID_NhomChiTieu}
+                onInputsChange={handleInputsChange}
+              />
+            ),
+            forceRender: true,
+          },
+          {
+            key: 'formula',
+            label: <span><FunctionOutlined /> Formula{formulas.length > 0 ? ` (${formulas.length})` : ''}</span>,
+            children: (
+              <FormulaPanel
+                chiTieuId={record.ID_ChiTieu}
+                chiTieuName={record.TenChiTieu}
+                inputs={inputs}
+                onFormulasChange={handleFormulasChange}
+              />
+            ),
+            forceRender: true,
+          },
+          {
+            key: 'rule',
+            label: <span><FunctionOutlined /> Quy tắc biểu thức{rules.length > 0 ? ` (${rules.length})` : ''}</span>,
+            children: (
+              <RulePanel
+                chiTieuId={record.ID_ChiTieu}
+                chiTieuName={record.TenChiTieu}
+                inputs={inputs}
+                formulas={formulas}
+                onRulesChange={handleRulesChange}
+              />
+            ),
+            forceRender: true,
+          },
+          {
+            key: 'nguong',
+            label: <span><SettingOutlined /> Ngưỡng điểm{nguongs.length > 0 ? ` (${nguongs.length})` : ''}</span>,
+            children: (
+              <NguongPanel
+                chiTieuId={record.ID_ChiTieu}
+                chiTieuName={record.TenChiTieu}
+                formulas={formulas}
+                onNguongsChange={handleNguongsChange}
+              />
+            ),
+            forceRender: true,
+          },
+        ]}
       />
     </div>
   );
@@ -1701,8 +2055,10 @@ export default function ChiTieuPage() {
   useEffect(() => {
     if (!modalOpen) return;
     if (editing) form.setFieldsValue(editing);
-    else         form.setFieldsValue({ TrangThai: 1, LoaiTinhDiem: 'Nguong' });
-  }, [modalOpen, editing, form]);
+    // Nhóm đang lọc/tìm ở danh sách (filterNhom) được điền sẵn — người dùng đã tìm đúng nhóm
+    // rồi mới bấm "Thêm chỉ tiêu" thì khỏi phải tìm lại lần nữa trong modal.
+    else         form.setFieldsValue({ TrangThai: 1, LoaiTinhDiem: 'Nguong', ID_NhomChiTieu: filterNhom });
+  }, [modalOpen, editing, filterNhom, form]);
 
   const openCreate = () => { setEditing(null);   setModalOpen(true); };
   const openEdit   = (r: ChiTieu) => { setEditing(r); setModalOpen(true); };
@@ -1767,6 +2123,8 @@ export default function ChiTieuPage() {
         ? <Tag color="purple" icon={<FunctionOutlined />} style={{ fontSize: 11 }}>Biểu thức</Tag>
         : v === 'LF'
         ? <Tag color="magenta" icon={<CalendarOutlined />} style={{ fontSize: 11 }}>Mang tải (LF)</Tag>
+        : v === 'TOC_DO_SINH_KHI'
+        ? <Tag color="gold" icon={<RiseOutlined />} style={{ fontSize: 11 }}>Tốc độ sinh khí</Tag>
         : <Tag color="blue"   icon={<SettingOutlined  />} style={{ fontSize: 11 }}>Ngưỡng</Tag> },
     { title: 'Trạng thái', dataIndex: 'TrangThai', key: 'status', width: 105,
       render: v => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>,
@@ -1816,7 +2174,7 @@ export default function ChiTieuPage() {
             <Select<number | 0>
               value={filterLoai ?? 0}
               onChange={v => { setFilterLoai(v === 0 ? undefined : v); setFilterNhom(undefined); setPage(1); }}
-              style={{ width: 170 }}
+              style={{ width: 170 }} showSearch optionFilterProp="label"
               options={[{ label: 'Tất cả loại TB', value: 0 }, ...loais.map(l => ({ label: `${l.TenLoaiTB} (${l.KyHieu})`, value: l.ID_LoaiThietBi }))]}
             />
             <Select<number | 0>
@@ -1874,12 +2232,25 @@ export default function ChiTieuPage() {
           </Form.Item>
           <Form.Item name="LoaiTinhDiem" label="Kiểu tính điểm"
             rules={[{ required: true }]}
-            tooltip="Ngưỡng: so với khoảng số hoặc biểu thức đơn giản. Biểu thức: quy tắc phức tạp với nhiều biến. LF: chỉ tiêu đo theo tháng (VD: mang tải MBA), phân loại N0..N4 rồi tra ngưỡng.">
+            tooltip="Ngưỡng: so với khoảng số hoặc biểu thức đơn giản. Biểu thức: quy tắc phức tạp với nhiều biến — thêm biến ở tab 'Biến đầu vào' và chọn Nguồn giá trị = 'Lấy từ chỉ tiêu khác' để tự tính từ chỉ tiêu khác cùng phiếu (vd TDCG = tổng 6 khí), không cần nhập tay. LF: chỉ tiêu đo theo tháng (VD: mang tải MBA), phân loại N0..N4 rồi tra ngưỡng. Tốc độ sinh khí: chỉ nhập giá trị đo hiện tại, hệ thống tự so với giá trị gần nhất ~1 năm trước rồi tra ngưỡng %/năm.">
             <Radio.Group buttonStyle="solid">
               <Radio.Button value="Nguong"><SettingOutlined /> Ngưỡng</Radio.Button>
               <Radio.Button value="Rule"><FunctionOutlined /> Biểu thức (Rule)</Radio.Button>
               <Radio.Button value="LF"><CalendarOutlined /> Mang tải (LF)</Radio.Button>
+              <Radio.Button value="TOC_DO_SINH_KHI"><RiseOutlined /> Tốc độ sinh khí</Radio.Button>
             </Radio.Group>
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, cur) => prev.LoaiTinhDiem !== cur.LoaiTinhDiem}
+          >
+            {({ getFieldValue }) => getFieldValue('LoaiTinhDiem') === 'TOC_DO_SINH_KHI' && (
+              <Form.Item name="GiaTri_L1" label="Ngưỡng L1 (ppm)"
+                rules={[{ required: true, message: 'Nhập ngưỡng L1' }]}
+                tooltip="Ngưỡng tham chiếu L1 riêng của khí này (Bảng 8, IEEE C57.104) — dùng làm mẫu số quy đổi % tốc độ sinh khí/năm. VD: H2=100, CH4=120, C2H6=65, C2H4=50, C2H2=1, CO=350, CO2=2500.">
+                <InputNumber style={{ width: '100%' }} min={0} step={0.01} placeholder="VD: 100" />
+              </Form.Item>
+            )}
           </Form.Item>
           <Divider style={{ borderColor: isDark ? '#1e4a72' : '#e5e7eb', margin: '8px 0' }} />
           <Form.Item name="TrangThai" label="Trạng thái" rules={[{ required: true }]}>

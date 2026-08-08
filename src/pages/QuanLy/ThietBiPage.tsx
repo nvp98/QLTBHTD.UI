@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm,
+  Button, Card, Col, Divider, Form, Input, InputNumber, Modal, Popconfirm,
   Row, Select, Space, Table, Tag, Tooltip, Typography, message,
 } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -8,7 +8,9 @@ import type { ColumnsType } from 'antd/es/table';
 import { thietBiApi }     from '../../api/thietBi';
 import { tramDienApi }    from '../../api/tramDien';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
-import type { ThietBi, TramDien, LoaiThietBi } from '../../types/entities';
+import { thietBiThongSoApi } from '../../api/thietBiThongSo';
+import { thongSoApi }     from '../../api/thongSo';
+import type { ThietBi, TramDien, LoaiThietBi, ThietBiThongSo, ThongSo, ThietBiThongSoUsage } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
@@ -354,8 +356,304 @@ export default function ThietBiPage() {
                 </Col>
               </Row>
             ))}
+            <ThongSoPanel idThietBi={detail.ID_ThietBi} isDark={isDark} />
           </div>
         )}
+      </Modal>
+    </div>
+  );
+}
+
+/** API trả lỗi cấu hình (vd ThongSoDangSuDungException) dạng JSON {"error":"..."} trong body —
+ * bóc ra hiển thị đúng thông điệp thay vì message chung chung. */
+function extractApiErrorMessage(e: unknown, macDinh: string): string {
+  if (e instanceof Error) {
+    try {
+      const parsed = JSON.parse(e.message) as { error?: string };
+      if (parsed.error) return parsed.error;
+    } catch { /* không phải JSON — dùng mặc định */ }
+  }
+  return macDinh;
+}
+
+// ─── ThongSoCatalogModal — quản lý danh mục thông số dùng chung (sửa/xóa mã) ───────────────
+function ThongSoCatalogModal({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged: () => void }) {
+  const [items, setItems]     = useState<ThongSo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState<ThongSo | null>(null);
+  const [saving, setSaving]   = useState(false);
+  const [usageMap, setUsageMap] = useState<Record<number, ThietBiThongSoUsage[] | undefined>>({});
+  const [usageLoading, setUsageLoading] = useState<number | null>(null);
+  const [form]                = Form.useForm();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setItems(await thongSoApi.getAll()); }
+    catch { message.error('Không thể tải danh mục thông số'); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const loadUsage = async (idThongSo: number) => {
+    setUsageLoading(idThongSo);
+    try {
+      const rows = await thietBiThongSoApi.getByThongSo(idThongSo);
+      setUsageMap(prev => ({ ...prev, [idThongSo]: rows }));
+    } catch { message.error('Không thể tải danh sách thiết bị đang dùng'); }
+    finally { setUsageLoading(null); }
+  };
+
+  const handleGoBoThongSo = async (idThietBiThongSo: number, idThongSo: number) => {
+    try {
+      await thietBiThongSoApi.delete(idThietBiThongSo);
+      message.success('Đã gỡ thông số khỏi thiết bị');
+      loadUsage(idThongSo);
+      onChanged();
+    } catch { message.error('Lỗi gỡ thông số'); }
+  };
+
+  const openEdit = (r: ThongSo) => { setEditing(r); form.setFieldsValue(r); };
+
+  const handleSubmit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      const v = await form.validateFields();
+      await thongSoApi.update(editing.ID_ThongSo, v);
+      message.success('Đã cập nhật danh mục');
+      setEditing(null); load(); onChanged();
+    } catch (e: unknown) {
+      if (e instanceof Error && 'errorFields' in (e as object)) return;
+      message.error(extractApiErrorMessage(e, 'Lỗi lưu danh mục'));
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    try { await thongSoApi.delete(id); message.success('Đã xóa khỏi danh mục'); load(); onChanged(); }
+    catch (e: unknown) { message.error(extractApiErrorMessage(e, 'Lỗi xóa danh mục')); }
+  };
+
+  const cols: ColumnsType<ThongSo> = [
+    { title: 'Mã', dataIndex: 'MaThongSo', key: 'ma', width: 100,
+      render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
+    { title: 'Tên thông số', dataIndex: 'TenThongSo', key: 'ten' },
+    { title: 'ĐVT', dataIndex: 'DonVi', key: 'donvi', width: 70 },
+    { title: '', key: 'actions', width: 76, align: 'center',
+      render: (_, r) => (
+        <Space size={4}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Popconfirm title="Xóa mã thông số này khỏi danh mục?" okText="Xóa" cancelText="Hủy"
+            okButtonProps={{ danger: true }} onConfirm={() => handleDelete(r.ID_ThongSo)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ) },
+  ];
+
+  return (
+    <Modal
+      title="Quản lý danh mục thông số dùng chung" open={open} onCancel={onClose}
+      footer={<Button onClick={onClose}>Đóng</Button>} width={620} destroyOnHidden
+    >
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        Không thể xóa mã đang được thiết bị nào đó sử dụng — xóa giá trị đã khai ở thiết bị trước.
+      </Text>
+      <Table<ThongSo>
+        dataSource={items} columns={cols} rowKey="ID_ThongSo"
+        loading={loading} size="small" pagination={false} style={{ marginTop: 12 }}
+        expandable={{
+          onExpand: (expanded, record) => { if (expanded && !usageMap[record.ID_ThongSo]) loadUsage(record.ID_ThongSo); },
+          expandedRowRender: record => {
+            const rows = usageMap[record.ID_ThongSo];
+            if (usageLoading === record.ID_ThongSo) return <Text type="secondary" style={{ fontSize: 12 }}>Đang tải...</Text>;
+            if (!rows || rows.length === 0) return <Text type="secondary" style={{ fontSize: 12 }}>Chưa thiết bị nào dùng mã này</Text>;
+            return (
+              <Table<ThietBiThongSoUsage>
+                dataSource={rows} rowKey="ID_ThietBi_ThongSo" size="small" pagination={false}
+                showHeader={false}
+                columns={[
+                  { key: 'ten', render: (_, r) => <Text>{r.TenThietBi}</Text> },
+                  { key: 'giatri', width: 120, align: 'right',
+                    render: (_, r) => <Text strong>{r.GiaTri}{record.DonVi ? ` ${record.DonVi}` : ''}</Text> },
+                  { key: 'action', width: 90, align: 'center',
+                    render: (_, r) => (
+                      <Popconfirm title="Gỡ thông số này khỏi thiết bị?" okText="Gỡ" cancelText="Hủy"
+                        okButtonProps={{ danger: true }} onConfirm={() => handleGoBoThongSo(r.ID_ThietBi_ThongSo, record.ID_ThongSo)}>
+                        <Button size="small" danger>Gỡ</Button>
+                      </Popconfirm>
+                    ) },
+                ]}
+              />
+            );
+          },
+        }}
+      />
+      <Modal
+        title="Sửa danh mục thông số" open={!!editing} onOk={handleSubmit} onCancel={() => setEditing(null)}
+        okText="Cập nhật" cancelText="Hủy" confirmLoading={saving} destroyOnHidden width={420}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="MaThongSo" label="Mã thông số"
+            rules={[{ required: true }, { pattern: /^\w+$/, message: 'Chỉ dùng chữ/số/_' }]}>
+            <Input style={{ fontFamily: 'monospace' }} />
+          </Form.Item>
+          <Form.Item name="TenThongSo" label="Tên thông số" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="DonVi" label="Đơn vị">
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Modal>
+  );
+}
+
+// ─── ThongSoPanel — thông số kỹ thuật cố định (nhãn máy) của thiết bị, vd Ir ───────────────
+function ThongSoPanel({ idThietBi, isDark }: { idThietBi: number; isDark: boolean }) {
+  const [data, setData]       = useState<ThietBiThongSo[]>([]);
+  const [catalog, setCatalog] = useState<ThongSo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modalOpen, setModal] = useState(false);
+  const [catalogModalOpen, setCatalogModal] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [editing, setEditing] = useState<ThietBiThongSo | null>(null);
+  const [newMa, setNewMa]     = useState('');
+  const [newTen, setNewTen]   = useState('');
+  const [newDonVi, setNewDonVi] = useState('');
+  const [form]                = Form.useForm();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setData(await thietBiThongSoApi.getByThietBi(idThietBi)); }
+    catch { message.error('Không thể tải thông số thiết bị'); }
+    finally { setLoading(false); }
+  }, [idThietBi]);
+
+  const loadCatalog = useCallback(async () => {
+    try { setCatalog(await thongSoApi.getAll()); }
+    catch { message.error('Không thể tải danh mục thông số'); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadCatalog(); }, [loadCatalog]);
+
+  const openCreate = () => {
+    setEditing(null);
+    form.resetFields();
+    setModal(true);
+  };
+  const openEdit = (r: ThietBiThongSo) => { setEditing(r); form.setFieldsValue(r); setModal(true); };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      const v = await form.validateFields();
+      if (editing) await thietBiThongSoApi.update(editing.ID_ThietBi_ThongSo, v);
+      else         await thietBiThongSoApi.create({ ...v, ID_ThietBi: idThietBi });
+      message.success(editing ? 'Đã cập nhật thông số' : 'Đã thêm thông số');
+      setModal(false); load();
+    } catch (e: unknown) {
+      if (e instanceof Error && 'errorFields' in (e as object)) return;
+      message.error('Lỗi lưu thông số');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    try { await thietBiThongSoApi.delete(id); message.success('Đã xóa thông số'); load(); }
+    catch { message.error('Lỗi xóa thông số'); }
+  };
+
+  const addNewThongSo = async () => {
+    if (!newMa.trim() || !newTen.trim()) { message.warning('Nhập mã và tên thông số'); return; }
+    try {
+      const created = await thongSoApi.create({ MaThongSo: newMa.trim(), TenThongSo: newTen.trim(), DonVi: newDonVi.trim() || null });
+      setCatalog(prev => [...prev, created]);
+      form.setFieldsValue({ ID_ThongSo: created.ID_ThongSo });
+      setNewMa(''); setNewTen(''); setNewDonVi('');
+      message.success('Đã thêm vào danh mục thông số');
+    } catch { message.error('Lỗi thêm danh mục — mã có thể đã tồn tại'); }
+  };
+
+  const cols: ColumnsType<ThietBiThongSo> = [
+    { title: 'Mã', dataIndex: 'MaThongSo', key: 'ma', width: 90,
+      render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
+    { title: 'Tên thông số', dataIndex: 'TenThongSo', key: 'ten' },
+    { title: 'Giá trị', key: 'giatri', width: 110, align: 'right',
+      render: (_, r) => <Text strong>{r.GiaTri}{r.DonVi ? ` ${r.DonVi}` : ''}</Text> },
+    { title: '', key: 'actions', width: 70, align: 'center',
+      render: (_, r) => (
+        <Space size={4}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Popconfirm title="Xóa thông số này?" okText="Xóa" cancelText="Hủy"
+            okButtonProps={{ danger: true }} onConfirm={() => handleDelete(r.ID_ThietBi_ThongSo)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ) },
+  ];
+
+  return (
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}>
+      <Space align="center" style={{ marginBottom: 8, width: '100%', justifyContent: 'space-between' }}>
+        <Text strong style={{ fontSize: 13 }}>Thông số kỹ thuật (nhãn máy)</Text>
+        <Space size={8}>
+          <Button size="small" onClick={() => setCatalogModal(true)}>Quản lý danh mục</Button>
+          <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={openCreate}>Thêm thông số</Button>
+        </Space>
+      </Space>
+      <ThongSoCatalogModal
+        open={catalogModalOpen}
+        onClose={() => setCatalogModal(false)}
+        onChanged={loadCatalog}
+      />
+      <Table<ThietBiThongSo>
+        dataSource={data} columns={cols} rowKey="ID_ThietBi_ThongSo"
+        loading={loading} size="small" pagination={false}
+        locale={{ emptyText: 'Chưa có thông số nào — vd Ir (dòng định mức động cơ OLTC)' }}
+      />
+      <Modal
+        title={editing ? 'Sửa thông số' : 'Thêm thông số kỹ thuật'}
+        open={modalOpen} onOk={handleSubmit} onCancel={() => setModal(false)}
+        okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
+        confirmLoading={saving} destroyOnHidden width={480}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="ID_ThongSo" label="Thông số"
+            rules={[{ required: true, message: 'Chọn thông số' }]}
+            tooltip="Chọn từ danh mục thông số dùng chung — nếu chưa có, gõ mã/tên mới bên dưới danh sách để thêm vào danh mục.">
+            <Select
+              showSearch optionFilterProp="label" placeholder="Chọn thông số"
+              options={catalog.map(c => ({ value: c.ID_ThongSo, label: `${c.MaThongSo} — ${c.TenThongSo}${c.DonVi ? ` (${c.DonVi})` : ''}` }))}
+              dropdownRender={menu => (
+                <>
+                  {menu}
+                  <Divider style={{ margin: '8px 0' }} />
+                  <Space style={{ padding: '0 8px 8px', width: '100%' }} wrap>
+                    <Input placeholder="Mã mới" value={newMa} style={{ width: 90, fontFamily: 'monospace' }}
+                      onChange={e => setNewMa(e.target.value)} />
+                    <Input placeholder="Tên thông số" value={newTen} style={{ width: 150 }}
+                      onChange={e => setNewTen(e.target.value)} />
+                    <Input placeholder="ĐVT" value={newDonVi} style={{ width: 60 }}
+                      onChange={e => setNewDonVi(e.target.value)} />
+                    <Button type="text" size="small" icon={<PlusOutlined />} onClick={addNewThongSo}>Thêm vào danh mục</Button>
+                  </Space>
+                </>
+              )}
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item name="GiaTri" label="Giá trị" rules={[{ required: true }]}>
+                <InputNumber style={{ width: '100%' }} step={0.01} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="GhiChu" label="Ghi chú">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

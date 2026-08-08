@@ -1,7 +1,7 @@
 import { api } from './client';
 import type {
   CongThucTongHop, CreateCongThucTongHopDto, UpdateCongThucTongHopDto,
-  CongThucBien, CreateCongThucBienDto, UpdateCongThucBienDto,
+  CongThucBien, CreateCongThucBienDto, UpdateCongThucBienDto, VongLapKetQua,
 } from '../types/entities';
 
 const BASE_CT = '/api/cong-thuc-tong-hop';
@@ -81,6 +81,12 @@ export const congThucTongHopApi = {
     toCongThucTongHop(await api.put<CongThucTongHopRaw>(`${BASE_CT}/${id}`, dto)),
 
   delete: (id: number) => api.delete(`${BASE_CT}/${id}`),
+
+  validateVongLap: async (idLoaiThietBi: number) => {
+    type Raw = Partial<VongLapKetQua> & { coVongLap?: boolean; duongDi?: number[] };
+    const r = await api.get<Raw>(`${BASE_CT}/validate-vong-lap/${idLoaiThietBi}`);
+    return { CoVongLap: r.CoVongLap ?? r.coVongLap ?? false, DuongDi: r.DuongDi ?? r.duongDi ?? [] };
+  },
 };
 
 export const congThucBienApi = {
