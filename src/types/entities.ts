@@ -249,6 +249,10 @@ export interface PhieuKiemTra {
   ID_Phieu: number;
   ID_ThietBi: number;
   TenThietBi?: string;
+  ID_Tram?: number;
+  TenTram?: string;
+  ID_LoaiTB?: number;
+  TenLoaiTB?: string;
   ID_NhomChiTieu?: number;
   TenNhom?: string;
   NgayKiemTra: string;

@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Card, Typography, Flex, Table, Button, message, Progress, Segmented } from 'antd';
-import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Card, Typography, Flex, Table, Button, message, Progress, Segmented, Select, DatePicker, Tag } from 'antd';
+import { ReloadOutlined, DownloadOutlined, FilterOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import type { Dayjs } from 'dayjs';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
-import type { PhieuKiemTra } from '../../types/entities';
+import type { PhieuKiemTraFilterParams } from '../../api/phieuKiemTra';
+import { tramDienApi } from '../../api/tramDien';
+import { loaiThietBiApi } from '../../api/loaiThietBi';
+import { thietBiApi } from '../../api/thietBi';
+import type { PhieuKiemTra, TramDien, LoaiThietBi, ThietBi } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 import { getCapDoSucKhoe } from '../../theme/capDoSucKhoe';
 
 const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 
 /** Hiển thị ngày theo giờ địa phương, tránh lệch UTC */
 const fmtDate = (iso?: string) => {
@@ -20,15 +26,44 @@ export default function KetQuaPage() {
   const navigate = useNavigate();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
-  const [phieus, setPhieus] = useState<PhieuKiemTra[]>([]);
+  const [displayedPhieus, setDisplayedPhieus] = useState<PhieuKiemTra[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'latest' | 'all'>('latest');
+  // Phân biệt "hệ thống chưa có phiếu nào" (chỉ biết được lúc chưa lọc gì) với "bộ lọc hiện tại
+  // không khớp phiếu nào" — tránh hiện nhầm CTA "tạo phiếu đầu tiên" khi thật ra có dữ liệu.
+  const [hasAnyEver, setHasAnyEver] = useState(true);
 
-  const load = useCallback(async () => {
+  const [trams, setTrams]       = useState<TramDien[]>([]);
+  const [loais, setLoais]       = useState<LoaiThietBi[]>([]);
+  const [thietBis, setThietBis] = useState<ThietBi[]>([]);
+
+  const [filterTram, setFilterTram]       = useState<number | 'all'>('all');
+  const [filterLoai, setFilterLoai]       = useState<number | 'all'>('all');
+  const [filterThietBi, setFilterThietBi] = useState<number | 'all'>('all');
+  const [dateRange, setDateRange]         = useState<[Dayjs, Dayjs] | null>(null);
+
+  const hasActiveFilters = filterTram !== 'all' || filterLoai !== 'all' || filterThietBi !== 'all' || dateRange !== null;
+
+  const filterParams: PhieuKiemTraFilterParams = {
+    idTram:    filterTram    !== 'all' ? filterTram    : undefined,
+    idLoaiTB:  filterLoai    !== 'all' ? filterLoai    : undefined,
+    idThietBi: filterThietBi !== 'all' ? filterThietBi : undefined,
+    tuNgay:    dateRange ? dateRange[0].format('YYYY-MM-DD') : undefined,
+    denNgay:   dateRange ? dateRange[1].format('YYYY-MM-DD') : undefined,
+  };
+
+  const load = useCallback(async (view: 'latest' | 'all', params: PhieuKiemTraFilterParams) => {
     setLoading(true);
     try {
-      const result = await phieuKiemTraApi.getPaged({ page: 1, pageSize: 1000 });
-      setPhieus(result.items);
+      // BE đã lọc (Trạm/Loại TB/Thiết bị/khoảng ngày) + gộp "mới nhất mỗi thiết bị" bằng SQL —
+      // không tải toàn bộ lịch sử về rồi lọc/dedupe bằng JS như trước nữa.
+      const items = view === 'all'
+        ? (await phieuKiemTraApi.getPaged(params)).items
+        : await phieuKiemTraApi.getLatestPerThietBi(params);
+      setDisplayedPhieus(items);
+      if (!params.idTram && !params.idLoaiTB && !params.idThietBi && !params.tuNgay && !params.denNgay) {
+        setHasAnyEver(items.length > 0);
+      }
     } catch {
       message.error('Không thể tải kết quả kiểm tra');
     } finally {
@@ -36,22 +71,51 @@ export default function KetQuaPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadFilterOptions = useCallback(async () => {
+    try {
+      const [ts, ls, tbs] = await Promise.all([
+        tramDienApi.getActive(), loaiThietBiApi.getActive(), thietBiApi.getActive(),
+      ]);
+      setTrams(ts);
+      setLoais(ls);
+      setThietBis(tbs);
+    } catch {
+      message.error('Không thể tải danh sách trạm / loại thiết bị');
+    }
+  }, []);
 
-  // Phiếu mới nhất của mỗi thiết bị
-  const latestPhieus = Object.values(
-    phieus.reduce<Record<number, PhieuKiemTra>>((acc, p) => {
-      if (!acc[p.ID_ThietBi] || p.ID_Phieu > acc[p.ID_ThietBi].ID_Phieu) acc[p.ID_ThietBi] = p;
-      return acc;
-    }, {})
-  ).sort((a, b) => (a.TongDiem_Soqt ?? 10) - (b.TongDiem_Soqt ?? 10));
+  useEffect(() => { loadFilterOptions(); }, [loadFilterOptions]);
+  // Tải lại mỗi khi viewMode hoặc bộ lọc đổi — filterParams tính lại mỗi render nên so sánh qua
+  // JSON để tránh vòng lặp effect vô hạn (object mới mỗi lần nhưng nội dung có thể không đổi).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(viewMode, filterParams); }, [viewMode, JSON.stringify(filterParams)]);
 
-  // Tất cả phiếu (mọi lần kiểm tra, mọi thiết bị) — mới nhất lên trước
-  const allPhieusSorted = [...phieus].sort(
-    (a, b) => new Date(b.NgayKiemTra).getTime() - new Date(a.NgayKiemTra).getTime()
+  // Thiết bị khả dụng để lọc — thu hẹp theo Trạm/Loại TB đã chọn (giống cascading ở TaoPhieuKiemTraPage)
+  const filteredThietBis = thietBis.filter(t =>
+    (filterTram === 'all' || t.ID_Tram === filterTram) &&
+    (filterLoai === 'all' || t.ID_LoaiTB === filterLoai)
   );
 
-  const displayedPhieus = viewMode === 'all' ? allPhieusSorted : latestPhieus;
+  const handleFilterTram = (v: number | 'all') => {
+    setFilterTram(v);
+    if (filterThietBi !== 'all' && !thietBis.some(t =>
+      t.ID_ThietBi === filterThietBi && (v === 'all' || t.ID_Tram === v) &&
+      (filterLoai === 'all' || t.ID_LoaiTB === filterLoai))) {
+      setFilterThietBi('all');
+    }
+  };
+  const handleFilterLoai = (v: number | 'all') => {
+    setFilterLoai(v);
+    if (filterThietBi !== 'all' && !thietBis.some(t =>
+      t.ID_ThietBi === filterThietBi && (v === 'all' || t.ID_LoaiTB === v) &&
+      (filterTram === 'all' || t.ID_Tram === filterTram))) {
+      setFilterThietBi('all');
+    }
+  };
+
+  const resetFilters = () => {
+    setFilterTram('all'); setFilterLoai('all'); setFilterThietBi('all'); setDateRange(null);
+  };
 
   const columns = [
     {
@@ -74,7 +138,18 @@ export default function KetQuaPage() {
       ),
     },
     {
-      title: 'Nhóm chỉ tiêu', dataIndex: 'TenNhom', key: 'nhom', width: 180,
+      title: 'Trạm / Loại TB', key: 'tramLoai', width: 170,
+      render: (_: unknown, r: PhieuKiemTra) => (
+        <div>
+          <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 12, display: 'block' }}>
+            {r.TenTram ?? '—'}
+          </Text>
+          {r.TenLoaiTB && <Tag style={{ fontSize: 10, marginTop: 2 }}>{r.TenLoaiTB}</Tag>}
+        </div>
+      ),
+    },
+    {
+      title: 'Nhóm chỉ tiêu', dataIndex: 'TenNhom', key: 'nhom', width: 160,
       render: (v?: string) =>
         <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 12 }}>{v ?? 'Toàn diện'}</Text>,
     },
@@ -109,11 +184,45 @@ export default function KetQuaPage() {
           </Text>
         </div>
         <Flex gap={8}>
-          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Làm mới</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => { load(viewMode, filterParams); loadFilterOptions(); }} loading={loading}>Làm mới</Button>
           <Button icon={<DownloadOutlined />} onClick={() => navigate('/bao-cao')}>Xuất báo cáo</Button>
           <Button type="primary" onClick={() => navigate('/nhap-lieu/phieu-kiem-tra')}>+ Tạo phiếu mới</Button>
         </Flex>
       </Flex>
+
+      <Card
+        style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`, marginBottom: 16 }}
+        styles={{ body: { padding: '14px 20px' } }}
+      >
+        <Flex align="center" gap={8} wrap style={{ marginBottom: 4 }}>
+          <FilterOutlined style={{ color: '#6b7280' }} />
+          <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 12, marginRight: 4 }}>Lọc theo:</Text>
+          <Select
+            size="small" style={{ width: 160 }} value={filterTram} onChange={handleFilterTram}
+            showSearch optionFilterProp="label"
+            options={[{ label: 'Tất cả trạm', value: 'all' }, ...trams.map(t => ({ label: t.TenTram, value: t.IDTram }))]}
+          />
+          <Select
+            size="small" style={{ width: 160 }} value={filterLoai} onChange={handleFilterLoai}
+            showSearch optionFilterProp="label"
+            options={[{ label: 'Tất cả loại TB', value: 'all' }, ...loais.map(l => ({ label: l.TenLoaiTB, value: l.ID_LoaiThietBi }))]}
+          />
+          <Select
+            size="small" style={{ width: 200 }} value={filterThietBi} onChange={setFilterThietBi}
+            showSearch optionFilterProp="label"
+            options={[{ label: 'Tất cả thiết bị', value: 'all' }, ...filteredThietBis.map(t => ({
+              label: `${t.TenThietBi}${t.SoHieu ? ` (${t.SoHieu})` : ''}`, value: t.ID_ThietBi,
+            }))]}
+          />
+          <RangePicker
+            size="small" format="DD/MM/YYYY" placeholder={['Từ ngày', 'Đến ngày']}
+            value={dateRange} onChange={v => setDateRange(v && v[0] && v[1] ? [v[0], v[1]] : null)}
+          />
+          {hasActiveFilters && (
+            <Button size="small" type="link" onClick={resetFilters}>Xoá lọc</Button>
+          )}
+        </Flex>
+      </Card>
 
       <Card
         style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
@@ -122,8 +231,8 @@ export default function KetQuaPage() {
           <Flex align="center" gap={12} wrap>
             <span>
               {viewMode === 'all'
-                ? `Danh sách kết quả — ${phieus.length} phiếu`
-                : `Danh sách kết quả — ${latestPhieus.length} thiết bị`}
+                ? `Danh sách kết quả — ${displayedPhieus.length} phiếu`
+                : `Danh sách kết quả — ${displayedPhieus.length} thiết bị`}
             </span>
             <Segmented
               size="small"
@@ -137,13 +246,20 @@ export default function KetQuaPage() {
           </Flex>
         }
       >
-        {phieus.length === 0 && !loading ? (
-          <Flex vertical align="center" gap={12} style={{ padding: '40px 0' }}>
-            <Text style={{ color: isDark ? '#6b7280' : '#9ca3af', fontSize: 15 }}>Chưa có phiếu kiểm tra nào</Text>
-            <Button type="primary" onClick={() => navigate('/nhap-lieu/phieu-kiem-tra')}>
-              Tạo phiếu kiểm tra đầu tiên →
-            </Button>
-          </Flex>
+        {displayedPhieus.length === 0 && !loading ? (
+          !hasAnyEver ? (
+            <Flex vertical align="center" gap={12} style={{ padding: '40px 0' }}>
+              <Text style={{ color: isDark ? '#6b7280' : '#9ca3af', fontSize: 15 }}>Chưa có phiếu kiểm tra nào</Text>
+              <Button type="primary" onClick={() => navigate('/nhap-lieu/phieu-kiem-tra')}>
+                Tạo phiếu kiểm tra đầu tiên →
+              </Button>
+            </Flex>
+          ) : (
+            <Flex vertical align="center" gap={12} style={{ padding: '40px 0' }}>
+              <Text style={{ color: isDark ? '#6b7280' : '#9ca3af', fontSize: 15 }}>Không có phiếu nào khớp bộ lọc</Text>
+              <Button onClick={resetFilters}>Xoá lọc</Button>
+            </Flex>
+          )
         ) : (
           <Table
             dataSource={displayedPhieus}

@@ -29,20 +29,6 @@ interface NhomWithChiTieu extends NhomChiTieu { chiTieus: ChiTieuWithNguong[] }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-/** Tính điểm dự kiến phía client cho loại Nguong (bỏ qua BieuThuc_Logic phức tạp). */
-function calcNguongScore(val: number, nguongs: Nguong[]): number | null {
-  const sorted = [...nguongs].sort((a, b) => b.Diem_Si - a.Diem_Si);
-  for (const ng of sorted) {
-    if (ng.BieuThuc_Logic) continue; // biểu thức logic — server mới tính được
-    const duoi = ng.CanDuoi === null
-      || (ng.CanDuoi_BaoGom ? val >= ng.CanDuoi : val > ng.CanDuoi);
-    const tren = ng.CanTren === null
-      || (ng.CanTren_BaoGom ? val <= ng.CanTren : val < ng.CanTren);
-    if (duoi && tren) return ng.Diem_Si;
-  }
-  return null;
-}
-
 /** Định dạng khoảng giá trị của ngưỡng thành chuỗi dễ đọc. */
 function formatNguongRange(ng: Nguong): string {
   if (ng.BieuThuc_Logic) return ng.BieuThuc_Logic;
@@ -94,6 +80,9 @@ export default function TaoPhieuKiemTraPage() {
   const [filterTram, setFilterTram] = useState<number | 'all'>('all');
 
   const [nhoms, setNhoms]                   = useState<NhomWithChiTieu[]>([]);
+  // Danh sách rút gọn cho dropdown "Nhóm chỉ tiêu cần đo" — chỉ nhóm CÓ chỉ tiêu trực tiếp, loại bỏ
+  // nhóm tổng hợp thuần (CHI1/CHI2/CHI3/TS1/TS2...) vì chọn chúng sẽ ra form nhập liệu trống trơn.
+  const [nhomKhaDung, setNhomKhaDung]       = useState<NhomChiTieu[]>([]);
   const [loadingConfig, setLoadingConfig]   = useState(false);
   const [selectedNhomId, setSelectedNhomId] = useState<number>(CHON_TAT_CA);
 
@@ -133,10 +122,20 @@ export default function TaoPhieuKiemTraPage() {
 
     setLoadingConfig(true);
     try {
-      const nhomList = await nhomChiTieuApi.getByLoai(tb.ID_LoaiTB);
+      nhomChiTieuApi.getKhaDungNhapLieu(tb.ID_LoaiTB)
+        .then(setNhomKhaDung)
+        .catch(() => message.error('Không thể tải danh sách nhóm khả dụng để nhập liệu'));
+
+      // getByLoai() trả cả nhóm đã ngừng hoạt động (dùng chung cho trang khác cần thấy nhóm cũ,
+      // vd Lịch sử) — lọc TrangThai=1 riêng ở đây vì "Kiểm tra toàn diện" không nên hiện/tính cả
+      // nhóm đã ngừng (khác getKhaDungNhapLieu ở dropdown chọn 1 nhóm cụ thể, BE đã tự lọc sẵn).
+      const nhomList = (await nhomChiTieuApi.getByLoai(tb.ID_LoaiTB)).filter(n => n.TrangThai === 1);
       const nhomWithCT: NhomWithChiTieu[] = await Promise.all(
         nhomList.map(async nhom => {
-          const chiTieuList = await chiTieuApi.getByNhom(nhom.ID_NhomChiTieu);
+          // Chỉ hiện chỉ tiêu đang hoạt động — chỉ tiêu bị vô hiệu hoá (vd thuộc công thức cũ đã
+          // thay bằng bản khác, như Sdga OLTC Loại 1 -> Loại 2) không còn được tính điểm nên không
+          // nên hiện trên form nhập liệu, dù vẫn cần giữ lại trong DB để không phá lịch sử phiếu cũ.
+          const chiTieuList = (await chiTieuApi.getByNhom(nhom.ID_NhomChiTieu)).filter(c => c.TrangThai !== 0);
           const chiTieuWithNg = await Promise.all(
             chiTieuList.map(async ct => ({
               ...ct,
@@ -338,7 +337,7 @@ export default function TaoPhieuKiemTraPage() {
                     ))}
                   </Flex>
                 )}
-                {selectedTB && nhoms.length > 0 && (
+                {selectedTB && nhomKhaDung.length > 0 && (
                   <Form.Item
                     label={<Text style={{ color: textColor }}>Nhóm chỉ tiêu cần đo</Text>}
                     extra={<Text style={{ color: '#4b5563', fontSize: 11 }}>Chọn nhóm theo tần suất đo định kỳ, hoặc "Toàn diện" để đo tất cả</Text>}
@@ -347,9 +346,10 @@ export default function TaoPhieuKiemTraPage() {
                       value={selectedNhomId}
                       onChange={setSelectedNhomId}
                       style={{ width: '100%' }} size="large"
+                      showSearch optionFilterProp="label"
                       options={[
                         { label: '📋 Kiểm tra toàn diện (tất cả nhóm)', value: CHON_TAT_CA },
-                        ...nhoms.map(n => ({ label: n.TenNhom, value: n.ID_NhomChiTieu })),
+                        ...nhomKhaDung.map(n => ({ label: n.TenNhom, value: n.ID_NhomChiTieu })),
                       ]}
                     />
                   </Form.Item>
@@ -381,6 +381,9 @@ export default function TaoPhieuKiemTraPage() {
                 <Alert type="warning" message="Không có cấu hình chỉ tiêu cho loại thiết bị này. Vào Cấu hình → Nhóm chỉ tiêu để thiết lập." />
               ) : (
                 nhoms
+                  // Nhóm tổng hợp thuần (0 chỉ tiêu trực tiếp, vd CHI1/TS1) không có gì để nhập —
+                  // ẩn luôn kể cả khi chọn "Kiểm tra toàn diện" để khỏi hiện thẻ trống.
+                  .filter(n => n.chiTieus.length > 0)
                   .filter(n => selectedNhomId === CHON_TAT_CA || n.ID_NhomChiTieu === selectedNhomId)
                   .map(nhom => (
                     <Card key={nhom.ID_NhomChiTieu}
@@ -419,7 +422,7 @@ export default function TaoPhieuKiemTraPage() {
                             const allFilled   = filledCount === inputs.length;
 
                             return (
-                              <Col xs={24} key={ct.ID_ChiTieu}>
+                              <Col xs={24} md={12} key={ct.ID_ChiTieu}>
                                 <div style={{
                                   padding: '14px 16px',
                                   background: itemBg,
@@ -450,7 +453,7 @@ export default function TaoPhieuKiemTraPage() {
                                     {inputs.map(inp => {
                                       const isFilled = varMap[inp.MaInput] !== undefined;
                                       return (
-                                        <Col xs={24} sm={12} md={8} key={inp.ID_Input}>
+                                        <Col xs={24} sm={12} lg={8} key={inp.ID_Input}>
                                           <div style={{
                                             padding: '10px 12px',
                                             background: panelBg,
@@ -568,30 +571,19 @@ export default function TaoPhieuKiemTraPage() {
                           }
 
                           /* ── Chỉ tiêu loại Ngưỡng (Nguong) — giá trị đơn ──
-                             LƯU Ý: chỉ tiêu loại LF (vd "Mang tải") KHÔNG được xem điểm dự kiến ở đây —
-                             giá trị nhập chỉ là 1 tháng, điểm thật phụ thuộc gộp 12 tháng liên tục liền kề
-                             (xem ChiTieuScoringService.TinhDiemLFAsync), server tính khi lưu phiếu. So trực
-                             tiếp giá trị vừa nhập với bảng ngưỡng ở đây sẽ cho điểm sai. */
-                          const val          = values[ct.ID_ChiTieu];
-                          const previewScore = (!isLF && val !== undefined) ? calcNguongScore(val, ct.nguongs) : null;
-
-                          // Màu border thay đổi theo điểm dự kiến
-                          let activeBorder = panelBorder;
-                          if (previewScore !== null) {
-                            if (previewScore >= 8) activeBorder = isDark ? '#166534' : '#86efac';
-                            else if (previewScore >= 6) activeBorder = isDark ? '#1e40af' : '#93c5fd';
-                            else if (previewScore >= 4) activeBorder = isDark ? '#92400e' : '#fcd34d';
-                            else activeBorder = isDark ? '#7f1d1d' : '#fca5a5';
-                          }
+                             KHÔNG hiện điểm Sᵢ dự kiến khi đang nhập — điểm thật chỉ tính khi lưu phiếu
+                             (nút "Tính lại Sᵢ & khuyến cáo" ở trang chi tiết), tránh gây hiểu nhầm với
+                             các chỉ tiêu Rule/Formula/LF nhiều biến mà bảng ngưỡng đơn giản này không
+                             phản ánh đúng (vd LF gộp 12 tháng, không so trực tiếp giá trị vừa nhập). */
+                          const val = values[ct.ID_ChiTieu];
 
                           return (
-                            <Col xs={24} sm={12} key={ct.ID_ChiTieu}>
+                            <Col xs={24} sm={12} md={8} lg={6} key={ct.ID_ChiTieu}>
                               <div style={{
                                 padding: '12px 14px',
                                 background: itemBg,
                                 borderRadius: 8,
-                                border: `1px solid ${activeBorder}`,
-                                transition: 'border-color 0.25s',
+                                border: `1px solid ${panelBorder}`,
                               }}>
                                 {/* Header chỉ tiêu */}
                                 <Flex align="center" gap={6} wrap="wrap" style={{ marginBottom: 8 }}>
@@ -599,7 +591,6 @@ export default function TaoPhieuKiemTraPage() {
                                   <Text style={{ color: titleColor, fontSize: 13, flex: 1 }}>{ct.TenChiTieu}</Text>
                                 </Flex>
 
-                                {/* InputNumber + badge điểm dự kiến */}
                                 <Flex align="center" gap={8}>
                                   <InputNumber
                                     size="large"
@@ -617,14 +608,6 @@ export default function TaoPhieuKiemTraPage() {
                                     step={0.01}
                                     placeholder={isLF ? 'Nhập tải đỉnh tháng này (MVA)...' : 'Nhập giá trị đo...'}
                                   />
-                                  {previewScore !== null && (
-                                    <Tag
-                                      color={scoreTagColor(previewScore)}
-                                      style={{ margin: 0, fontWeight: 700, fontSize: 15, padding: '0 12px', lineHeight: '30px' }}
-                                    >
-                                      {previewScore}/10
-                                    </Tag>
-                                  )}
                                   {isLF && val !== undefined && (
                                     <Tag style={{ margin: 0, fontSize: 11 }}>Điểm tính khi lưu (gộp 12 tháng)</Tag>
                                   )}
@@ -647,41 +630,20 @@ export default function TaoPhieuKiemTraPage() {
                                       ),
                                       children: (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                          {[...ct.nguongs].sort((a, b) => b.Diem_Si - a.Diem_Si).map(ng => {
-                                            const isActive = previewScore === ng.Diem_Si && val !== undefined && !ng.BieuThuc_Logic;
-                                            return (
-                                              <Flex key={ng.ID_Nguong} align="center" justify="space-between"
-                                                style={{
-                                                  padding: '4px 8px',
-                                                  borderRadius: 5,
-                                                  background: isActive
-                                                    ? (isDark ? '#1e1b4b' : '#ede9fe')
-                                                    : 'transparent',
-                                                  border: isActive
-                                                    ? `1px solid ${isDark ? '#4c1d95' : '#c4b5fd'}`
-                                                    : '1px solid transparent',
-                                                  transition: 'background 0.15s',
-                                                }}>
-                                                <Text style={{
-                                                  fontSize: 12,
-                                                  color: isActive ? (isDark ? '#c4b5fd' : '#6d28d9') : textColor,
-                                                  fontFamily: 'monospace',
-                                                  fontWeight: isActive ? 600 : 400,
-                                                }}>
-                                                  {formatNguongRange(ng)}
-                                                  {ng.BieuThuc_Logic && (
-                                                    <Tag style={{ marginLeft: 6, fontSize: 9 }} color="orange">logic</Tag>
-                                                  )}
-                                                </Text>
-                                                <Tag
-                                                  color={scoreTagColor(ng.Diem_Si)}
-                                                  style={{ margin: 0, fontSize: 11, fontWeight: isActive ? 700 : 400 }}
-                                                >
-                                                  {ng.Diem_Si} điểm
-                                                </Tag>
-                                              </Flex>
-                                            );
-                                          })}
+                                          {[...ct.nguongs].sort((a, b) => b.Diem_Si - a.Diem_Si).map(ng => (
+                                            <Flex key={ng.ID_Nguong} align="center" justify="space-between"
+                                              style={{ padding: '4px 8px', borderRadius: 5 }}>
+                                              <Text style={{ fontSize: 12, color: textColor, fontFamily: 'monospace' }}>
+                                                {formatNguongRange(ng)}
+                                                {ng.BieuThuc_Logic && (
+                                                  <Tag style={{ marginLeft: 6, fontSize: 9 }} color="orange">logic</Tag>
+                                                )}
+                                              </Text>
+                                              <Tag color={scoreTagColor(ng.Diem_Si)} style={{ margin: 0, fontSize: 11 }}>
+                                                {ng.Diem_Si} điểm
+                                              </Tag>
+                                            </Flex>
+                                          ))}
                                         </div>
                                       ),
                                     }]}

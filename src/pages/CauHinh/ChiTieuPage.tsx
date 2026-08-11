@@ -1085,6 +1085,18 @@ function ThamSoManager({
   );
 }
 
+/** API trả lỗi cấu hình (vd ThieuRuleGopFormulaException) dạng JSON {"error":"..."} trong body —
+ * bóc ra hiển thị đúng thông điệp thay vì message chung chung. */
+function extractApiErrorMessage(e: unknown, macDinh: string): string {
+  if (e instanceof Error) {
+    try {
+      const parsed = JSON.parse(e.message) as { error?: string };
+      if (parsed.error) return parsed.error;
+    } catch { /* không phải JSON — dùng mặc định */ }
+  }
+  return macDinh;
+}
+
 // ─── FormulaPanel ───────────────────────────────────────────────────────────────
 function FormulaPanel({
   chiTieuId, chiTieuName, inputs, onFormulasChange,
@@ -1139,13 +1151,13 @@ function FormulaPanel({
       setModal(false); load();
     } catch (e: unknown) {
       if (e instanceof Error && 'errorFields' in (e as object)) return;
-      message.error('Lỗi lưu formula');
+      message.error(extractApiErrorMessage(e, 'Lỗi lưu formula'));
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
     try { await chiTieuFormulaApi.delete(id); message.success('Đã xóa formula'); load(); }
-    catch { message.error('Lỗi xóa formula'); }
+    catch (e) { message.error(extractApiErrorMessage(e, 'Lỗi xóa formula')); }
   };
 
   const cols: ColumnsType<ChiTieuFormula> = [
@@ -1390,13 +1402,13 @@ function RulePanel({
       setModal(false); load();
     } catch (e: unknown) {
       if (e instanceof Error && 'errorFields' in (e as object)) return;
-      message.error('Lỗi lưu quy tắc');
+      message.error(extractApiErrorMessage(e, 'Lỗi lưu quy tắc'));
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
     try { await chiTieuRuleApi.delete(id); message.success('Đã xóa quy tắc'); load(); }
-    catch { message.error('Lỗi xóa quy tắc'); }
+    catch (e) { message.error(extractApiErrorMessage(e, 'Lỗi xóa quy tắc')); }
   };
 
   const borderColor = isDark ? '#1e4a72' : '#e5e7eb';

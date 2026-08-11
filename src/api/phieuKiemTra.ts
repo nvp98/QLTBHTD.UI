@@ -11,6 +11,10 @@ type PhieuKiemTraRaw = Partial<PhieuKiemTra> & {
   iD_Phieu?: number;
   iD_ThietBi?: number;
   tenThietBi?: string;
+  iD_Tram?: number;
+  tenTram?: string;
+  iD_LoaiTB?: number;
+  tenLoaiTB?: string;
   iD_NhomChiTieu?: number;
   tenNhom?: string;
   ngayKiemTra?: string;
@@ -86,6 +90,14 @@ const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
   ID_Phieu:        Number(raw.ID_Phieu        ?? raw.iD_Phieu        ?? 0),
   ID_ThietBi:      Number(raw.ID_ThietBi      ?? raw.iD_ThietBi      ?? 0),
   TenThietBi:      raw.TenThietBi      ?? raw.tenThietBi,
+  ID_Tram:         raw.ID_Tram         != null ? Number(raw.ID_Tram)
+                 : raw.iD_Tram         != null ? Number(raw.iD_Tram)
+                 : undefined,
+  TenTram:         raw.TenTram         ?? raw.tenTram,
+  ID_LoaiTB:       raw.ID_LoaiTB       != null ? Number(raw.ID_LoaiTB)
+                 : raw.iD_LoaiTB       != null ? Number(raw.iD_LoaiTB)
+                 : undefined,
+  TenLoaiTB:       raw.TenLoaiTB       ?? raw.tenLoaiTB,
   ID_NhomChiTieu:  raw.ID_NhomChiTieu  != null ? Number(raw.ID_NhomChiTieu)
                  : raw.iD_NhomChiTieu  != null ? Number(raw.iD_NhomChiTieu)
                  : undefined,
@@ -106,10 +118,27 @@ const toPhieuDetail = (raw: PhieuKiemTraDetailRaw): PhieuKiemTraDetailDto => ({
 
 type PagedRaw = PagedResult<PhieuKiemTraRaw>;
 
-function buildQuery(params?: { search?: string; page?: number; pageSize?: number }): string {
+/** Bộ lọc dùng chung cho danh sách kết quả kiểm tra (trang Kết quả) — đẩy xuống BE thay vì tự lọc
+ * trên toàn bộ dữ liệu đã tải về. tuNgay/denNgay: chuỗi ngày (vd 'YYYY-MM-DD'), BE tự so theo NGÀY
+ * LỊCH (không cần tính start/end-of-day phía FE). */
+export interface PhieuKiemTraFilterParams {
+  search?: string;
+  idTram?: number;
+  idLoaiTB?: number;
+  idThietBi?: number;
+  tuNgay?: string;
+  denNgay?: string;
+}
+
+function buildQuery(params?: PhieuKiemTraFilterParams & { page?: number; pageSize?: number }): string {
   if (!params) return '';
   const p = new URLSearchParams();
   if (params.search   !== undefined) p.set('search',   params.search);
+  if (params.idTram    !== undefined) p.set('idTram',    String(params.idTram));
+  if (params.idLoaiTB  !== undefined) p.set('idLoaiTB',  String(params.idLoaiTB));
+  if (params.idThietBi !== undefined) p.set('idThietBi', String(params.idThietBi));
+  if (params.tuNgay    !== undefined) p.set('tuNgay',    params.tuNgay);
+  if (params.denNgay   !== undefined) p.set('denNgay',   params.denNgay);
   if (params.page     !== undefined) p.set('page',     String(params.page));
   if (params.pageSize !== undefined) p.set('pageSize', String(params.pageSize));
   const s = p.toString();
@@ -117,15 +146,18 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 }
 
 export const phieuKiemTraApi = {
-  getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
+  getAll: async (params?: PhieuKiemTraFilterParams & { page?: number; pageSize?: number }) => {
     const res = await api.get<PhieuKiemTraRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toPhieu);
   },
-  getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<PhieuKiemTra>> => {
+  getPaged: async (params?: PhieuKiemTraFilterParams & { page?: number; pageSize?: number }): Promise<PagedResult<PhieuKiemTra>> => {
     const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
     return { ...res, items: res.items.map(toPhieu) };
   },
+  /** Phiếu mới nhất của mỗi thiết bị, trong tập đã lọc — tính sẵn ở BE (GROUP BY + MAX(ID_Phieu)). */
+  getLatestPerThietBi: async (params?: PhieuKiemTraFilterParams): Promise<PhieuKiemTra[]> =>
+    (await api.get<PhieuKiemTraRaw[]>(`${BASE}/latest-per-thietbi${buildQuery(params)}`)).map(toPhieu),
   getByThietBi: async (id: number) =>
     (await api.get<PhieuKiemTraRaw[]>(`${BASE}/by-thietbi/${id}`)).map(toPhieu),
   getByNgay: async (tuNgay: string, denNgay: string) =>

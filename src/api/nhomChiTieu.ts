@@ -68,6 +68,7 @@ export const nhomChiTieuApi = {
   },
   getActive:  async ()           => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/active`)).map(toNhomChiTieu),
   getByLoai:  async (id: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/by-loaithietbi/${id}`)).map(toNhomChiTieu),
+  getKhaDungNhapLieu: async (id: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/kha-dung-nhap-lieu/${id}`)).map(toNhomChiTieu),
   getCay:     async (idLoai: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/cay/${idLoai}`)).map(toNhomCay),
   getById:    async (id: number) => toNhomChiTieu(await api.get<NhomChiTieuApiRaw>(`${BASE}/${id}`)),
   create:     async (dto: CreateNhomChiTieuV2Dto) => toNhomChiTieu(await api.post<NhomChiTieuApiRaw>(BASE, dto)),
