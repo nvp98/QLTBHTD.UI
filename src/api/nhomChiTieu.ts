@@ -16,6 +16,7 @@ type NhomChiTieuApiRaw = Partial<NhomChiTieu> & {
   loaiNhom?: string;
   phienBan?: number;
   trangThai?: number;
+  tier?: number | null;
   coCongThuc?: boolean;
   trongSo_Wi?: number | null;
   nhomCon?: NhomChiTieuApiRaw[];
@@ -32,6 +33,7 @@ const toNhomChiTieu = (raw: NhomChiTieuApiRaw): NhomChiTieu => ({
   CoCongThuc: raw.CoCongThuc ?? raw.coCongThuc ?? false,
   PhienBan: Number(raw.PhienBan ?? raw.phienBan ?? 1),
   TrangThai: Number(raw.TrangThai ?? raw.trangThai ?? 0),
+  Tier: raw.Tier ?? raw.tier ?? null,
   TrongSo_Wi: raw.TrongSo_Wi ?? raw.trongSo_Wi ?? null,
 });
 

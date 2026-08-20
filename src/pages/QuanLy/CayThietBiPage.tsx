@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import {
-  ApartmentOutlined, ClearOutlined, DeleteOutlined, EditOutlined, EnvironmentOutlined,
+  ApartmentOutlined, ClearOutlined, ClusterOutlined, DeleteOutlined, EditOutlined, EnvironmentOutlined,
   ExpandAltOutlined, FilterOutlined, PlusOutlined, ShrinkOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 import { khuVucApi } from '../../api/khuVuc';
@@ -345,33 +345,59 @@ export default function CayThietBiPage() {
                 </Space>
               </Space>
             ),
-            children: tbsOfTram.map(tb => {
-              const info = getCapDoSucKhoe(latestByThietBi[tb.ID_ThietBi]?.TongDiem_Soqt, isDark);
-              return {
-                key: `tb-${tb.ID_ThietBi}`,
-                isLeaf: true,
-                icon: <ApartmentOutlined />,
-                title: (
-                  <Space size={4} style={nodeRowStyle(info.color)}>
-                    <Space size={4} wrap>
-                      <Text>{tb.TenThietBi}</Text>
-                      <Tag color="blue" style={{ fontSize: 10 }}>{tb.TenLoaiTB ?? loaiName(tb.ID_LoaiTB)}</Tag>
-                      {trangThaiTagTB(tb.TrangThai)}
-                      {csskTag(tb.ID_ThietBi)}
+            children: Array.from(new Set(tbsOfTram.map(tb => tb.ID_LoaiTB)))
+              .sort((a, b) => loaiName(a).localeCompare(loaiName(b)))
+              .map(idLoai => {
+                const tbsOfLoai = tbsOfTram.filter(tb => tb.ID_LoaiTB === idLoai);
+                const diemsLoai = tbsOfLoai
+                  .map(tb => latestByThietBi[tb.ID_ThietBi]?.TongDiem_Soqt)
+                  .filter((d): d is number => d != null);
+                const loaiInfo = diemsLoai.length ? getCapDoSucKhoe(diemsLoai.reduce((a, b) => a + b, 0) / diemsLoai.length, isDark) : null;
+                return {
+                  key: `loai-${t.IDTram}-${idLoai}`,
+                  selectable: false,
+                  icon: <ClusterOutlined />,
+                  title: (
+                    <Space size={4} style={nodeRowStyle(loaiInfo?.color)}>
+                      <Space size={4} wrap>
+                        <Tag color="blue" style={{ fontSize: 10 }}>{loaiName(idLoai)}</Tag>
+                        <Tag style={{ fontSize: 10 }}>{tbsOfLoai.length} thiết bị</Tag>
+                        {loaiInfo && diemsLoai.length > 0 && (
+                          <Tag style={{ fontSize: 10, color: loaiInfo.color, background: loaiInfo.bg, borderColor: loaiInfo.border }}>
+                            CSSK TB: {(diemsLoai.reduce((a, b) => a + b, 0) / diemsLoai.length).toFixed(1)}
+                          </Tag>
+                        )}
+                      </Space>
                     </Space>
-                    <Space size={2} onClick={e => e.stopPropagation()}>
-                      <Tooltip title="Sửa thiết bị">
-                        <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditThietBi(tb)} />
-                      </Tooltip>
-                      <Popconfirm title={`Xóa thiết bị "${tb.TenThietBi}"?`} okText="Xóa" cancelText="Hủy"
-                        okButtonProps={{ danger: true }} onConfirm={() => handleDeleteThietBi(tb)}>
-                        <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-                      </Popconfirm>
-                    </Space>
-                  </Space>
-                ),
-              };
-            }),
+                  ),
+                  children: tbsOfLoai.map(tb => {
+                    const info = getCapDoSucKhoe(latestByThietBi[tb.ID_ThietBi]?.TongDiem_Soqt, isDark);
+                    return {
+                      key: `tb-${tb.ID_ThietBi}`,
+                      isLeaf: true,
+                      icon: <ApartmentOutlined />,
+                      title: (
+                        <Space size={4} style={nodeRowStyle(info.color)}>
+                          <Space size={4} wrap>
+                            <Text>{tb.TenThietBi}</Text>
+                            {trangThaiTagTB(tb.TrangThai)}
+                            {csskTag(tb.ID_ThietBi)}
+                          </Space>
+                          <Space size={2} onClick={e => e.stopPropagation()}>
+                            <Tooltip title="Sửa thiết bị">
+                              <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditThietBi(tb)} />
+                            </Tooltip>
+                            <Popconfirm title={`Xóa thiết bị "${tb.TenThietBi}"?`} okText="Xóa" cancelText="Hủy"
+                              okButtonProps={{ danger: true }} onConfirm={() => handleDeleteThietBi(tb)}>
+                              <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                          </Space>
+                        </Space>
+                      ),
+                    };
+                  }),
+                };
+              }),
           };
         })
         .filter((n): n is NonNullable<typeof n> => n !== null);
@@ -414,7 +440,11 @@ export default function CayThietBiPage() {
   const allExpandableKeys = useMemo(() => [
     ...khuVucs.map(k => `kv-${k.ID_KhuVuc}`),
     ...trams.map(t => `tram-${t.IDTram}`),
-  ], [khuVucs, trams]);
+    ...trams.flatMap(t => {
+      const loaiIds = new Set(thietBis.filter(tb => tb.ID_Tram === t.IDTram).map(tb => tb.ID_LoaiTB));
+      return Array.from(loaiIds).map(idLoai => `loai-${t.IDTram}-${idLoai}`);
+    }),
+  ], [khuVucs, trams, thietBis]);
 
   useEffect(() => { setExpandedKeys(allExpandableKeys); }, [allExpandableKeys]);
 
@@ -438,7 +468,7 @@ export default function CayThietBiPage() {
       <div style={{ marginBottom: 20 }}>
         <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Cây thiết bị</Title>
         <Text style={{ color: mutedColor, fontSize: 13 }}>
-          Xem &amp; quản lý theo cấu trúc Khu vực → Trạm điện → Thiết bị · {khuVucs.length} khu vực,{' '}
+          Xem &amp; quản lý theo cấu trúc Khu vực → Trạm điện → Loại thiết bị → Thiết bị · {khuVucs.length} khu vực,{' '}
           {trams.length} trạm, {thietBis.length} thiết bị
         </Text>
       </div>

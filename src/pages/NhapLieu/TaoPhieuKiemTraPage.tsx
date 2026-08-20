@@ -385,7 +385,8 @@ export default function TaoPhieuKiemTraPage() {
                   // ẩn luôn kể cả khi chọn "Kiểm tra toàn diện" để khỏi hiện thẻ trống.
                   .filter(n => n.chiTieus.length > 0)
                   .filter(n => selectedNhomId === CHON_TAT_CA || n.ID_NhomChiTieu === selectedNhomId)
-                  .map(nhom => (
+                  .map(nhom => {
+                    return (
                     <Card key={nhom.ID_NhomChiTieu}
                       title={
                         <Flex align="center" gap={8}>
@@ -397,7 +398,13 @@ export default function TaoPhieuKiemTraPage() {
                       }
                       style={{ background: panelBg, border: `1px solid ${panelBorder}`, marginBottom: 16 }}
                       styles={{ header: { borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
-                      <Row gutter={[16, 14]}>
+                      {/* CSS Grid auto-fit/minmax thay vì Row/Col phần trăm cố định — cột tự co giãn
+                          theo khoảng trống thật, và cột KHÔNG có phần tử tự co về 0 nhường chỗ cho
+                          cột đang có nội dung giãn ra lấp đầy (giải quyết "phần tử lẻ cuối hàng bỏ
+                          trống 1 khoảng" mà không cần tự đếm/tính span thủ công). Card Rule (nhiều
+                          biến + bảng quy tắc) chiếm 2 ô liền (gridColumn: 'span 2') để đủ chỗ hiện
+                          lưới biến con bên trong; card Ngưỡng đơn giản chiếm 1 ô. */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
                         {nhom.chiTieus.map(ct => {
                           const inputsAll = chiTieuInputs[ct.ID_ChiTieu];
                           // Biến nguồn 'CHITIEU_CUNG_PHIEU' (tự lấy từ chỉ tiêu khác cùng phiếu,
@@ -422,7 +429,9 @@ export default function TaoPhieuKiemTraPage() {
                             const allFilled   = filledCount === inputs.length;
 
                             return (
-                              <Col xs={24} md={12} key={ct.ID_ChiTieu}>
+                              // span 2 ô — đủ chỗ hiện lưới biến con; nếu là item duy nhất trong
+                              // hàng, các ô trống còn lại tự co về 0 nên nó tự giãn hết chiều rộng.
+                              <div key={ct.ID_ChiTieu} style={{ gridColumn: 'span 2' }}>
                                 <div style={{
                                   padding: '14px 16px',
                                   background: itemBg,
@@ -449,11 +458,11 @@ export default function TaoPhieuKiemTraPage() {
                                   <Text style={{ color: textColor, fontSize: 12, display: 'block', marginBottom: 10 }}>
                                     Nhập giá trị đo cho từng đại lượng trong biểu thức:
                                   </Text>
-                                  <Row gutter={[12, 10]}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
                                     {inputs.map(inp => {
                                       const isFilled = varMap[inp.MaInput] !== undefined;
                                       return (
-                                        <Col xs={24} sm={12} lg={8} key={inp.ID_Input}>
+                                        <div key={inp.ID_Input}>
                                           <div style={{
                                             padding: '10px 12px',
                                             background: panelBg,
@@ -502,10 +511,10 @@ export default function TaoPhieuKiemTraPage() {
                                               placeholder={`Nhập ${inp.MaInput}...`}
                                             />
                                           </div>
-                                        </Col>
+                                        </div>
                                       );
                                     })}
-                                  </Row>
+                                  </div>
 
                                   {/* Bảng quy tắc tính điểm (có thể thu/mở) */}
                                   {rules.length > 0 && (
@@ -566,7 +575,7 @@ export default function TaoPhieuKiemTraPage() {
                                     />
                                   )}
                                 </div>
-                              </Col>
+                              </div>
                             );
                           }
 
@@ -578,7 +587,7 @@ export default function TaoPhieuKiemTraPage() {
                           const val = values[ct.ID_ChiTieu];
 
                           return (
-                            <Col xs={24} sm={12} md={8} lg={6} key={ct.ID_ChiTieu}>
+                            <div key={ct.ID_ChiTieu}>
                               <div style={{
                                 padding: '12px 14px',
                                 background: itemBg,
@@ -650,12 +659,13 @@ export default function TaoPhieuKiemTraPage() {
                                   />
                                 )}
                               </div>
-                            </Col>
+                            </div>
                           );
                         })}
-                      </Row>
+                      </div>
                     </Card>
-                  ))
+                    );
+                  })
               )}
             </Spin>
           )}

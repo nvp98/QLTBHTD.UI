@@ -28,7 +28,7 @@ export default function KetQuaPage() {
   const isDark = mode === 'dark';
   const [displayedPhieus, setDisplayedPhieus] = useState<PhieuKiemTra[]>([]);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'latest' | 'all'>('latest');
+  const [viewMode, setViewMode] = useState<'latest' | 'all'>('all');
   // Phân biệt "hệ thống chưa có phiếu nào" (chỉ biết được lúc chưa lọc gì) với "bộ lọc hiện tại
   // không khớp phiếu nào" — tránh hiện nhầm CTA "tạo phiếu đầu tiên" khi thật ra có dữ liệu.
   const [hasAnyEver, setHasAnyEver] = useState(true);

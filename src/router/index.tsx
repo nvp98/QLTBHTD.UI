@@ -30,6 +30,9 @@ import PhieuDetailPage from '../pages/KetQua/PhieuDetailPage';
 import LichSuPage      from '../pages/KetQua/LichSuPage';
 import BaoCaoPage      from '../pages/BaoCao/BaoCaoPage';
 
+// Bảo trì
+import LichBaoTriPage from '../pages/BaoTri/LichBaoTriPage';
+
 // Thống kê
 import ThongKePage from '../pages/ThongKe/ThongKePage';
 
@@ -67,6 +70,10 @@ const router = createBrowserRouter([
       { path: 'ket-qua/lich-su',   element: <LichSuPage /> },
       { path: 'ket-qua/:id',       element: <PhieuDetailPage /> },
       { path: 'bao-cao',      element: <BaoCaoPage /> },
+
+      // ── Bảo trì ───────────────────────────────────────────────────────────
+      { path: 'bao-tri/lich', element: <LichBaoTriPage /> },
+
       { path: 'thong-ke',     element: <ThongKePage /> },
     ],
   },

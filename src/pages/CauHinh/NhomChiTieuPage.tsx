@@ -12,6 +12,10 @@ import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
 
+/** Phân cấp kiểm tra theo CBM EVNCPC-KT/QT.40. */
+const TIER_LABELS: Record<number, string> = { 1: 'Online', 2: 'Offline', 3: 'Chuyên sâu' };
+const TIER_COLORS: Record<number, string> = { 1: 'green', 2: 'gold', 3: 'volcano' };
+
 export default function NhomChiTieuPage() {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
@@ -128,6 +132,14 @@ export default function NhomChiTieuPage() {
       onFilter: (val, r) => r.ID_LoaiThietBi === val,
     },
     {
+      title: 'Tier', dataIndex: 'Tier', key: 'tier', width: 110, align: 'center',
+      render: v => v != null
+        ? <Tag color={TIER_COLORS[v]}>Tier {v} · {TIER_LABELS[v] ?? '?'}</Tag>
+        : <Text style={{ color: '#6b7280', fontSize: 12 }}>—</Text>,
+      filters: [1, 2, 3].map(t => ({ text: `Tier ${t} · ${TIER_LABELS[t]}`, value: t })),
+      onFilter: (val, r) => r.Tier === val,
+    },
+    {
       title: 'Phiên bản', dataIndex: 'PhienBan', key: 'phienban', width: 100, align: 'center',
       render: v => <Tag>v{v}</Tag>,
     },
@@ -217,6 +229,11 @@ export default function NhomChiTieuPage() {
           <Form.Item name="PhienBan" label="Phiên bản tiêu chuẩn"
             rules={[{ required: true }]} tooltip="Phiên bản quy trình CBM áp dụng">
             <InputNumber style={{ width: '100%' }} min={1} placeholder="1" />
+          </Form.Item>
+          <Form.Item name="Tier" label="Tier (phân cấp kiểm tra)"
+            tooltip="Theo CBM EVNCPC-KT/QT.40. Để trống cho nhóm tổng hợp thuần (vd CHI1/TS1) — nhóm đó gộp điểm từ nhiều Tier khác nhau nên không gán 1 Tier duy nhất.">
+            <Select allowClear placeholder="Để trống nếu là nhóm tổng hợp"
+              options={[1, 2, 3].map(t => ({ label: `Tier ${t} · ${TIER_LABELS[t]}`, value: t }))} />
           </Form.Item>
           <Form.Item name="TrongSo_Wi" label="Trọng số Wᵢ (khi tham gia công thức nhóm cha)"
             tooltip="Dùng khi nhóm này được chọn làm biến NHOM_CON trong công thức của 1 nhóm COMPOSITE khác (vd 'Chất lượng dầu' Wi=6 khi tham gia TS1). Để trống = coi như đồng trọng số (Wi=1) trừ khi công thức có override riêng.">

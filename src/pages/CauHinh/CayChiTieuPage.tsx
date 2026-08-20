@@ -23,6 +23,10 @@ const { Title, Text } = Typography;
 /** Nhãn tiếng Việt cho LoaiNhom — giá trị lưu DB vẫn giữ nguyên 'LEAF'/'COMPOSITE'. */
 const loaiNhomLabel = (v?: string) => (v === 'COMPOSITE' ? 'Chỉ số sức khỏe' : 'Hạng mục');
 
+/** Phân cấp kiểm tra theo CBM EVNCPC-KT/QT.40. */
+const TIER_LABELS: Record<number, string> = { 1: 'Online', 2: 'Offline', 3: 'Chuyên sâu' };
+const TIER_COLORS: Record<number, string> = { 1: 'green', 2: 'gold', 3: 'volcano' };
+
 /** Nhãn tiếng Việt cho LoaiTinhDiem — giá trị lưu DB giữ nguyên 'Nguong'/'Rule'/'LF'. */
 const loaiTinhDiemLabel = (v?: string | null) =>
   v === 'Rule' ? 'Biểu thức' : v === 'LF' ? 'Mang tải (LF)' : 'Ngưỡng';
@@ -55,6 +59,9 @@ function buildTreeData(nodes: NhomChiTieuCay[], handlers: TreeHandlers): DataNod
             </Tag>
           )}
           <Tag>{`Cấp ${n.CapDo}`}</Tag>
+          {n.Tier != null && (
+            <Tag color={TIER_COLORS[n.Tier]}>{`Tier ${n.Tier} · ${TIER_LABELS[n.Tier] ?? '?'}`}</Tag>
+          )}
           {n.TrongSo_Wi != null && (
             <Tag color="purple" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{`Wᵢ=${n.TrongSo_Wi}`}</Tag>
           )}
@@ -180,6 +187,7 @@ export default function CayChiTieuPage() {
         LoaiNhom: editingNhom.LoaiNhom,
         ID_NhomCha: editingNhom.ID_NhomCha ?? undefined,
         CapDo: editingNhom.CapDo,
+        Tier: editingNhom.Tier ?? undefined,
         PhienBan: editingNhom.PhienBan,
         TrangThai: editingNhom.TrangThai,
         TrongSo_Wi: editingNhom.TrongSo_Wi ?? undefined,
@@ -190,6 +198,7 @@ export default function CayChiTieuPage() {
         LoaiNhom: 'LEAF',
         ID_NhomCha: parentNode.ID_NhomChiTieu,
         CapDo: Math.max(1, parentNode.CapDo - 1),
+        Tier: undefined,
         PhienBan: 1,
         TrangThai: 1,
         TrongSo_Wi: undefined,
@@ -200,6 +209,7 @@ export default function CayChiTieuPage() {
         LoaiNhom: 'LEAF',
         ID_NhomCha: undefined,
         CapDo: 1,
+        Tier: undefined,
         PhienBan: 1,
         TrangThai: 1,
         TrongSo_Wi: undefined,
@@ -225,6 +235,7 @@ export default function CayChiTieuPage() {
         ID_LoaiThietBi: selectedLoai,
         ID_NhomCha: v.ID_NhomCha ?? null,
         CapDo: v.CapDo,
+        Tier: v.Tier ?? null,
         LoaiNhom: v.LoaiNhom,
         PhienBan: v.PhienBan,
         TrangThai: v.TrangThai,
@@ -427,6 +438,12 @@ export default function CayChiTieuPage() {
                 </div>
                 <div><Text strong>Cấp độ: </Text><Text>{selectedNode.CapDo}</Text></div>
                 <div>
+                  <Text strong>Tier: </Text>
+                  {selectedNode.Tier != null
+                    ? <Tag color={TIER_COLORS[selectedNode.Tier]}>{`Tier ${selectedNode.Tier} · ${TIER_LABELS[selectedNode.Tier] ?? '?'}`}</Tag>
+                    : <Text style={{ color: '#6b7280' }}>— (nhóm tổng hợp thuần)</Text>}
+                </div>
+                <div>
                   <Text strong>Trọng số Wᵢ (khi tham gia công thức nhóm cha): </Text>
                   {selectedNode.TrongSo_Wi != null
                     ? <Tag color="purple" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{selectedNode.TrongSo_Wi}</Tag>
@@ -520,6 +537,11 @@ export default function CayChiTieuPage() {
             tooltip="1 = tầng lá, số càng lớn càng ở tầng tổng hợp cao hơn"
             rules={[{ required: true }]}>
             <InputNumber style={{ width: '100%' }} min={1} />
+          </Form.Item>
+          <Form.Item name="Tier" label="Tier (phân cấp kiểm tra)"
+            tooltip="Theo CBM EVNCPC-KT/QT.40. Để trống cho nhóm tổng hợp thuần (Chỉ số sức khỏe) — nhóm đó gộp điểm từ nhiều Tier khác nhau nên không gán 1 Tier duy nhất.">
+            <Select allowClear placeholder="Để trống nếu là nhóm tổng hợp"
+              options={[1, 2, 3].map(t => ({ label: `Tier ${t} · ${TIER_LABELS[t]}`, value: t }))} />
           </Form.Item>
           <Form.Item name="TrongSo_Wi" label="Trọng số Wᵢ (khi tham gia công thức nhóm cha)"
             tooltip="Dùng khi nhóm này được chọn làm biến NHOM_CON trong công thức của 1 nhóm COMPOSITE khác (vd 'Chất lượng dầu' Wi=6 khi tham gia TS1). Để trống = coi như đồng trọng số (Wi=1) trừ khi công thức có override riêng.">

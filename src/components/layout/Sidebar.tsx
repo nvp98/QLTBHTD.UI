@@ -4,7 +4,7 @@ import {
   AppstoreOutlined, EnvironmentOutlined, ThunderboltOutlined,
   SettingOutlined, UnorderedListOutlined, EditOutlined,
   FileTextOutlined, BarChartOutlined, ApartmentOutlined,
-  BulbOutlined, FundOutlined, HistoryOutlined,
+  BulbOutlined, FundOutlined, HistoryOutlined, CalendarOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -82,6 +82,12 @@ const NAV_GROUPS: NavGroup[] = [
       { key: '/ket-qua', label: 'Kết quả phân hạng', icon: <FundOutlined /> },
       { key: '/ket-qua/lich-su', label: 'Lịch sử đo & tính toán', icon: <HistoryOutlined /> },
       { key: '/bao-cao', label: 'Báo cáo', icon: <FileTextOutlined /> },
+    ],
+  },
+  {
+    title: 'BẢO TRÌ',
+    items: [
+      { key: '/bao-tri/lich', label: 'Lịch bảo trì', icon: <CalendarOutlined /> },
     ],
   },
   {

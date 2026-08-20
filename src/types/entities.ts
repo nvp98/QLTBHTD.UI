@@ -74,12 +74,14 @@ export interface NhomChiTieu {
   CoCongThuc?: boolean;
   PhienBan: number;
   TrangThai: number;
+  /** 1=Online, 2=Offline, 3=Chuyên sâu (CBM EVNCPC-KT/QT.40). null = nhóm tổng hợp thuần (vd CHI1/TS1). */
+  Tier?: number | null;
   /** Trọng số canonical của nhóm khi tham gia công thức nhóm cha (NHOM_CON) — vd "Chất lượng dầu" Wi=6 trong TS1. */
   TrongSo_Wi?: number | null;
 }
 export interface CreateNhomChiTieuDto {
   TenNhom: string; ID_LoaiThietBi: number; PhienBan: number; TrangThai: number;
-  ID_NhomCha?: number | null; CapDo?: number; LoaiNhom?: string; TrongSo_Wi?: number | null;
+  ID_NhomCha?: number | null; CapDo?: number; LoaiNhom?: string; Tier?: number | null; TrongSo_Wi?: number | null;
 }
 export interface UpdateNhomChiTieuDto extends CreateNhomChiTieuDto {}
 
