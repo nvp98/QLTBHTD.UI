@@ -380,6 +380,7 @@ export default function CayThietBiPage() {
                         <Space size={4} style={nodeRowStyle(info.color)}>
                           <Space size={4} wrap>
                             <Text>{tb.TenThietBi}</Text>
+                            {tb.TenNganLo && <Tag color="purple" style={{ fontSize: 10 }}>{tb.TenNganLo}</Tag>}
                             {trangThaiTagTB(tb.TrangThai)}
                             {csskTag(tb.ID_ThietBi)}
                           </Space>
@@ -667,6 +668,9 @@ export default function CayThietBiPage() {
                   </div>
                   <div><Text strong>Trạm điện: </Text>
                     <Text>{selection.record.TenTram ?? trams.find(t => t.IDTram === selection.record.ID_Tram)?.TenTram}</Text>
+                  </div>
+                  <div><Text strong>Ngăn lộ: </Text>
+                    {selection.record.TenNganLo ? <Tag color="purple">{selection.record.TenNganLo}</Tag> : <Text>—</Text>}
                   </div>
                   <div><Text strong>Nhãn hiệu: </Text><Text>{selection.record.NhanHieu ?? '—'}</Text></div>
                   <div><Text strong>Năm sản xuất: </Text><Text>{selection.record.NamSanXuat ?? '—'}</Text></div>

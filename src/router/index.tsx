@@ -7,6 +7,7 @@ import DashboardPage from '../pages/DashboardPage';
 // Quản lý thiết bị
 import KhuVucPage    from '../pages/QuanLy/KhuVucPage';
 import TramDienPage  from '../pages/QuanLy/TramDienPage';
+import NganLoPage    from '../pages/QuanLy/NganLoPage';
 import ThietBiPage   from '../pages/QuanLy/ThietBiPage';
 import CayThietBiPage from '../pages/QuanLy/CayThietBiPage';
 import LoaiThietBiPage from '../pages/CauHinh/LoaiThietBiPage';
@@ -48,6 +49,7 @@ const router = createBrowserRouter([
       // ── Quản lý thiết bị ──────────────────────────────────────────────────
       { path: 'quan-ly/khu-vuc',  element: <KhuVucPage /> },
       { path: 'quan-ly/tram-dien', element: <TramDienPage /> },
+      { path: 'quan-ly/ngan-lo', element: <NganLoPage /> },
       { path: 'quan-ly/thiet-bi', element: <ThietBiPage /> },
       { path: 'quan-ly/cay-thiet-bi', element: <CayThietBiPage /> },
       { path: 'quan-ly/loai-thiet-bi', element: <LoaiThietBiPage /> },

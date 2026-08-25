@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Typography, Flex, Form, InputNumber, Select, Button,
-  Steps, Divider, Tag, Alert, Space, message, Spin, Input, Collapse, DatePicker,
+  Steps, Divider, Tag, Alert, Space, message, Spin, Input, Collapse, DatePicker, Segmented,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { thietBiApi }      from '../../api/thietBi';
 import { tramDienApi }     from '../../api/tramDien';
+import { loaiThietBiApi }  from '../../api/loaiThietBi';
+import { nganLoApi }       from '../../api/nganLo';
 import { nhomChiTieuApi }  from '../../api/nhomChiTieu';
 import { chiTieuApi }      from '../../api/chiTieu';
 import { nguongApi }       from '../../api/nguong';
@@ -15,7 +17,7 @@ import { chiTieuInputApi } from '../../api/chiTieuInput';
 import { chiTieuRuleApi }  from '../../api/chiTieuRule';
 import { api }             from '../../api/client';
 import type {
-  ThietBi, TramDien, NhomChiTieu, ChiTieu, Nguong, ChiTieuInput, ChiTieuRule,
+  ThietBi, TramDien, LoaiThietBi, NganLo, NhomChiTieu, ChiTieu, Nguong, ChiTieuInput, ChiTieuRule,
 } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 
@@ -75,9 +77,20 @@ export default function TaoPhieuKiemTraPage() {
   const [step, setStep] = useState(0);
 
   const [trams, setTrams]           = useState<TramDien[]>([]);
+  const [loais, setLoais]           = useState<LoaiThietBi[]>([]);
   const [thietBis, setThietBis]     = useState<ThietBi[]>([]);
   const [selectedTB, setSelectedTB] = useState<ThietBi | null>(null);
   const [filterTram, setFilterTram] = useState<number | 'all'>('all');
+  const [filterLoai, setFilterLoai] = useState<number | 'all'>('all');
+
+  // Chế độ nhập theo ngăn lộ: chọn 1 ngăn lộ (đợt ngắt điện) thay vì 1 thiết bị — lần lượt tạo phiếu
+  // cho từng thiết bị trong ngăn lộ, chỉ hiện chỉ tiêu Tier Offline/Chuyên sâu (Tier=1 Online đo
+  // riêng lẻ theo lịch khác, không liên quan tới đợt ngắt điện này).
+  const [entryMode, setEntryMode] = useState<'thietbi' | 'nganlo'>('thietbi');
+  const [nganLos, setNganLos]         = useState<NganLo[]>([]);
+  const [selectedNganLo, setSelectedNganLo] = useState<NganLo | null>(null);
+  const [nganLoQueue, setNganLoQueue] = useState<ThietBi[]>([]);
+  const [nganLoIdx, setNganLoIdx]     = useState(0);
 
   const [nhoms, setNhoms]                   = useState<NhomWithChiTieu[]>([]);
   // Danh sách rút gọn cho dropdown "Nhóm chỉ tiêu cần đo" — chỉ nhóm CÓ chỉ tiêu trực tiếp, loại bỏ
@@ -105,9 +118,13 @@ export default function TaoPhieuKiemTraPage() {
 
   const loadInit = useCallback(async () => {
     try {
-      const [ts, tbs] = await Promise.all([tramDienApi.getActive(), thietBiApi.getActive()]);
+      const [ts, ls, tbs, nls] = await Promise.all([
+        tramDienApi.getActive(), loaiThietBiApi.getActive(), thietBiApi.getActive(), nganLoApi.getActive(),
+      ]);
       setTrams(ts);
+      setLoais(ls);
       setThietBis(tbs);
+      setNganLos(nls);
     } catch {
       message.error('Không thể tải danh sách thiết bị');
     }
@@ -210,9 +227,37 @@ export default function TaoPhieuKiemTraPage() {
     }
   }, [thietBis]);
 
-  const filteredTBs = filterTram === 'all'
-    ? thietBis
-    : thietBis.filter(t => t.ID_Tram === filterTram);
+  const handleSelectNganLo = useCallback(async (idNganLo: number) => {
+    const nl = nganLos.find(n => n.ID_NganLo === idNganLo) ?? null;
+    setSelectedNganLo(nl);
+    setNganLoIdx(0);
+    setNganLoQueue([]);
+    if (!nl) return;
+    try {
+      const tbs = await thietBiApi.getByNganLo(idNganLo);
+      setNganLoQueue(tbs);
+      if (tbs.length > 0) await handleSelectTB(tbs[0].ID_ThietBi);
+      else message.warning('Ngăn lộ này chưa có thiết bị nào');
+    } catch {
+      message.error('Không thể tải danh sách thiết bị trong ngăn lộ');
+    }
+  }, [nganLos, handleSelectTB]);
+
+  const filteredTBs = thietBis
+    .filter(t => filterTram === 'all' || t.ID_Tram === filterTram)
+    .filter(t => filterLoai === 'all' || t.ID_LoaiTB === filterLoai);
+
+  // Nhóm khả dụng cho Bước 1 — nhóm tổng hợp thuần (0 chỉ tiêu) luôn ẩn.
+  const nhomBaseStep1 = nhoms
+    .filter(n => n.chiTieus.length > 0)
+    .filter(n => selectedNhomId === CHON_TAT_CA || n.ID_NhomChiTieu === selectedNhomId);
+  // Chế độ theo ngăn lộ: ưu tiên chỉ hiện chỉ tiêu Offline/Chuyên sâu (Tier 2/3) — cần ngắt điện mới
+  // đo được. Nhưng nhiều loại thiết bị (Dao cách ly 110kV, TU, TI, Chống sét...) chưa được phân loại
+  // Tier đầy đủ trong CBM_NhomChiTieu (toàn bộ đang để Tier=1/NULL) — nếu lọc cứng sẽ ra màn hình
+  // trống hoàn toàn. Fallback: nếu không có nhóm nào Tier 2/3, hiện lại toàn bộ nhóm như bình thường.
+  const nhomTierFiltered = nhomBaseStep1.filter(n => n.Tier === 2 || n.Tier === 3);
+  const nganLoTierFallback = entryMode === 'nganlo' && nhomBaseStep1.length > 0 && nhomTierFiltered.length === 0;
+  const step1Nhoms = entryMode === 'nganlo' && !nganLoTierFallback ? nhomTierFiltered : nhomBaseStep1;
 
   const titleColor  = isDark ? '#f9fafb' : '#111827';
   const textColor   = isDark ? '#9ca3af' : '#4b5563';
@@ -265,6 +310,7 @@ export default function TaoPhieuKiemTraPage() {
 
       await api.post('/api/PhieuKiemTra', {
         ID_ThietBi:          selectedTB.ID_ThietBi,
+        ID_NganLo:           entryMode === 'nganlo' ? selectedNganLo?.ID_NganLo ?? null : null,
         ID_NhomChiTieu:      selectedNhomId === CHON_TAT_CA ? null : selectedNhomId,
         NgayKiemTra:         ngayKiemTra ? ngayKiemTra.toISOString() : undefined,
         NguoiKiemTra:        nguoiKT,
@@ -273,8 +319,19 @@ export default function TaoPhieuKiemTraPage() {
         ChiTietInputs:       chiTietInputsPayload,
         ChiTietInputsNamed:  chiTietInputsNamed,
       });
-      message.success('Lưu phiếu kiểm tra thành công');
-      navigate('/ket-qua');
+      message.success(`Lưu phiếu kiểm tra thành công${selectedTB.TenThietBi ? ` — ${selectedTB.TenThietBi}` : ''}`);
+
+      if (entryMode === 'nganlo' && nganLoIdx + 1 < nganLoQueue.length) {
+        // Còn thiết bị tiếp theo trong ngăn lộ — chuyển sang thiết bị kế, quay lại bước nhập giá trị.
+        const nextIdx = nganLoIdx + 1;
+        setNganLoIdx(nextIdx);
+        setGhiChu('');
+        setStep(1);
+        await handleSelectTB(nganLoQueue[nextIdx].ID_ThietBi);
+      } else {
+        if (entryMode === 'nganlo') message.success('Đã tạo phiếu cho toàn bộ thiết bị trong ngăn lộ');
+        navigate('/ket-qua');
+      }
     } catch {
       message.error('Lỗi khi lưu phiếu kiểm tra');
     } finally {
@@ -305,25 +362,87 @@ export default function TaoPhieuKiemTraPage() {
             <Card style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
               styles={{ body: { padding: 24 } }}>
               <Title level={5} style={{ color: titleColor, marginTop: 0 }}>Chọn thiết bị cần kiểm tra</Title>
+              <Segmented
+                value={entryMode}
+                onChange={v => {
+                  const next = v as 'thietbi' | 'nganlo';
+                  setEntryMode(next);
+                  setSelectedTB(null);
+                  setSelectedNganLo(null);
+                  setNganLoQueue([]);
+                  setNganLoIdx(0);
+                }}
+                style={{ marginBottom: 16 }}
+                options={[
+                  { label: 'Theo thiết bị', value: 'thietbi' },
+                  { label: 'Theo ngăn lộ (đợt ngắt điện)', value: 'nganlo' },
+                ]}
+              />
               <Form layout="vertical">
-                <Form.Item label={<Text style={{ color: textColor }}>Lọc theo trạm</Text>}>
-                  <Select value={filterTram} onChange={setFilterTram} style={{ width: '100%' }} size="large"
-                    options={[{ label: 'Tất cả trạm', value: 'all' }, ...trams.map(t => ({ label: t.TenTram, value: t.IDTram }))]}
-                  />
-                </Form.Item>
-                <Form.Item label={<Text style={{ color: textColor }}>Thiết bị</Text>} required>
-                  <Select
-                    value={selectedTB?.ID_ThietBi}
-                    onChange={handleSelectTB}
-                    style={{ width: '100%' }} size="large"
-                    placeholder="Chọn thiết bị..."
-                    showSearch optionFilterProp="label"
-                    options={filteredTBs.map(t => ({
-                      label: `${t.TenThietBi}${t.SoHieu ? ` (${t.SoHieu})` : ''}`,
-                      value: t.ID_ThietBi,
-                    }))}
-                  />
-                </Form.Item>
+                {entryMode === 'thietbi' ? (
+                  <>
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item label={<Text style={{ color: textColor }}>Lọc theo trạm</Text>}>
+                          <Select value={filterTram} onChange={setFilterTram} style={{ width: '100%' }} size="large"
+                            options={[{ label: 'Tất cả trạm', value: 'all' }, ...trams.map(t => ({ label: t.TenTram, value: t.IDTram }))]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item label={<Text style={{ color: textColor }}>Lọc theo loại thiết bị</Text>}>
+                          <Select value={filterLoai} onChange={setFilterLoai} style={{ width: '100%' }} size="large"
+                            showSearch optionFilterProp="label"
+                            options={[
+                              { label: 'Tất cả loại thiết bị', value: 'all' },
+                              ...loais.map(l => ({ label: `${l.TenLoaiTB} (${l.KyHieu})`, value: l.ID_LoaiThietBi })),
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Form.Item label={<Text style={{ color: textColor }}>Thiết bị</Text>} required>
+                      <Select
+                        value={selectedTB?.ID_ThietBi}
+                        onChange={handleSelectTB}
+                        style={{ width: '100%' }} size="large"
+                        placeholder="Chọn thiết bị..."
+                        showSearch optionFilterProp="label"
+                        options={filteredTBs.map(t => ({
+                          label: `${t.TenThietBi}${t.SoHieu ? ` (${t.SoHieu})` : ''}`,
+                          value: t.ID_ThietBi,
+                        }))}
+                      />
+                    </Form.Item>
+                  </>
+                ) : (
+                  <>
+                    <Form.Item label={<Text style={{ color: textColor }}>Ngăn lộ</Text>} required
+                      extra={<Text style={{ color: '#4b5563', fontSize: 11 }}>
+                        Hệ thống sẽ lần lượt tạo phiếu cho từng thiết bị trong ngăn lộ, chỉ hiện chỉ tiêu Offline/Chuyên sâu (cần ngắt điện) — chỉ tiêu Online (đo liên tục) không thuộc đợt này.
+                      </Text>}>
+                      <Select
+                        value={selectedNganLo?.ID_NganLo}
+                        onChange={handleSelectNganLo}
+                        style={{ width: '100%' }} size="large"
+                        placeholder="Chọn ngăn lộ..."
+                        showSearch optionFilterProp="label"
+                        options={nganLos.map(n => ({
+                          label: `${n.TenNganLo} — ${n.TenTram} (${n.SoThietBi ?? 0} thiết bị)`,
+                          value: n.ID_NganLo,
+                        }))}
+                      />
+                    </Form.Item>
+                    {nganLoQueue.length > 0 && (
+                      <Alert
+                        type="info"
+                        style={{ marginBottom: 16 }}
+                        message={`Thiết bị ${nganLoIdx + 1}/${nganLoQueue.length} trong ngăn lộ: ${nganLoQueue.map((t, i) =>
+                          i === nganLoIdx ? `[${t.TenThietBi}]` : t.TenThietBi).join(', ')}`}
+                      />
+                    )}
+                  </>
+                )}
                 {selectedTB && (
                   <Flex wrap="wrap" gap={8} style={{ marginBottom: 16 }}>
                     {[['Loại', selectedTB.TenLoaiTB ?? `Loại ${selectedTB.ID_LoaiTB}`],
@@ -337,7 +456,7 @@ export default function TaoPhieuKiemTraPage() {
                     ))}
                   </Flex>
                 )}
-                {selectedTB && nhomKhaDung.length > 0 && (
+                {entryMode === 'thietbi' && selectedTB && nhomKhaDung.length > 0 && (
                   <Form.Item
                     label={<Text style={{ color: textColor }}>Nhóm chỉ tiêu cần đo</Text>}
                     extra={<Text style={{ color: '#4b5563', fontSize: 11 }}>Chọn nhóm theo tần suất đo định kỳ, hoặc "Toàn diện" để đo tất cả</Text>}
@@ -377,15 +496,29 @@ export default function TaoPhieuKiemTraPage() {
           {/* ── Step 1: Nhập giá trị chỉ tiêu ── */}
           {step === 1 && (
             <Spin spinning={loadingConfig}>
+              {entryMode === 'nganlo' && selectedNganLo && selectedTB && (
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                  message={`Ngăn lộ ${selectedNganLo.TenNganLo} — đang nhập cho thiết bị ${nganLoIdx + 1}/${nganLoQueue.length}: ${selectedTB.TenThietBi}${selectedTB.SoHieu ? ` (${selectedTB.SoHieu})` : ''}`}
+                />
+              )}
               {nhoms.length === 0 && !loadingConfig ? (
                 <Alert type="warning" message="Không có cấu hình chỉ tiêu cho loại thiết bị này. Vào Cấu hình → Nhóm chỉ tiêu để thiết lập." />
+              ) : step1Nhoms.length === 0 && !loadingConfig ? (
+                <Alert type="warning" message="Thiết bị này chưa có chỉ tiêu nào khớp bộ lọc hiện tại." />
               ) : (
-                nhoms
-                  // Nhóm tổng hợp thuần (0 chỉ tiêu trực tiếp, vd CHI1/TS1) không có gì để nhập —
-                  // ẩn luôn kể cả khi chọn "Kiểm tra toàn diện" để khỏi hiện thẻ trống.
-                  .filter(n => n.chiTieus.length > 0)
-                  .filter(n => selectedNhomId === CHON_TAT_CA || n.ID_NhomChiTieu === selectedNhomId)
-                  .map(nhom => {
+                <>
+                  {/* {nganLoTierFallback && (
+                    <Alert
+                      type="info"
+                      showIcon
+                      style={{ marginBottom: 16 }}
+                      message="Loại thiết bị này chưa được phân loại Online/Offline/Chuyên sâu đầy đủ trong cấu hình — tạm hiện toàn bộ chỉ tiêu để nhập, không lọc theo đợt ngắt điện."
+                    />
+                  )} */}
+                  {step1Nhoms.map(nhom => {
                     return (
                     <Card key={nhom.ID_NhomChiTieu}
                       title={
@@ -665,7 +798,8 @@ export default function TaoPhieuKiemTraPage() {
                       </div>
                     </Card>
                     );
-                  })
+                  })}
+                </>
               )}
             </Spin>
           )}

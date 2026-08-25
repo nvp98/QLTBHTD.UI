@@ -43,6 +43,14 @@ export interface CanhBaoThietBiDto {
   ngayKiemTra: string;
   tongDiem_Soqt: number | null;
   capDoCanhBao: string;
+  /** Điểm dùng để phân loại/sắp xếp/tô màu — luôn có giá trị, dùng thay tongDiem_Soqt khi cần
+   * hiển thị màu/mức cho CẢ thiết bị không có CSSK tổng (nguonDiem='CHI_TIEU'). */
+  diemHienThi: number;
+  /** 'CSSK' = diemHienThi lấy từ tongDiem_Soqt; 'CHI_TIEU' = lấy từ Sᵢ thấp nhất 1 chỉ tiêu
+   * (thiết bị theo quy trình không tính CHI cấp 1/2/3, vd DCL/TU/TI/CS). */
+  nguonDiem: 'CSSK' | 'CHI_TIEU';
+  /** Tên chỉ tiêu có Sᵢ thấp nhất — chỉ có giá trị khi nguonDiem='CHI_TIEU'. */
+  tenChiTieuThapNhat: string | null;
 }
 
 const BASE = '/api/thongke';

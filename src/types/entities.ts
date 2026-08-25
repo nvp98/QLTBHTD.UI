@@ -45,6 +45,8 @@ export interface ThietBi {
   TenTram?: string;
   ID_LoaiTB: number;
   TenLoaiTB?: string;
+  ID_NganLo?: number | null;
+  TenNganLo?: string | null;
   KyHieu?: string;
   TenThietBi: string;
   SoHieu?: string;
@@ -56,11 +58,24 @@ export interface ThietBi {
   TaiDinhMuc?: number | null;
 }
 export interface CreateThietBiDto {
-  ID_Tram: number; ID_LoaiTB: number; TenThietBi: string;
+  ID_Tram: number; ID_LoaiTB: number; ID_NganLo?: number | null; TenThietBi: string;
   SoHieu?: string; NhanHieu?: string; NamSanXuat?: number; TrangThai: number; GhiChu?: string;
   TaiDinhMuc?: number | null;
 }
 export interface UpdateThietBiDto extends CreateThietBiDto {}
+
+// ─── Ngăn Lộ ──────────────────────────────────────────────────────────────
+export interface NganLo {
+  ID_NganLo: number;
+  ID_Tram: number;
+  TenTram?: string;
+  TenNganLo: string;
+  MaNganLo?: string | null;
+  TrangThai: number;
+  SoThietBi?: number;
+}
+export interface CreateNganLoDto { ID_Tram: number; TenNganLo: string; MaNganLo?: string | null; TrangThai: number }
+export interface UpdateNganLoDto extends CreateNganLoDto {}
 
 // ─── Nhóm Chỉ Tiêu ────────────────────────────────────────────────────────
 export interface NhomChiTieu {
@@ -255,6 +270,8 @@ export interface PhieuKiemTra {
   TenTram?: string;
   ID_LoaiTB?: number;
   TenLoaiTB?: string;
+  ID_NganLo?: number | null;
+  TenNganLo?: string | null;
   ID_NhomChiTieu?: number;
   TenNhom?: string;
   NgayKiemTra: string;
@@ -270,6 +287,8 @@ export interface PhieuKiemTraDetailDto extends PhieuKiemTra {
 
 export interface CreatePhieuKiemTraDto {
   ID_ThietBi: number;
+  /** Ngăn lộ nếu phiếu tạo hàng loạt theo đợt ngắt điện kiểm tra chung. undefined/null = tạo riêng lẻ. */
+  ID_NganLo?: number | null;
   /** Nhóm chỉ tiêu cần đo. undefined/null = kiểm tra toàn diện. */
   ID_NhomChiTieu?: number;
   /** undefined/null = không chọn, backend tự lấy ngày giờ hiện tại. */

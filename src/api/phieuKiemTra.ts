@@ -15,6 +15,8 @@ type PhieuKiemTraRaw = Partial<PhieuKiemTra> & {
   tenTram?: string;
   iD_LoaiTB?: number;
   tenLoaiTB?: string;
+  iD_NganLo?: number | null;
+  tenNganLo?: string | null;
   iD_NhomChiTieu?: number;
   tenNhom?: string;
   ngayKiemTra?: string;
@@ -98,6 +100,10 @@ const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
                  : raw.iD_LoaiTB       != null ? Number(raw.iD_LoaiTB)
                  : undefined,
   TenLoaiTB:       raw.TenLoaiTB       ?? raw.tenLoaiTB,
+  ID_NganLo:       raw.ID_NganLo       != null ? Number(raw.ID_NganLo)
+                 : raw.iD_NganLo       != null ? Number(raw.iD_NganLo)
+                 : null,
+  TenNganLo:       raw.TenNganLo       ?? raw.tenNganLo ?? null,
   ID_NhomChiTieu:  raw.ID_NhomChiTieu  != null ? Number(raw.ID_NhomChiTieu)
                  : raw.iD_NhomChiTieu  != null ? Number(raw.iD_NhomChiTieu)
                  : undefined,
@@ -160,6 +166,8 @@ export const phieuKiemTraApi = {
     (await api.get<PhieuKiemTraRaw[]>(`${BASE}/latest-per-thietbi${buildQuery(params)}`)).map(toPhieu),
   getByThietBi: async (id: number) =>
     (await api.get<PhieuKiemTraRaw[]>(`${BASE}/by-thietbi/${id}`)).map(toPhieu),
+  getByNganLo: async (id: number) =>
+    (await api.get<PhieuKiemTraRaw[]>(`${BASE}/by-nganlo/${id}`)).map(toPhieu),
   getByNgay: async (tuNgay: string, denNgay: string) =>
     (await api.get<PhieuKiemTraRaw[]>(`${BASE}/by-ngay?tuNgay=${tuNgay}&denNgay=${denNgay}`)).map(toPhieu),
   getById:   async (id: number) => toPhieu(await api.get<PhieuKiemTraRaw>(`${BASE}/${id}`)),

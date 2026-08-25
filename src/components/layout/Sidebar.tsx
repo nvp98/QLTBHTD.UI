@@ -5,6 +5,7 @@ import {
   SettingOutlined, UnorderedListOutlined, EditOutlined,
   FileTextOutlined, BarChartOutlined, ApartmentOutlined,
   BulbOutlined, FundOutlined, HistoryOutlined, CalendarOutlined,
+  ClusterOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -30,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: '/quan-ly/khu-vuc', label: 'Khu vực', icon: <EnvironmentOutlined /> },
       { key: '/quan-ly/tram-dien', label: 'Trạm điện', icon: <ThunderboltOutlined /> },
+      { key: '/quan-ly/ngan-lo', label: 'Ngăn lộ', icon: <ClusterOutlined /> },
       { key: '/quan-ly/thiet-bi', label: 'Thiết bị', icon: <ApartmentOutlined /> },
       { key: '/quan-ly/cay-thiet-bi', label: 'Cây thiết bị', icon: <FundOutlined /> },
       {key: '/quan-ly/loai-thiet-bi',label: 'Loại thiết bị',icon: <UnorderedListOutlined />

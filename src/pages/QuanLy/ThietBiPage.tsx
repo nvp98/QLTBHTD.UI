@@ -8,9 +8,10 @@ import type { ColumnsType } from 'antd/es/table';
 import { thietBiApi }     from '../../api/thietBi';
 import { tramDienApi }    from '../../api/tramDien';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
+import { nganLoApi }      from '../../api/nganLo';
 import { thietBiThongSoApi } from '../../api/thietBiThongSo';
 import { thongSoApi }     from '../../api/thongSo';
-import type { ThietBi, TramDien, LoaiThietBi, ThietBiThongSo, ThongSo, ThietBiThongSoUsage } from '../../types/entities';
+import type { ThietBi, TramDien, LoaiThietBi, NganLo, ThietBiThongSo, ThongSo, ThietBiThongSoUsage } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
 
 const { Title, Text } = Typography;
@@ -33,6 +34,7 @@ export default function ThietBiPage() {
   const [data, setData]               = useState<ThietBi[]>([]);
   const [trams, setTrams]             = useState<TramDien[]>([]);
   const [loais, setLoais]             = useState<LoaiThietBi[]>([]);
+  const [nganLos, setNganLos]         = useState<NganLo[]>([]);
   const [loading, setLoading]         = useState(false);
   const [modalOpen, setModalOpen]     = useState(false);
   const [detailOpen, setDetailOpen]   = useState(false);
@@ -47,14 +49,16 @@ export default function ThietBiPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [tbs, ts, ls] = await Promise.all([
+      const [tbs, ts, ls, nls] = await Promise.all([
         thietBiApi.getAll(),
         tramDienApi.getActive(),
         loaiThietBiApi.getActive(),
+        nganLoApi.getActive(),
       ]);
       setData(tbs);
       setTrams(ts);
       setLoais(ls);
+      setNganLos(nls);
     } catch {
       message.error('Không thể tải dữ liệu thiết bị');
     } finally {
@@ -161,6 +165,12 @@ export default function ThietBiPage() {
       render: (v, r) => <Text style={{ color: '#9ca3af', fontSize: 12 }}>{r.TenTram ?? tramName(v)}</Text>,
       filters: trams.map(t => ({ text: t.TenTram, value: t.IDTram })),
       onFilter: (val, r) => r.ID_Tram === val,
+    },
+    {
+      title: 'Ngăn lộ', dataIndex: 'ID_NganLo', key: 'nganlo', width: 130,
+      render: (_, r) => r.TenNganLo ? <Tag color="purple">{r.TenNganLo}</Tag> : <Text style={{ color: '#6b7280', fontSize: 12 }}>—</Text>,
+      filters: nganLos.map(n => ({ text: n.TenNganLo, value: n.ID_NganLo })),
+      onFilter: (val, r) => r.ID_NganLo === val,
     },
     {
       title: 'Nhãn hiệu', dataIndex: 'NhanHieu', key: 'nhan', width: 110,
@@ -272,7 +282,8 @@ export default function ThietBiPage() {
             <Col span={12}>
               <Form.Item name="ID_Tram" label="Trạm điện" rules={[{ required: true, message: 'Chọn trạm điện' }]}>
                 <Select placeholder="Chọn trạm điện..." showSearch optionFilterProp="label"
-                  options={trams.map(t => ({ label: t.TenTram, value: t.IDTram }))} />
+                  options={trams.map(t => ({ label: t.TenTram, value: t.IDTram }))}
+                  onChange={() => form.setFieldValue('ID_NganLo', undefined)} />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -282,6 +293,19 @@ export default function ThietBiPage() {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item shouldUpdate={(prev, cur) => prev.ID_Tram !== cur.ID_Tram} noStyle>
+            {() => {
+              const idTram = form.getFieldValue('ID_Tram');
+              const options = nganLos.filter(n => n.ID_Tram === idTram).map(n => ({ label: n.TenNganLo, value: n.ID_NganLo }));
+              return (
+                <Form.Item name="ID_NganLo" label="Ngăn lộ"
+                  tooltip="Nhóm thiết bị cùng ngắt điện chung khi kiểm tra offline. Để trống nếu không thuộc ngăn lộ nào.">
+                  <Select allowClear placeholder={idTram ? 'Chọn ngăn lộ (không bắt buộc)...' : 'Chọn trạm điện trước'}
+                    options={options} disabled={!idTram} />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
           <Form.Item name="TenThietBi" label="Tên thiết bị" rules={[{ required: true, message: 'Nhập tên thiết bị' }]}>
             <Input placeholder="VD: Máy biến áp T1 110/22kV" />
           </Form.Item>
@@ -339,6 +363,7 @@ export default function ThietBiPage() {
               ['Số hiệu',       detail.SoHieu ?? '—'],
               ['Loại thiết bị', detail.TenLoaiTB ?? loaiName(detail.ID_LoaiTB)],
               ['Trạm điện',     detail.TenTram ?? tramName(detail.ID_Tram)],
+              ['Ngăn lộ',       detail.TenNganLo ?? '—'],
               ['Nhãn hiệu',     detail.NhanHieu ?? '—'],
               ['Năm sản xuất',  detail.NamSanXuat ?? '—'],
               ['Tải định mức',  detail.TaiDinhMuc != null ? `${detail.TaiDinhMuc} MVA` : '—'],

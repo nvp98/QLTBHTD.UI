@@ -45,7 +45,7 @@ const QUICK_ACTIONS = [
 ];
 
 /** Gom danh sách cảnh báo theo Trạm — giữ nguyên thứ tự trạm xuất hiện đầu tiên (tức trạm có
- * thiết bị xấu nhất, vì canhBao đã được BE sắp xếp tăng dần theo TongDiem_Soqt trước đó). */
+ * thiết bị xấu nhất, vì canhBao đã được BE sắp xếp tăng dần theo DiemHienThi trước đó). */
 function groupCanhBaoTheoTram(items: CanhBaoThietBiDto[]): { tenTram: string; items: CanhBaoThietBiDto[] }[] {
   const order: string[] = [];
   const map = new Map<string, CanhBaoThietBiDto[]>();
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                     </Tag>
                   </Flex>
                   {nhom.items.slice(0, 4).map(r => {
-                    const info = getCapDoSucKhoe(r.tongDiem_Soqt, isDark);
+                    const info = getCapDoSucKhoe(r.diemHienThi, isDark);
                     return (
                       <div
                         key={r.iD_ThietBi}
@@ -360,11 +360,18 @@ export default function DashboardPage() {
                         }}
                       >
                         <Flex justify="space-between" align="center">
-                          <Text strong style={{ color: titleColor, fontSize: 13, minWidth: 0 }}>
-                            {r.tenThietBi}
-                          </Text>
+                          <div style={{ minWidth: 0 }}>
+                            <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
+                              {r.tenThietBi}
+                            </Text>
+                            {r.nguonDiem === 'CHI_TIEU' && r.tenChiTieuThapNhat && (
+                              <Text style={{ color: '#6b7280', fontSize: 11 }}>
+                                Sᵢ thấp nhất: {r.tenChiTieuThapNhat}
+                              </Text>
+                            )}
+                          </div>
                           <Tag style={{ color: info.color, background: info.bg, borderColor: info.border, flexShrink: 0 }}>
-                            {r.tongDiem_Soqt?.toFixed(1) ?? '—'}
+                            {r.diemHienThi.toFixed(1)}
                           </Tag>
                         </Flex>
                       </div>

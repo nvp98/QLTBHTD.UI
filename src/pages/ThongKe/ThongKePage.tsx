@@ -4,6 +4,10 @@ import {
   Tag, Progress, message, Tooltip, Empty,
 } from 'antd';
 import {
+  ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis,
+  Tooltip as RTooltip, Legend,
+} from 'recharts';
+import {
   WarningOutlined, CheckCircleOutlined, ReloadOutlined,
   ApartmentOutlined, BarChartOutlined, LineChartOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
@@ -27,14 +31,13 @@ const fmtDate = (iso?: string) => {
   return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-// ─── SVG Line Chart ─────────────────────────────────────────────────────────
+// ─── Line Chart (recharts) — phong cách nhiều đường mảnh, nền sáng, legend trên đầu ────────────
 interface LinePoint { label: string; value: number | null; id: number }
 
-function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: string; isDark: boolean }) {
-  const W = 680, H = 220;
-  const pad = { top: 24, right: 24, bottom: 48, left: 52 };
-  const iW = W - pad.left - pad.right;
-  const iH = H - pad.top - pad.bottom;
+function CSSKLineChart({ data, color, isDark, name = 'CSSK' }: {
+  data: LinePoint[]; color: string; isDark: boolean; name?: string;
+}) {
+  const H = 260;
 
   const validPoints = data.filter(d => d.value !== null);
   if (validPoints.length === 0) return (
@@ -43,91 +46,29 @@ function CSSKLineChart({ data, color, isDark }: { data: LinePoint[]; color: stri
     </Flex>
   );
 
+  const chartData = data.map(d => ({ label: d.label, value: d.value }));
+  const gridColor = isDark ? '#1e4a72' : '#e5e7eb';
+  const textColor = isDark ? '#9ca3af' : '#6b7280';
   const n = data.length;
-  const xOf = (i: number) => pad.left + (n === 1 ? iW / 2 : (i / (n - 1)) * iW);
-  const yOf = (v: number) => pad.top + (1 - v / 10) * iH;
-
-  // Polyline chỉ nối các điểm có giá trị liên tiếp
-  const segments: string[][] = [];
-  let cur: string[] = [];
-  data.forEach((d, i) => {
-    if (d.value !== null) {
-      cur.push(`${xOf(i)},${yOf(d.value)}`);
-    } else if (cur.length) {
-      segments.push(cur);
-      cur = [];
-    }
-  });
-  if (cur.length) segments.push(cur);
-
-  const gridVals = [0, 2, 4, 6, 8, 10];
-  const axisColor = isDark ? '#374151' : '#e5e7eb';
-  const textColor = isDark ? '#6b7280' : '#9ca3af';
-  const gradId = `grad-${color.replace('#', '')}`;
+  const tickInterval = n <= 12 ? 0 : Math.ceil(n / 12) - 1;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-
-      {/* Grid & Y-axis labels */}
-      {gridVals.map(v => (
-        <g key={v}>
-          <line x1={pad.left} y1={yOf(v)} x2={W - pad.right} y2={yOf(v)}
-            stroke={axisColor} strokeWidth={v === 0 ? 1.5 : 0.5} strokeDasharray={v === 0 ? '' : '3 3'} />
-          <text x={pad.left - 8} y={yOf(v) + 4} textAnchor="end"
-            fontSize={10} fill={textColor}>{v}</text>
-        </g>
-      ))}
-
-      {/* Threshold zones */}
-      <rect x={pad.left} y={yOf(8)} width={iW} height={yOf(6) - yOf(8)} fill={`${getCapDoSucKhoe(9, isDark).color}0c`} />
-      <rect x={pad.left} y={yOf(6)} width={iW} height={yOf(4) - yOf(6)} fill={`${getCapDoSucKhoe(7, isDark).color}0c`} />
-      <rect x={pad.left} y={yOf(4)} width={iW} height={yOf(2) - yOf(4)} fill={`${getCapDoSucKhoe(5, isDark).color}0c`} />
-      <rect x={pad.left} y={yOf(2)} width={iW} height={yOf(0) - yOf(2)} fill={`${getCapDoSucKhoe(3, isDark).color}0c`} />
-
-      {/* Area fill for first segment */}
-      {segments[0] && segments[0].length > 1 && (
-        <polygon
-          points={`${xOf(0)},${yOf(0)} ${segments[0].join(' ')} ${xOf(data.length - 1)},${yOf(0)}`}
-          fill={`url(#${gradId})`}
+    <ResponsiveContainer width="100%" height={H}>
+      <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+        <CartesianGrid vertical={false} stroke={gridColor} strokeDasharray="3 3" />
+        <XAxis dataKey="label" interval={tickInterval} tick={{ fontSize: 11, fill: textColor }}
+          axisLine={{ stroke: gridColor }} tickLine={false} />
+        <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: textColor }}
+          axisLine={false} tickLine={false} width={28} />
+        <RTooltip
+          contentStyle={{ background: isDark ? '#123a5e' : '#fff', border: `1px solid ${gridColor}`, fontSize: 12 }}
+          labelStyle={{ color: textColor }}
         />
-      )}
-
-      {/* Lines */}
-      {segments.map((seg, si) =>
-        seg.length > 1 && (
-          <polyline key={si} points={seg.join(' ')}
-            fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-        )
-      )}
-
-      {/* X-axis labels & data points */}
-      {data.map((d, i) => {
-        const x = xOf(i);
-        const showLabel = n <= 10 || i % Math.ceil(n / 10) === 0 || i === n - 1;
-        return (
-          <g key={d.id}>
-            {showLabel && (
-              <text x={x} y={H - 6} textAnchor="middle" fontSize={9} fill={textColor}
-                transform={n > 6 ? `rotate(-30, ${x}, ${H - 6})` : undefined}>
-                {d.label}
-              </text>
-            )}
-            {d.value !== null && (
-              <>
-                <circle cx={x} cy={yOf(d.value)} r={4} fill={color} stroke={isDark ? '#0e2c4a' : '#fff'} strokeWidth={2} />
-                <title>{`${d.label}: ${d.value.toFixed(1)}`}</title>
-              </>
-            )}
-          </g>
-        );
-      })}
-    </svg>
+        <Legend verticalAlign="top" align="left" height={32} wrapperStyle={{ fontSize: 12, color: textColor }} />
+        <Line type="monotone" dataKey="value" name={name} stroke={color}
+          strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+      </LineChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -147,12 +88,12 @@ function TabTongHop({ isDark }: { isDark: boolean }) {
   }, []);
 
   const LEVELS = [
-    { key: 'thietBiTot',        label: 'Tốt (≥8)',          color: getCapDoSucKhoe(9, isDark).color },
-    { key: 'thietBiBinhThuong', label: 'Khá (6–8)',         color: getCapDoSucKhoe(7, isDark).color },
-    { key: 'thietBiChuY',       label: 'Trung bình (4–6)',  color: getCapDoSucKhoe(5, isDark).color },
-    { key: 'thietBiCanhBao',    label: 'Cảnh báo (2–4)',    color: getCapDoSucKhoe(3, isDark).color },
-    { key: 'thietBiNguyHiem',   label: 'Nguy hiểm (<2)',    color: getCapDoSucKhoe(1, isDark).color },
-    { key: 'thietBiChuaKiemTra',label: 'Chưa kiểm tra',     color: '#6b7280' },
+    { key: 'thietBiTot', label: 'Tốt (≥8)', color: getCapDoSucKhoe(9, isDark).color },
+    { key: 'thietBiBinhThuong', label: 'Khá (6–8)', color: getCapDoSucKhoe(7, isDark).color },
+    { key: 'thietBiChuY', label: 'Trung bình (4–6)', color: getCapDoSucKhoe(5, isDark).color },
+    { key: 'thietBiCanhBao', label: 'Cảnh báo (2–4)', color: getCapDoSucKhoe(3, isDark).color },
+    { key: 'thietBiNguyHiem', label: 'Nguy hiểm (<2)', color: getCapDoSucKhoe(1, isDark).color },
+    { key: 'thietBiChuaKiemTra', label: 'Chưa kiểm tra', color: '#6b7280' },
   ] as const;
 
   const kiemTraTotal = data ? (data.tongThietBi || 1) : 1;
@@ -162,10 +103,10 @@ function TabTongHop({ isDark }: { isDark: boolean }) {
       {/* Summary metric cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         {[
-          { label: 'Tổng thiết bị',    value: data?.tongThietBi,       color: '#6366f1', icon: <ApartmentOutlined /> },
-          { label: 'Phiếu tháng này',  value: data?.tongPhieuThangNay, color: '#3b82f6', icon: <BarChartOutlined /> },
-          { label: 'CSSK trung bình',  value: data?.diemTrungBinh != null ? data.diemTrungBinh.toFixed(1) : '—', color: '#10b981', icon: <LineChartOutlined /> },
-          { label: 'Cần chú ý',        value: data ? (data.thietBiChuY + data.thietBiCanhBao + data.thietBiNguyHiem) : '—', color: '#f97316', icon: <WarningOutlined /> },
+          { label: 'Tổng thiết bị', value: data?.tongThietBi, color: '#6366f1', icon: <ApartmentOutlined /> },
+          { label: 'Phiếu tháng này', value: data?.tongPhieuThangNay, color: '#3b82f6', icon: <BarChartOutlined /> },
+          { label: 'CSSK trung bình', value: data?.diemTrungBinh != null ? data.diemTrungBinh.toFixed(1) : '—', color: '#10b981', icon: <LineChartOutlined /> },
+          { label: 'Cần chú ý', value: data ? (data.thietBiChuY + data.thietBiCanhBao + data.thietBiNguyHiem) : '—', color: '#f97316', icon: <WarningOutlined /> },
         ].map(m => (
           <Col xs={12} sm={6} key={m.label}>
             <Card style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
@@ -260,7 +201,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
   const tc = isDark ? '#f9fafb' : '#111827';
 
   useEffect(() => {
-    thietBiApi.getActive().then(setThietBis).catch(() => {});
+    thietBiApi.getActive().then(setThietBis).catch(() => { });
   }, []);
 
   const loadHistory = useCallback(async (id: number) => {
@@ -290,9 +231,12 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
   const capDo = getCapDo(latestDiem, isDark);
 
   const histCols = [
-    { title: 'Ngày kiểm tra', dataIndex: 'ngayKiemTra', key: 'ngay', width: 140,
-      render: (v: string) => <Text style={{ color: tc, fontSize: 13 }}>{fmtDate(v)}</Text> },
-    { title: 'CSSK', dataIndex: 'tongDiem_Soqt', key: 'diem', width: 180,
+    {
+      title: 'Ngày kiểm tra', dataIndex: 'ngayKiemTra', key: 'ngay', width: 140,
+      render: (v: string) => <Text style={{ color: tc, fontSize: 13 }}>{fmtDate(v)}</Text>
+    },
+    {
+      title: 'CSSK', dataIndex: 'tongDiem_Soqt', key: 'diem', width: 180,
       render: (v: number | null) => v != null ? (
         <Flex align="center" gap={8}>
           <Progress percent={v * 10} size="small" showInfo={false}
@@ -302,21 +246,44 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
             {v.toFixed(1)}
           </Text>
         </Flex>
-      ) : <Text style={{ color: '#6b7280' }}>Chưa tính</Text> },
-    { title: 'Mức', dataIndex: 'capDoCanhBao', key: 'cap', width: 110,
+      ) : <Text style={{ color: '#6b7280' }}>Chưa tính</Text>
+    },
+    {
+      title: 'Mức',
+      dataIndex: 'capDoCanhBao',
+      key: 'cap',
+      width: 110,
       render: (_: unknown, r: LichSuCSSKDto) => {
         const cd = getCapDo(r.tongDiem_Soqt, isDark);
-        return <Tag color={cd.color} style={{ color: '#fff', borderColor: 'transparent' }}>{r.capDoCanhBao || cd.label}</Tag>;
-      } },
-    { title: 'KTV', dataIndex: 'nguoiKiemTra', key: 'ktv',
-      render: (v: string | null) => <Text style={{ color: '#6b7280', fontSize: 12 }}>{v ?? '—'}</Text> },
-    { title: '', key: 'action', width: 80,
+
+        return (
+          <Tag
+            style={{
+              background: cd.bg,
+              color: cd.color,
+              border: `1px solid ${cd.color}55`,
+              fontWeight: 600,
+              opacity: 1,
+            }}
+          >
+            {r.capDoCanhBao || cd.label}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'KTV', dataIndex: 'nguoiKiemTra', key: 'ktv',
+      render: (v: string | null) => <Text style={{ color: '#6b7280', fontSize: 12 }}>{v ?? '—'}</Text>
+    },
+    {
+      title: '', key: 'action', width: 80,
       render: (_: unknown, r: LichSuCSSKDto) => (
         <Text style={{ color: '#60a5fa', fontSize: 12, cursor: 'pointer' }}
           onClick={() => navigate(`/ket-qua/${r.iD_Phieu}`)}>
           Xem →
         </Text>
-      ) },
+      )
+    },
   ];
 
   return (
@@ -409,11 +376,11 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
     const total = item.totCount + item.binhThuongCount + item.chuYCount + item.canhBaoCount + item.nguHiemCount;
     if (total === 0) return <Text style={{ color: '#6b7280', fontSize: 11 }}>Chưa có dữ liệu</Text>;
     const bars = [
-      { count: item.totCount,         color: getCapDoSucKhoe(9, isDark).color },
-      { count: item.binhThuongCount,  color: getCapDoSucKhoe(7, isDark).color },
-      { count: item.chuYCount,        color: getCapDoSucKhoe(5, isDark).color },
-      { count: item.canhBaoCount,     color: getCapDoSucKhoe(3, isDark).color },
-      { count: item.nguHiemCount,     color: getCapDoSucKhoe(1, isDark).color },
+      { count: item.totCount, color: getCapDoSucKhoe(9, isDark).color },
+      { count: item.binhThuongCount, color: getCapDoSucKhoe(7, isDark).color },
+      { count: item.chuYCount, color: getCapDoSucKhoe(5, isDark).color },
+      { count: item.canhBaoCount, color: getCapDoSucKhoe(3, isDark).color },
+      { count: item.nguHiemCount, color: getCapDoSucKhoe(1, isDark).color },
     ];
     return (
       <div style={{ display: 'flex', height: 14, borderRadius: 4, overflow: 'hidden', gap: 1, minWidth: 120 }}>
@@ -429,18 +396,25 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
   };
 
   const cols = [
-    { title: '#', key: 'idx', width: 40, align: 'center' as const,
-      render: (_: unknown, __: unknown, i: number) => <Text style={{ color: '#6b7280' }}>{i + 1}</Text> },
-    { title: 'Trạm điện', key: 'tram', dataIndex: 'tenTram',
+    {
+      title: '#', key: 'idx', width: 40, align: 'center' as const,
+      render: (_: unknown, __: unknown, i: number) => <Text style={{ color: '#6b7280' }}>{i + 1}</Text>
+    },
+    {
+      title: 'Trạm điện', key: 'tram', dataIndex: 'tenTram',
       render: (v: string, r: BaoCaoTramItemDto) => (
         <div>
           <Text strong style={{ color: tc, fontSize: 13, display: 'block' }}>{v}</Text>
           {r.diaDiem && <Text style={{ color: '#6b7280', fontSize: 11 }}>{r.diaDiem}</Text>}
         </div>
-      ) },
-    { title: 'Tổng TB', dataIndex: 'tongThietBi', key: 'tong', width: 90, align: 'center' as const,
-      render: (v: number) => <Text style={{ color: tc, fontFamily: 'monospace' }}>{v}</Text> },
-    { title: 'Đã KT', dataIndex: 'daKiemTra', key: 'dakt', width: 80, align: 'center' as const,
+      )
+    },
+    {
+      title: 'Tổng TB', dataIndex: 'tongThietBi', key: 'tong', width: 90, align: 'center' as const,
+      render: (v: number) => <Text style={{ color: tc, fontFamily: 'monospace' }}>{v}</Text>
+    },
+    {
+      title: 'Đã KT', dataIndex: 'daKiemTra', key: 'dakt', width: 80, align: 'center' as const,
       render: (v: number, r: BaoCaoTramItemDto) => (
         <Flex vertical align="center" gap={2}>
           <Text style={{ color: tc, fontFamily: 'monospace' }}>{v}/{r.tongThietBi}</Text>
@@ -449,8 +423,10 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
               showInfo={false} strokeColor="#3b82f6" trailColor={isDark ? '#1e4a72' : '#e5e7eb'} />
           )}
         </Flex>
-      ) },
-    { title: 'CSSK TB', dataIndex: 'diemTrungBinh', key: 'diem', width: 110,
+      )
+    },
+    {
+      title: 'CSSK TB', dataIndex: 'diemTrungBinh', key: 'diem', width: 110,
       sorter: (a: BaoCaoTramItemDto, b: BaoCaoTramItemDto) => (a.diemTrungBinh ?? 0) - (b.diemTrungBinh ?? 0),
       render: (v: number | null) => v != null ? (
         <Flex align="center" gap={6}>
@@ -459,10 +435,14 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
             {v.toFixed(1)}
           </Text>
         </Flex>
-      ) : <Text style={{ color: '#6b7280' }}>—</Text> },
-    { title: 'Phân bố CSSK', key: 'phanbo',
-      render: (_: unknown, r: BaoCaoTramItemDto) => <MiniBar item={r} /> },
-    { title: 'Cần xử lý', key: 'canxuly', width: 90, align: 'center' as const,
+      ) : <Text style={{ color: '#6b7280' }}>—</Text>
+    },
+    {
+      title: 'Phân bố CSSK', key: 'phanbo',
+      render: (_: unknown, r: BaoCaoTramItemDto) => <MiniBar item={r} />
+    },
+    {
+      title: 'Cần xử lý', key: 'canxuly', width: 90, align: 'center' as const,
       render: (_: unknown, r: BaoCaoTramItemDto) => {
         const cnt = r.chuYCount + r.canhBaoCount + r.nguHiemCount;
         return cnt > 0 ? (
@@ -470,7 +450,8 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
         ) : (
           <Tag icon={<CheckCircleOutlined />} color="success">OK</Tag>
         );
-      } },
+      }
+    },
   ];
 
   return (
@@ -527,9 +508,12 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
   }, []);
 
   const cols = [
-    { title: '#', key: 'idx', width: 44, align: 'center' as const,
-      render: (_: unknown, __: unknown, i: number) => <Text style={{ color: '#6b7280' }}>{i + 1}</Text> },
-    { title: 'Thiết bị', key: 'tb',
+    {
+      title: '#', key: 'idx', width: 44, align: 'center' as const,
+      render: (_: unknown, __: unknown, i: number) => <Text style={{ color: '#6b7280' }}>{i + 1}</Text>
+    },
+    {
+      title: 'Thiết bị', key: 'tb',
       render: (_: unknown, r: CanhBaoThietBiDto) => (
         <div>
           <Flex align="center" gap={8} style={{ marginBottom: 2 }}>
@@ -539,52 +523,61 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
               {r.tenThietBi}
             </Text>
           </Flex>
-          <Text style={{ color: '#6b7280', fontSize: 11 }}>{r.tenTram}</Text>
-        </div>
-      ) },
-    { title: 'CSSK', key: 'diem', width: 180,
-      sorter: (a: CanhBaoThietBiDto, b: CanhBaoThietBiDto) => (a.tongDiem_Soqt ?? 0) - (b.tongDiem_Soqt ?? 0),
-      defaultSortOrder: 'ascend' as const,
-      render: (_: unknown, r: CanhBaoThietBiDto) => r.tongDiem_Soqt != null ? (
-        <Flex align="center" gap={8}>
-          <Progress percent={r.tongDiem_Soqt * 10} size="small" showInfo={false}
-            strokeColor={getCapDo(r.tongDiem_Soqt, isDark).color}
-            trailColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
-          <Text style={{ color: getCapDo(r.tongDiem_Soqt, isDark).color, fontFamily: 'monospace', fontWeight: 600 }}>
-            {r.tongDiem_Soqt.toFixed(1)}
+          <Text style={{ color: '#6b7280', fontSize: 11 }}>
+            {r.tenTram}
+            {r.nguonDiem === 'CHI_TIEU' && r.tenChiTieuThapNhat && ` · Sᵢ thấp nhất: ${r.tenChiTieuThapNhat}`}
           </Text>
+        </div>
+      )
+    },
+    {
+      title: 'CSSK', key: 'diem', width: 180,
+      sorter: (a: CanhBaoThietBiDto, b: CanhBaoThietBiDto) => a.diemHienThi - b.diemHienThi,
+      defaultSortOrder: 'ascend' as const,
+      render: (_: unknown, r: CanhBaoThietBiDto) => (
+        <Flex align="center" gap={8}>
+          <Progress percent={r.diemHienThi * 10} size="small" showInfo={false}
+            strokeColor={getCapDo(r.diemHienThi, isDark).color}
+            trailColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
+          <Text style={{ color: getCapDo(r.diemHienThi, isDark).color, fontFamily: 'monospace', fontWeight: 600 }}>
+            {r.diemHienThi.toFixed(1)}
+          </Text>
+          {r.nguonDiem === 'CHI_TIEU' && (
+            <Tag style={{ fontSize: 9, margin: 0 }}>theo chỉ tiêu</Tag>
+          )}
         </Flex>
-      ) : <Text style={{ color: '#6b7280' }}>—</Text> },
-    { title: 'Mức độ', dataIndex: 'capDoCanhBao', key: 'cap', width: 120,
+      )
+    },
+    {
+      title: 'Mức độ', dataIndex: 'capDoCanhBao', key: 'cap', width: 120,
       render: (v: string, r: CanhBaoThietBiDto) => {
-        const cd = getCapDo(r.tongDiem_Soqt, isDark);
+        const cd = getCapDo(r.diemHienThi, isDark);
         return (
           <Tag icon={<ExclamationCircleOutlined />}
             style={{ background: cd.bg, color: cd.color, border: `1px solid ${cd.color}55`, fontWeight: 600 }}>
             {v || cd.label}
           </Tag>
         );
-      } },
-    { title: 'Ngày KT', dataIndex: 'ngayKiemTra', key: 'ngay', width: 120,
-      render: (v: string) => <Text style={{ color: '#6b7280', fontSize: 12 }}>{fmtDate(v)}</Text> },
-    { title: '', key: 'action', width: 80,
+      }
+    },
+    {
+      title: 'Ngày KT', dataIndex: 'ngayKiemTra', key: 'ngay', width: 120,
+      render: (v: string) => <Text style={{ color: '#6b7280', fontSize: 12 }}>{fmtDate(v)}</Text>
+    },
+    {
+      title: '', key: 'action', width: 80,
       render: (_: unknown, r: CanhBaoThietBiDto) => (
         <Text style={{ color: '#60a5fa', fontSize: 12, cursor: 'pointer' }}
           onClick={() => navigate(`/ket-qua/${r.iD_Phieu}`)}>
           Chi tiết →
         </Text>
-      ) },
+      )
+    },
   ];
 
-  const nguHiem = data.filter(d => (d.tongDiem_Soqt ?? 10) < 2).length;
-  const canhBao = data.filter(d => {
-    const v = d.tongDiem_Soqt ?? 10;
-    return v >= 2 && v < 4;
-  }).length;
-  const chuY = data.filter(d => {
-    const v = d.tongDiem_Soqt ?? 10;
-    return v >= 4 && v < 6;
-  }).length;
+  const nguHiem = data.filter(d => d.diemHienThi < 2).length;
+  const canhBao = data.filter(d => d.diemHienThi >= 2 && d.diemHienThi < 4).length;
+  const chuY = data.filter(d => d.diemHienThi >= 4 && d.diemHienThi < 6).length;
 
   return (
     <Flex vertical gap={16}>
@@ -592,7 +585,7 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
       {data.length > 0 && (
         <Row gutter={[12, 12]}>
           {[
-            { label: 'Trung bình (4–6)', count: chuY,    color: getCapDoSucKhoe(5, isDark).color, icon: <WarningOutlined /> },
+            { label: 'Trung bình (4–6)', count: chuY, color: getCapDoSucKhoe(5, isDark).color, icon: <WarningOutlined /> },
             { label: 'Cảnh báo (2–4)', count: canhBao, color: getCapDoSucKhoe(3, isDark).color, icon: <WarningOutlined /> },
             { label: 'Nguy hiểm (<2)', count: nguHiem, color: getCapDoSucKhoe(1, isDark).color, icon: <ExclamationCircleOutlined /> },
           ].map(s => (
@@ -637,8 +630,8 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
             pagination={{ pageSize: 10, showTotal: t => `${t} thiết bị` }}
             rowClassName={(r) => {
               const v = r.tongDiem_Soqt ?? 10;
-              if (v < 2)  return isDark ? 'row-danger-dark' : 'row-danger-light';
-              if (v < 4)  return isDark ? 'row-warn-dark'   : 'row-warn-light';
+              if (v < 2) return isDark ? 'row-danger-dark' : 'row-danger-light';
+              if (v < 4) return isDark ? 'row-warn-dark' : 'row-warn-light';
               return '';
             }}
           />

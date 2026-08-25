@@ -9,6 +9,8 @@ type RawThietBi = Partial<ThietBi> & {
   tenTram?: string;
   iD_LoaiTB?: number;
   tenLoaiTB?: string;
+  iD_NganLo?: number | null;
+  tenNganLo?: string | null;
   kyHieu?: string;
   tenThietBi?: string;
   soHieu?: string;
@@ -25,6 +27,8 @@ const normalizeThietBi = (item: any): ThietBi => ({
   TenTram:    item.TenTram    ?? item.tenTram,
   ID_LoaiTB:  item.ID_LoaiTB  ?? item.iD_LoaiTB  ?? item.id_LoaiTB  ?? item.idLoaiTB ?? 0,
   TenLoaiTB:  item.TenLoaiTB  ?? item.tenLoaiTB,
+  ID_NganLo:  item.ID_NganLo  ?? item.iD_NganLo  ?? null,
+  TenNganLo:  item.TenNganLo  ?? item.tenNganLo  ?? null,
   KyHieu:     item.KyHieu     ?? item.kyHieu,
   TenThietBi: item.TenThietBi ?? item.tenThietBi ?? '',
   SoHieu:     item.SoHieu     ?? item.soHieu,
@@ -60,6 +64,7 @@ export const thietBiApi = {
   getActive:  async ()           => (await api.get<RawThietBi[]>(`${BASE}/active`)).map(normalizeThietBi),
   getByTram:  async (id: number) => (await api.get<RawThietBi[]>(`${BASE}/by-tram/${id}`)).map(normalizeThietBi),
   getByLoai:  async (id: number) => (await api.get<RawThietBi[]>(`${BASE}/by-loai/${id}`)).map(normalizeThietBi),
+  getByNganLo: async (id: number) => (await api.get<RawThietBi[]>(`${BASE}/by-nganlo/${id}`)).map(normalizeThietBi),
   getById:    async (id: number) => normalizeThietBi(await api.get<RawThietBi>(`${BASE}/${id}`)),
   create:     async (dto: CreateThietBiDto) => normalizeThietBi(await api.post<RawThietBi>(BASE, dto)),
   update:     async (id: number, dto: UpdateThietBiDto) => normalizeThietBi(await api.put<RawThietBi>(`${BASE}/${id}`, dto)),
