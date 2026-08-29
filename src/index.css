@@ -2,6 +2,7 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
   min-width: 320px;
@@ -10,39 +11,97 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Nền/màu chữ gốc đồng bộ với theme app (App.tsx set data-theme trên <html>),
+   KHÔNG dựa vào prefers-color-scheme của hệ điều hành — tránh lệch màu khi
+   OS và theme app chọn khác nhau. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  background-color: #f3f4f6;
+  color: #111827;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  background-color: #0b2c4d;
+  color: #e8eef5;
+
+  /* ─── Dark Navy Theme — bộ token màu đã chốt, kiểm chứng WCAG ─── */
+  /* Surfaces */
+  --bg-canvas-top: #0b2c4d;
+  --bg-canvas-bottom: #123e6b;
+  --bg-sidebar: #0a2540;
+  --bg-card: #0e2c4a;
+  --bg-modal: #1d365d;
+  --bg-input: #16294d;
+  --bg-hover: #16416b;
+  --bg-active: #1a4570;
+  --bg-overlay: rgba(9, 19, 35, 0.7);
+  --bg-tag: #163a5c;
+
+  /* Borders */
+  --border-default: #1e4a72;
+  --border-input: #3a6ea3;
+  --border-hover: #2c5f8f;
+  --border-focus: #5b74db;
+  --divider: #163a5c;
+
+  /* Text */
+  --text-primary: #e8eef5;
+  --text-secondary: #9fb3c8;
+  --text-muted: #8098b0;
+  --text-placeholder: #7a91a8;
+  --text-on-accent: #ffffff;
+  --text-on-neutral-btn: #12182a;
+
+  /* Accent & status */
+  --accent-600: #4d66d1;
+  --accent-500: #5b74db;
+  --accent-700: #3f56b8;
+  --accent-tint-15: rgba(77, 102, 209, 0.15);
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #38bdf8;
+
+  /* Effects */
+  --focus-ring: 0 0 0 3px rgba(91, 116, 219, 0.4);
+  --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* Chart */
+  --chart-1: #4dd8e0;
+  --chart-2: #a78bfa;
+  --chart-3: #f4a261;
+  --chart-4: #6ee7b7;
+  --chart-5: #f472b6;
+  --chart-6: #93c5fd;
+
+  /* Scrollbar */
+  --scrollbar-track: #0a2540;
+  --scrollbar-thumb: #2c5f8f;
+  --scrollbar-thumb-hover: #5b74db;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+:root[data-theme='dark'] body {
+  background: linear-gradient(180deg, var(--bg-canvas-top), var(--bg-canvas-bottom));
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+:root[data-theme='dark'] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
+:root[data-theme='dark'] ::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+:root[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 6px;
+}
+:root[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Class tiện ích theo bộ token trên — dùng khi cần style CSS thuần ngoài AntD
+   (component AntD trong App.tsx đã map trực tiếp sang cùng bộ màu này). */
+:root[data-theme='dark'] .badge-success { background: rgba(52, 211, 153, 0.15); color: var(--success); }
+:root[data-theme='dark'] .badge-warning { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+:root[data-theme='dark'] .badge-danger  { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+:root[data-theme='dark'] .badge-info    { background: rgba(56, 189, 248, 0.15); color: var(--info); }
