@@ -60,12 +60,12 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 
 export const nhomChiTieuApi = {
   getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
-    const res = await api.get<NhomChiTieuApiRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<NhomChiTieuApiRaw[] | PagedRaw>(`${BASE}/get-all-nhomchitieu${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toNhomChiTieu);
   },
   getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<NhomChiTieu>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-nhomchitieu${buildQuery(params)}`);
     return { ...res, items: res.items.map(toNhomChiTieu) };
   },
   getActive:  async ()           => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/active`)).map(toNhomChiTieu),
@@ -73,7 +73,7 @@ export const nhomChiTieuApi = {
   getKhaDungNhapLieu: async (id: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/kha-dung-nhap-lieu/${id}`)).map(toNhomChiTieu),
   getCay:     async (idLoai: number) => (await api.get<NhomChiTieuApiRaw[]>(`${BASE}/cay/${idLoai}`)).map(toNhomCay),
   getById:    async (id: number) => toNhomChiTieu(await api.get<NhomChiTieuApiRaw>(`${BASE}/${id}`)),
-  create:     async (dto: CreateNhomChiTieuV2Dto) => toNhomChiTieu(await api.post<NhomChiTieuApiRaw>(BASE, dto)),
+  create:     async (dto: CreateNhomChiTieuV2Dto) => toNhomChiTieu(await api.post<NhomChiTieuApiRaw>(`${BASE}/create-nhomchitieu`, dto)),
   update:     async (id: number, dto: UpdateNhomChiTieuV2Dto) => toNhomChiTieu(await api.put<NhomChiTieuApiRaw>(`${BASE}/${id}`, dto)),
   delete:     (id: number) => api.delete(`${BASE}/${id}`),
 };

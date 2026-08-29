@@ -45,17 +45,17 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 
 export const nguongApi = {
   getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
-    const res = await api.get<NguongApiRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<NguongApiRaw[] | PagedRaw>(`${BASE}/get-all-nguong${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toNguong);
   },
   getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<Nguong>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-nguong${buildQuery(params)}`);
     return { ...res, items: res.items.map(toNguong) };
   },
   getByChiTieu: async (id: number) => (await api.get<NguongApiRaw[]>(`${BASE}/by-chitieu/${id}`)).map(toNguong),
   getById:      async (id: number) => toNguong(await api.get<NguongApiRaw>(`${BASE}/${id}`)),
-  create:       async (dto: CreateNguongDto) => toNguong(await api.post<NguongApiRaw>(BASE, dto)),
+  create:       async (dto: CreateNguongDto) => toNguong(await api.post<NguongApiRaw>(`${BASE}/create-nguong`, dto)),
   update:       async (id: number, dto: UpdateNguongDto) => toNguong(await api.put<NguongApiRaw>(`${BASE}/${id}`, dto)),
   delete:       (id: number) => api.delete(`${BASE}/${id}`),
   validate:     async (idChiTieu: number) => {

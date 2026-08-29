@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router-dom';
 import viVN from 'antd/locale/vi_VN';
 import router from './router';
 import { ThemeModeContext, type ThemeMode } from './theme/ThemeModeContext';
+import AuthProvider from './auth/AuthProvider';
 
 const THEME_MODE_KEY = 'cbm_theme_mode';
 
@@ -197,10 +198,12 @@ export default function App() {
   }, [mode]);
 
   return (
-    <ThemeModeContext.Provider value={{ mode, toggleMode }}>
-      <ConfigProvider locale={viVN} theme={themeConfig}>
-        <RouterProvider router={router} />
-      </ConfigProvider>
-    </ThemeModeContext.Provider>
+    <AuthProvider>
+      <ThemeModeContext.Provider value={{ mode, toggleMode }}>
+        <ConfigProvider locale={viVN} theme={themeConfig}>
+          <RouterProvider router={router} />
+        </ConfigProvider>
+      </ThemeModeContext.Provider>
+    </AuthProvider>
   );
 }

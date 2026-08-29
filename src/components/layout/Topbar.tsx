@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Layout, Space, Badge, Typography, Flex, Button } from 'antd';
-import { MenuFoldOutlined, MenuUnfoldOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { Layout, Space, Badge, Typography, Flex, Button, Avatar, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
+import {
+  MenuFoldOutlined, MenuUnfoldOutlined, MoonOutlined, SunOutlined,
+  KeyOutlined, LogoutOutlined,
+} from '@ant-design/icons';
 import { useLocation } from 'react-router-dom';
 import { useThemeMode } from '../../theme/ThemeModeContext';
+import { useAuth } from '../../auth/AuthContext';
+import DoiMatKhauModal from '../auth/DoiMatKhauModal';
 
 const { Header } = Layout;
 const { Title, Text } = Typography;
@@ -30,6 +36,8 @@ interface TopbarProps {
 export default function Topbar({ collapsed, onCollapse }: TopbarProps) {
   const { pathname } = useLocation();
   const { mode, toggleMode } = useThemeMode();
+  const { user, logout } = useAuth();
+  const [doiMatKhauOpen, setDoiMatKhauOpen] = useState(false);
   const [time, setTime] = useState(() =>
     new Date().toLocaleTimeString('vi-VN', { hour12: false })
   );
@@ -43,6 +51,15 @@ export default function Topbar({ collapsed, onCollapse }: TopbarProps) {
 
   const pageInfo = PAGE_TITLES[pathname] ?? { title: 'CBM Platform', sub: 'Hệ thống quản lý sức khỏe thiết bị' };
   const isDark = mode === 'dark';
+
+  const userMenuItems: MenuProps['items'] = [
+    { key: 'doi-mat-khau', label: 'Đổi mật khẩu', icon: <KeyOutlined /> },
+    { key: 'dang-xuat', label: 'Đăng xuất', icon: <LogoutOutlined />, danger: true },
+  ];
+  const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'doi-mat-khau') setDoiMatKhauOpen(true);
+    else if (key === 'dang-xuat') logout();
+  };
 
   return (
     <Header style={{
@@ -92,7 +109,30 @@ export default function Topbar({ collapsed, onCollapse }: TopbarProps) {
           <Text style={{ color: '#4ade80', fontSize: 13, fontWeight: 600 }}>ONLINE</Text>
         </Space>
         <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 13, fontFamily: 'monospace' }}>{time}</Text>
+
+        <Dropdown
+          menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
+          placement="bottomRight"
+          trigger={['click']}
+        >
+          <Flex align="center" gap={8} style={{
+            cursor: 'pointer', padding: '4px 10px 4px 4px', borderRadius: 20,
+            border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
+          }}>
+            <Avatar size={28} style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', flexShrink: 0 }}>
+              {(user?.HoTen ?? '?').trim().charAt(0).toUpperCase()}
+            </Avatar>
+            <Flex vertical gap={0} style={{ lineHeight: 1.1 }}>
+              <Text strong style={{ color: isDark ? '#f9fafb' : '#111827', fontSize: 12.5 }}>
+                {user?.HoTen ?? 'Chưa đăng nhập'}
+              </Text>
+              <Text style={{ color: '#6b7280', fontSize: 11 }}>{user?.TenVaiTro ?? ''}</Text>
+            </Flex>
+          </Flex>
+        </Dropdown>
       </Space>
+
+      <DoiMatKhauModal open={doiMatKhauOpen} onClose={() => setDoiMatKhauOpen(false)} />
     </Header>
   );
 }

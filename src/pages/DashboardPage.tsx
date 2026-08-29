@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Row, Col, Card, Typography, Flex, Spin, Tag, Empty, Collapse } from 'antd';
+import { Row, Col, Card, Typography, Flex, Spin, Tag, Empty, Collapse, Select, message } from 'antd';
 import {
   EnvironmentOutlined, ThunderboltOutlined, ApartmentOutlined,
   SettingOutlined, BulbOutlined, UnorderedListOutlined,
   WarningOutlined, CheckCircleOutlined, HeartOutlined, CalendarOutlined,
-  ClockCircleOutlined,
+  ClockCircleOutlined, FileTextOutlined, PercentageOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from 'recharts';
 import StatCard from '../components/common/StatCard';
 import { useThemeMode } from '../theme/ThemeModeContext';
@@ -21,9 +21,10 @@ import { loaiThietBiApi } from '../api/loaiThietBi';
 import { nhomChiTieuApi } from '../api/nhomChiTieu';
 import { chiTieuApi }     from '../api/chiTieu';
 import { thongKeApi } from '../api/thongKe';
-import type { ThongKeTongHopDto, CanhBaoThietBiDto } from '../api/thongKe';
+import type { ThongKeTongHopDto, CanhBaoThietBiDto, XuHuongThangDto, TongHopTheoLoaiDto, BaoCaoTramItemDto } from '../api/thongKe';
 import { lichBaoTriApi } from '../api/lichBaoTri';
 import type { ThongKeLichBaoTriDto } from '../api/lichBaoTri';
+import type { TramDien, LoaiThietBi, ThietBi } from '../types/entities';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -74,8 +75,18 @@ export default function DashboardPage() {
   const [tongKe, setTongKe]       = useState<ThongKeTongHopDto | null>(null);
   const [canhBao, setCanhBao]     = useState<CanhBaoThietBiDto[]>([]);
   const [sucKhoeLoading, setSucKhoeLoading] = useState(true);
+  const [tongHopLoai, setTongHopLoai] = useState<TongHopTheoLoaiDto[]>([]);
+  const [baoCaoTram, setBaoCaoTram]   = useState<BaoCaoTramItemDto[]>([]);
   const [baoTri, setBaoTri]           = useState<ThongKeLichBaoTriDto | null>(null);
   const [baoTriLoading, setBaoTriLoading] = useState(true);
+  const [xuHuong, setXuHuong]         = useState<XuHuongThangDto[]>([]);
+  const [xuHuongLoading, setXuHuongLoading] = useState(true);
+  const [xhTrams, setXhTrams]         = useState<TramDien[]>([]);
+  const [xhLoais, setXhLoais]         = useState<LoaiThietBi[]>([]);
+  const [xhThietBis, setXhThietBis]   = useState<ThietBi[]>([]);
+  const [xhIdTram, setXhIdTram]       = useState<number | null>(null);
+  const [xhIdLoaiTB, setXhIdLoaiTB]   = useState<number | null>(null);
+  const [xhIdThietBi, setXhIdThietBi] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,12 +115,16 @@ export default function DashboardPage() {
   const loadSucKhoe = useCallback(async () => {
     setSucKhoeLoading(true);
     try {
-      const [tk, cb] = await Promise.allSettled([
+      const [tk, cb, tl, bt] = await Promise.allSettled([
         thongKeApi.getTongHop(),
         thongKeApi.getCanhBao(),
+        thongKeApi.getTongHopTheoLoai(),
+        thongKeApi.getBaoCaoTram(),
       ]);
       setTongKe(tk.status === 'fulfilled' ? tk.value : null);
       setCanhBao(cb.status === 'fulfilled' ? cb.value : []);
+      setTongHopLoai(tl.status === 'fulfilled' ? tl.value : []);
+      setBaoCaoTram(bt.status === 'fulfilled' ? bt.value : []);
     } finally {
       setSucKhoeLoading(false);
     }
@@ -126,7 +141,41 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadXuHuong = useCallback(async () => {
+    setXuHuongLoading(true);
+    try {
+      setXuHuong(await thongKeApi.getXuHuongThang(6, xhIdTram, xhIdLoaiTB, xhIdThietBi));
+    } catch {
+      setXuHuong([]);
+    } finally {
+      setXuHuongLoading(false);
+    }
+  }, [xhIdTram, xhIdLoaiTB, xhIdThietBi]);
+
+  useEffect(() => {
+    tramDienApi.getActive().then(setXhTrams).catch(() => message.error('Lỗi tải danh sách trạm'));
+    loaiThietBiApi.getActive().then(setXhLoais).catch(() => message.error('Lỗi tải loại thiết bị'));
+    thietBiApi.getActive().then(setXhThietBis).catch(() => message.error('Lỗi tải danh sách thiết bị'));
+  }, []);
+
+  /** Danh sách thiết bị cho ô chọn, thu hẹp theo trạm/loại thiết bị đang chọn ở trên. */
+  const xhThietBiOptions = useMemo(
+    () => xhThietBis.filter(t =>
+      (xhIdTram == null || t.ID_Tram === xhIdTram) &&
+      (xhIdLoaiTB == null || t.ID_LoaiTB === xhIdLoaiTB),
+    ),
+    [xhThietBis, xhIdTram, xhIdLoaiTB],
+  );
+
+  /** Nếu đổi trạm/loại khiến thiết bị đang chọn không còn khớp thì bỏ chọn thiết bị đó. */
+  useEffect(() => {
+    if (xhIdThietBi != null && !xhThietBiOptions.some(t => t.ID_ThietBi === xhIdThietBi)) {
+      setXhIdThietBi(null);
+    }
+  }, [xhThietBiOptions, xhIdThietBi]);
+
   useEffect(() => { load(); loadSucKhoe(); loadBaoTri(); }, [load, loadSucKhoe, loadBaoTri]);
+  useEffect(() => { loadXuHuong(); }, [loadXuHuong]);
 
   const panelBg = isDark ? '#0e2c4a' : '#ffffff';
   const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
@@ -150,10 +199,43 @@ export default function DashboardPage() {
     return rows.filter(d => d.value > 0);
   }, [tongKe, isDark]);
 
+  const xuHuongData = useMemo(
+    () => xuHuong.map(x => ({
+      thang: dayjs(`${x.thang}-01`).format('MM/YYYY'),
+      diem: x.diemTrungBinh != null ? Number(x.diemTrungBinh.toFixed(2)) : null,
+      soPhieu: x.soPhieu,
+    })),
+    [xuHuong],
+  );
+
+  /** So sánh điểm trung bình tháng gần nhất có dữ liệu với tháng trước đó — biết CSSK đang tăng hay giảm. */
+  const xuHuongDelta = useMemo(() => {
+    const coDiem = xuHuong.filter(x => x.diemTrungBinh != null);
+    if (coDiem.length < 2) return null;
+    const ganNhat = coDiem[coDiem.length - 1].diemTrungBinh!;
+    const truocDo = coDiem[coDiem.length - 2].diemTrungBinh!;
+    return ganNhat - truocDo;
+  }, [xuHuong]);
+
+  /** Tỷ lệ lịch bảo trì đang chờ KHÔNG bị quá hạn — chỉ số tuân thủ tiến độ kiểm tra/bảo trì định kỳ. */
+  const tyLeTuanThu = useMemo(() => {
+    if (!baoTri || baoTri.tongDangCho === 0) return null;
+    return ((baoTri.tongDangCho - baoTri.soQuaHan) / baoTri.tongDangCho) * 100;
+  }, [baoTri]);
+
   const canhBaoTheoTram = useMemo(() => groupCanhBaoTheoTram(canhBao), [canhBao]);
   const barData = useMemo(
     () => canhBaoTheoTram.map(g => ({ tram: g.tenTram, soLuong: g.items.length })),
     [canhBaoTheoTram],
+  );
+
+  /** CSSK trung bình theo trạm — xấu nhất lên đầu để giám đốc thấy ngay trạm nào cần quan tâm. */
+  const baoCaoTramData = useMemo(
+    () => baoCaoTram
+      .filter(t => t.diemTrungBinh != null)
+      .map(t => ({ tram: t.tenTram, diem: Number(t.diemTrungBinh!.toFixed(2)), color: getCapDoSucKhoe(t.diemTrungBinh!, isDark).color }))
+      .sort((a, b) => a.diem - b.diem),
+    [baoCaoTram, isDark],
   );
 
   const tooltipStyle = {
@@ -202,32 +284,35 @@ export default function DashboardPage() {
             {tongKe && tongKe.tongThietBi > 0 ? (
               <Row gutter={16} align="middle">
                 <Col xs={24} sm={10}>
-                  <Flex vertical align="flex-start" gap={2}>
-                    {tongKe.diemTrungBinh != null ? (
-                      <>
-                        <Flex align="baseline" gap={8}>
-                          <Text style={{
-                            color: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).color,
-                            fontSize: 44, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace',
-                          }}>
-                            {tongKe.diemTrungBinh.toFixed(1)}
-                          </Text>
-                          <Text style={{ color: dimText, fontSize: 13 }}>/ 10</Text>
-                        </Flex>
-                        <Text style={{ color: dimText, fontSize: 12 }}>CSSK trung bình toàn hệ thống</Text>
-                        <Tag style={{
-                          marginTop: 6,
-                          color: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).color,
-                          background: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).bg,
-                          borderColor: getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).border,
-                        }}>
-                          {getCapDoSucKhoe(tongKe.diemTrungBinh, isDark).label}
-                        </Tag>
-                      </>
-                    ) : (
-                      <Text style={{ color: dimText, fontSize: 15 }}>Chưa có thiết bị nào được tính CSSK</Text>
-                    )}
-                  </Flex>
+                  {/* CSSK trung bình theo TỪNG LOẠI THIẾT BỊ — không gộp thành 1 số toàn hệ thống vì
+                      mỗi loại dùng bộ chỉ tiêu khác nhau và các trạm độc lập với nhau. */}
+                  {tongHopLoai.length > 0 && (
+                    <Flex vertical gap={10} style={{ maxHeight: 170, overflowY: 'auto', paddingRight: 6 }}>
+                      {tongHopLoai.map(l => {
+                        const info = l.diemTrungBinh != null ? getCapDoSucKhoe(l.diemTrungBinh, isDark) : null;
+                        return (
+                          <Flex key={l.iD_LoaiTB} justify="space-between" align="center" gap={8}>
+                            <Flex vertical gap={0} style={{ minWidth: 0 }}>
+                              <Text style={{ color: titleColor, fontSize: 13 }} ellipsis>{l.tenLoaiTB}</Text>
+                              <Text style={{ color: dimText, fontSize: 11 }}>
+                                {l.daKiemTra}/{l.tongThietBi} đã kiểm tra
+                              </Text>
+                            </Flex>
+                            {info ? (
+                              <Tag style={{
+                                margin: 0, fontFamily: 'monospace', flexShrink: 0,
+                                color: info.color, background: info.bg, borderColor: info.border,
+                              }}>
+                                {l.diemTrungBinh!.toFixed(1)}
+                              </Tag>
+                            ) : (
+                              <Text style={{ color: dimText, fontSize: 11, flexShrink: 0 }}>Chưa có</Text>
+                            )}
+                          </Flex>
+                        );
+                      })}
+                    </Flex>
+                  )}
                 </Col>
                 <Col xs={24} sm={14}>
                   <ResponsiveContainer width="100%" height={170}>
@@ -307,8 +392,63 @@ export default function DashboardPage() {
             <Text style={{ color: dimText, fontSize: 11.5, display: 'block', marginTop: 16, textAlign: 'center' }}>
               {baoTri?.tongDangCho ?? 0} lịch bảo trì đang chờ thực hiện
             </Text>
+
+            {tyLeTuanThu != null && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${panelBorder}` }}>
+                <Flex align="center" justify="space-between" style={{ marginBottom: 4 }}>
+                  <Text style={{ color: dimText, fontSize: 11.5 }}>Tỷ lệ tuân thủ tiến độ</Text>
+                  <Text style={{
+                    fontSize: 13, fontWeight: 700, fontFamily: 'monospace',
+                    color: tyLeTuanThu >= 90 ? '#10b981' : tyLeTuanThu >= 70 ? '#f59e0b' : '#ef4444',
+                  }}>
+                    {tyLeTuanThu.toFixed(0)}%
+                  </Text>
+                </Flex>
+                <div style={{ height: 6, borderRadius: 3, background: itemBg, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', width: `${tyLeTuanThu}%`, borderRadius: 3,
+                    background: tyLeTuanThu >= 90 ? '#10b981' : tyLeTuanThu >= 70 ? '#f59e0b' : '#ef4444',
+                  }} />
+                </div>
+              </div>
+            )}
           </Card>
         </Col>
+      </Row>
+
+      {/* ── KPI vận hành nhanh: độ phủ kiểm tra + khối lượng công việc ── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        {[
+          {
+            title: 'Phiếu kiểm tra tháng này', value: tongKe?.tongPhieuThangNay,
+            icon: <FileTextOutlined />, color: '#3b82f6', path: '/ket-qua',
+          },
+          {
+            title: 'Thiết bị chưa kiểm tra', value: tongKe?.thietBiChuaKiemTra,
+            icon: <WarningOutlined />, color: '#f59e0b', path: '/quan-ly/thiet-bi',
+          },
+          {
+            title: 'Tỷ lệ đã kiểm tra',
+            value: tongKe && tongKe.tongThietBi > 0
+              ? `${(((tongKe.tongThietBi - tongKe.thietBiChuaKiemTra) / tongKe.tongThietBi) * 100).toFixed(0)}%`
+              : '—',
+            icon: <PercentageOutlined />, color: '#10b981', path: '/thong-ke',
+          },
+          {
+            title: 'Thiết bị cần chú ý', value: canhBao.length,
+            icon: <HeartOutlined />, color: '#ef4444', path: '/thong-ke',
+          },
+        ].map(k => (
+          <Col xs={12} md={6} key={k.title}>
+            <StatCard
+              title={k.title}
+              value={k.value ?? '—'}
+              icon={k.icon}
+              color={k.color}
+              onClick={() => navigate(k.path)}
+            />
+          </Col>
+        ))}
       </Row>
 
       {/* ── Cảnh báo: thiết bị cần chú ý + bảo trì cần xử lý ── */}
@@ -374,6 +514,11 @@ export default function DashboardPage() {
                             {r.diemHienThi.toFixed(1)}
                           </Tag>
                         </Flex>
+                        {r.khuyenCaoHanhDong && (
+                          <Text style={{ color: '#b45309', fontSize: 11, display: 'block', marginTop: 3 }}>
+                            → {r.khuyenCaoHanhDong.length > 90 ? r.khuyenCaoHanhDong.slice(0, 90) + '…' : r.khuyenCaoHanhDong}
+                          </Text>
+                        )}
                       </div>
                     );
                   })}
@@ -453,26 +598,126 @@ export default function DashboardPage() {
         </Col>
       </Row>
 
-      {/* ── Thiết bị cần chú ý theo trạm điện ── */}
-      {barData.length > 0 && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24}>
-            <Card
-              title="Thiết bị cần chú ý theo trạm điện"
-              style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
-              styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}
-            >
-              <ResponsiveContainer width="100%" height={Math.max(160, barData.length * 40)}>
-                <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fill: dimText, fontSize: 11 }} />
-                  <YAxis type="category" dataKey="tram" width={160} tick={{ fill: titleColor, fontSize: 12 }} />
-                  <RechartsTooltip formatter={v => [`${v} thiết bị`, 'Cần chú ý']} contentStyle={tooltipStyle} />
-                  <Bar dataKey="soLuong" fill="#f97316" radius={[0, 4, 4, 0]} barSize={18} />
-                </BarChart>
+      {/* ── Xu hướng CSSK theo tháng ── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24}>
+          <Card
+            style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            loading={xuHuongLoading}
+            title={
+              <Flex align="center" gap={8}>
+                <span>Xu hướng CSSK trung bình theo tháng</span>
+                {xuHuongDelta != null && (
+                  <Tag color={xuHuongDelta > 0 ? 'success' : xuHuongDelta < 0 ? 'error' : 'default'}>
+                    {xuHuongDelta > 0 ? '▲' : xuHuongDelta < 0 ? '▼' : '='} {Math.abs(xuHuongDelta).toFixed(2)} so với tháng trước
+                  </Tag>
+                )}
+              </Flex>
+            }
+            extra={
+              <Flex align="center" gap={8}>
+                <Select
+                  size="small"
+                  style={{ width: 150 }}
+                  placeholder="Tất cả trạm"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  value={xhIdTram ?? undefined}
+                  onChange={v => setXhIdTram(v ?? null)}
+                  options={xhTrams.map(t => ({ value: t.IDTram, label: t.TenTram }))}
+                />
+                <Select
+                  size="small"
+                  style={{ width: 150 }}
+                  placeholder="Tất cả loại TB"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  value={xhIdLoaiTB ?? undefined}
+                  onChange={v => setXhIdLoaiTB(v ?? null)}
+                  options={xhLoais.map(l => ({ value: l.ID_LoaiThietBi, label: l.TenLoaiTB }))}
+                />
+                <Select
+                  size="small"
+                  style={{ width: 170 }}
+                  placeholder="Tất cả thiết bị"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  value={xhIdThietBi ?? undefined}
+                  onChange={v => setXhIdThietBi(v ?? null)}
+                  options={xhThietBiOptions.map(t => ({ value: t.ID_ThietBi, label: t.TenThietBi }))}
+                  notFoundContent="Không có thiết bị phù hợp"
+                />
+              </Flex>
+            }
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}
+          >
+            {xuHuongData.every(x => x.soPhieu === 0) ? (
+              <Empty description="Chưa có phiếu kiểm tra nào trong giai đoạn này" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={xuHuongData} margin={{ left: -8, right: 16, top: 8, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} vertical={false} />
+                  <XAxis dataKey="thang" tick={{ fill: dimText, fontSize: 11 }} />
+                  <YAxis domain={[0, 10]} tick={{ fill: dimText, fontSize: 11 }} />
+                  <RechartsTooltip
+                    formatter={(v, name) => name === 'diem' ? [`${v} / 10`, 'CSSK trung bình'] : [v, name]}
+                    contentStyle={tooltipStyle}
+                  />
+                  <Line type="monotone" dataKey="diem" stroke="#3b82f6" strokeWidth={2}
+                    dot={{ r: 3, fill: '#3b82f6' }} connectNulls />
+                </LineChart>
               </ResponsiveContainer>
-            </Card>
-          </Col>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* ── Sức khỏe theo trạm điện ── */}
+      {(baoCaoTramData.length > 0 || barData.length > 0) && (
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          {baoCaoTramData.length > 0 && (
+            <Col xs={24} lg={barData.length > 0 ? 12 : 24}>
+              <Card
+                title="CSSK trung bình theo trạm điện"
+                style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
+                styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}
+              >
+                <ResponsiveContainer width="100%" height={Math.max(160, baoCaoTramData.length * 32)}>
+                  <BarChart data={baoCaoTramData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} horizontal={false} />
+                    <XAxis type="number" domain={[0, 10]} tick={{ fill: dimText, fontSize: 11 }} />
+                    <YAxis type="category" dataKey="tram" width={160} tick={{ fill: titleColor, fontSize: 12 }} />
+                    <RechartsTooltip formatter={v => [`${v} / 10`, 'CSSK trung bình']} contentStyle={tooltipStyle} />
+                    <Bar dataKey="diem" radius={[0, 4, 4, 0]} barSize={16}>
+                      {baoCaoTramData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            </Col>
+          )}
+          {barData.length > 0 && (
+            <Col xs={24} lg={baoCaoTramData.length > 0 ? 12 : 24}>
+              <Card
+                title="Thiết bị cần chú ý theo trạm điện"
+                style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
+                styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}
+              >
+                <ResponsiveContainer width="100%" height={Math.max(160, barData.length * 32)}>
+                  <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fill: dimText, fontSize: 11 }} />
+                    <YAxis type="category" dataKey="tram" width={160} tick={{ fill: titleColor, fontSize: 12 }} />
+                    <RechartsTooltip formatter={v => [`${v} thiết bị`, 'Cần chú ý']} contentStyle={tooltipStyle} />
+                    <Bar dataKey="soLuong" fill="#f97316" radius={[0, 4, 4, 0]} barSize={16} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            </Col>
+          )}
         </Row>
       )}
 

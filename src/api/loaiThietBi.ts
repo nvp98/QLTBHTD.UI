@@ -31,17 +31,17 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 
 export const loaiThietBiApi = {
   getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
-    const res = await api.get<LoaiThietBiApiRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<LoaiThietBiApiRaw[] | PagedRaw>(`${BASE}/get-all-loaithietbi${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toLoaiThietBi);
   },
   getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<LoaiThietBi>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-loaithietbi${buildQuery(params)}`);
     return { ...res, items: res.items.map(toLoaiThietBi) };
   },
   getActive: async ()           => (await api.get<LoaiThietBiApiRaw[]>(`${BASE}/active`)).map(toLoaiThietBi),
   getById:   async (id: number) => toLoaiThietBi(await api.get<LoaiThietBiApiRaw>(`${BASE}/${id}`)),
-  create:    async (dto: CreateLoaiThietBiDto) => toLoaiThietBi(await api.post<LoaiThietBiApiRaw>(BASE, dto)),
+  create:    async (dto: CreateLoaiThietBiDto) => toLoaiThietBi(await api.post<LoaiThietBiApiRaw>(`${BASE}/create-loaithietbi`, dto)),
   update:    async (id: number, dto: UpdateLoaiThietBiDto) => toLoaiThietBi(await api.put<LoaiThietBiApiRaw>(`${BASE}/${id}`, dto)),
   delete:    (id: number) => api.delete(`${BASE}/${id}`),
 };

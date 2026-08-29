@@ -53,12 +53,12 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 
 export const thietBiApi = {
   getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
-    const res = await api.get<RawThietBi[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<RawThietBi[] | PagedRaw>(`${BASE}/get-all-thietbi${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(normalizeThietBi);
   },
   getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<ThietBi>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-thietbi${buildQuery(params)}`);
     return { ...res, items: res.items.map(normalizeThietBi) };
   },
   getActive:  async ()           => (await api.get<RawThietBi[]>(`${BASE}/active`)).map(normalizeThietBi),
@@ -66,7 +66,7 @@ export const thietBiApi = {
   getByLoai:  async (id: number) => (await api.get<RawThietBi[]>(`${BASE}/by-loai/${id}`)).map(normalizeThietBi),
   getByNganLo: async (id: number) => (await api.get<RawThietBi[]>(`${BASE}/by-nganlo/${id}`)).map(normalizeThietBi),
   getById:    async (id: number) => normalizeThietBi(await api.get<RawThietBi>(`${BASE}/${id}`)),
-  create:     async (dto: CreateThietBiDto) => normalizeThietBi(await api.post<RawThietBi>(BASE, dto)),
+  create:     async (dto: CreateThietBiDto) => normalizeThietBi(await api.post<RawThietBi>(`${BASE}/create-thietbi`, dto)),
   update:     async (id: number, dto: UpdateThietBiDto) => normalizeThietBi(await api.put<RawThietBi>(`${BASE}/${id}`, dto)),
   delete:     (id: number) => api.delete(`${BASE}/${id}`),
 };

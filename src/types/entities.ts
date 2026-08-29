@@ -591,3 +591,39 @@ export interface NhapPhieuResponse {
   /** Cảnh báo cấu hình (VD nhiều hơn 1 nhóm gốc) khi không tự xác định được nhóm CSSK. */
   CanhBaoTongDiem?: string | null;
 }
+
+// ─── Xác thực & Phân quyền ────────────────────────────────────────────────
+export type MaVaiTro = 'Admin' | 'KySuCauHinh' | 'KyThuatVien' | 'TruongTram' | 'GiamDoc';
+
+export interface VaiTro {
+  ID_VaiTro: number;
+  MaVaiTro: string;
+  TenVaiTro: string;
+  MoTa?: string | null;
+}
+
+export interface NguoiDung {
+  ID_NguoiDung: number;
+  TenDangNhap: string;
+  HoTen: string;
+  Email?: string | null;
+  ID_VaiTro: number;
+  MaVaiTro: string;
+  TenVaiTro: string;
+  ID_Tram?: number | null;
+  TenTram?: string | null;
+  TrangThai: number;
+  NgayTao: string;
+}
+export interface CreateNguoiDungDto {
+  TenDangNhap: string; MatKhau: string; HoTen: string; Email?: string;
+  ID_VaiTro: number; ID_Tram?: number | null;
+}
+export interface UpdateNguoiDungDto {
+  HoTen: string; Email?: string; ID_VaiTro: number; ID_Tram?: number | null; TrangThai: number;
+}
+export interface DoiMatKhauDto   { MatKhauCu: string; MatKhauMoi: string }
+export interface DatLaiMatKhauDto { MatKhauMoi: string }
+
+export interface LoginRequest  { TenDangNhap: string; MatKhau: string }
+export interface LoginResponse { Token: string; NguoiDung: NguoiDung }

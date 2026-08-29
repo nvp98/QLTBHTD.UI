@@ -51,6 +51,29 @@ export interface CanhBaoThietBiDto {
   nguonDiem: 'CSSK' | 'CHI_TIEU';
   /** Tên chỉ tiêu có Sᵢ thấp nhất — chỉ có giá trị khi nguonDiem='CHI_TIEU'. */
   tenChiTieuThapNhat: string | null;
+  /** Khuyến cáo hành động (snapshot) của chỉ tiêu có Sᵢ thấp nhất trong phiếu — biết ngay cần làm gì. */
+  khuyenCaoHanhDong: string | null;
+}
+
+export interface TongHopTheoLoaiDto {
+  iD_LoaiTB: number;
+  tenLoaiTB: string;
+  kyHieu: string | null;
+  tongThietBi: number;
+  daKiemTra: number;
+  diemTrungBinh: number | null;
+  totCount: number;
+  binhThuongCount: number;
+  chuYCount: number;
+  canhBaoCount: number;
+  nguHiemCount: number;
+}
+
+export interface XuHuongThangDto {
+  /** Định dạng "yyyy-MM". */
+  thang: string;
+  diemTrungBinh: number | null;
+  soPhieu: number;
 }
 
 const BASE = '/api/thongke';
@@ -60,5 +83,15 @@ export const thongKeApi = {
   getLichSuThietBi: (idThietBi: number) =>
     api.get<LichSuCSSKDto[]>(`${BASE}/lich-su-thiet-bi/${idThietBi}`),
   getBaoCaoTram: () => api.get<BaoCaoTramItemDto[]>(`${BASE}/bao-cao-tram`),
+  getTongHopTheoLoai: () => api.get<TongHopTheoLoaiDto[]>(`${BASE}/tong-hop-theo-loai`),
   getCanhBao: () => api.get<CanhBaoThietBiDto[]>(`${BASE}/canh-bao`),
+  getXuHuongThang: (
+    soThang = 6, idTram?: number | null, idLoaiTB?: number | null, idThietBi?: number | null,
+  ) => {
+    const params = new URLSearchParams({ soThang: String(soThang) });
+    if (idTram)    params.set('idTram',    String(idTram));
+    if (idLoaiTB)  params.set('idLoaiTB',  String(idLoaiTB));
+    if (idThietBi) params.set('idThietBi', String(idThietBi));
+    return api.get<XuHuongThangDto[]>(`${BASE}/xu-huong-thang?${params.toString()}`);
+  },
 };

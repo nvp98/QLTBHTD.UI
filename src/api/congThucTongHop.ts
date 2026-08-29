@@ -75,7 +75,7 @@ export const congThucTongHopApi = {
     toCongThucTongHop(await api.get<CongThucTongHopRaw>(`${BASE_CT}/${id}`)),
 
   create: async (dto: CreateCongThucTongHopDto) =>
-    toCongThucTongHop(await api.post<CongThucTongHopRaw>(BASE_CT, dto)),
+    toCongThucTongHop(await api.post<CongThucTongHopRaw>(`${BASE_CT}/create-congthuctonghop`, dto)),
 
   update: async (id: number, dto: UpdateCongThucTongHopDto) =>
     toCongThucTongHop(await api.put<CongThucTongHopRaw>(`${BASE_CT}/${id}`, dto)),
@@ -97,7 +97,7 @@ export const congThucBienApi = {
     toCongThucBien(await api.get<CongThucBienRaw>(`${BASE_CB}/${id}`)),
 
   create: async (dto: CreateCongThucBienDto) =>
-    toCongThucBien(await api.post<CongThucBienRaw>(BASE_CB, dto)),
+    toCongThucBien(await api.post<CongThucBienRaw>(`${BASE_CB}/create-congthucbien`, dto)),
 
   update: async (id: number, dto: UpdateCongThucBienDto) =>
     toCongThucBien(await api.put<CongThucBienRaw>(`${BASE_CB}/${id}`, dto)),

@@ -24,10 +24,10 @@ const toThongSo = (r: Raw): ThongSo => ({
 });
 
 export const thongSoApi = {
-  getAll: async () => (await api.get<Raw[]>(BASE)).map(toThongSo),
+  getAll: async () => (await api.get<Raw[]>(`${BASE}/get-all-thongso`)).map(toThongSo),
 
   create: async (dto: CreateThongSoDto) =>
-    toThongSo(await api.post<Raw>(BASE, dto)),
+    toThongSo(await api.post<Raw>(`${BASE}/create-thongso`, dto)),
 
   update: async (id: number, dto: UpdateThongSoDto) =>
     toThongSo(await api.put<Raw>(`${BASE}/${id}`, dto)),

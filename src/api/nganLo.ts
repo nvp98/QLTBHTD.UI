@@ -37,18 +37,18 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 
 export const nganLoApi = {
   getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
-    const res = await api.get<RawNganLo[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<RawNganLo[] | PagedRaw>(`${BASE}/get-all-nganlo${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toNganLo);
   },
   getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<NganLo>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-nganlo${buildQuery(params)}`);
     return { ...res, items: res.items.map(toNganLo) };
   },
   getActive:  async ()           => (await api.get<RawNganLo[]>(`${BASE}/active`)).map(toNganLo),
   getByTram:  async (id: number) => (await api.get<RawNganLo[]>(`${BASE}/by-tram/${id}`)).map(toNganLo),
   getById:    async (id: number) => toNganLo(await api.get<RawNganLo>(`${BASE}/${id}`)),
-  create:     async (dto: CreateNganLoDto) => toNganLo(await api.post<RawNganLo>(BASE, dto)),
+  create:     async (dto: CreateNganLoDto) => toNganLo(await api.post<RawNganLo>(`${BASE}/create-nganlo`, dto)),
   update:     async (id: number, dto: UpdateNganLoDto) => toNganLo(await api.put<RawNganLo>(`${BASE}/${id}`, dto)),
   delete:     (id: number) => api.delete(`${BASE}/${id}`),
 };

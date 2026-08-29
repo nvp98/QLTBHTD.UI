@@ -80,12 +80,12 @@ export const lichBaoTriApi = {
   getPaged: (params?: {
     search?: string; trangThai?: string; idTram?: number;
     tuNgay?: string; denNgay?: string; page?: number; pageSize?: number;
-  }) => api.get<PagedResult<LichBaoTri>>(`${BASE}${buildQuery(params)}`),
+  }) => api.get<PagedResult<LichBaoTri>>(`${BASE}/get-all-lichbaotri${buildQuery(params)}`),
 
   getById:       (id: number)         => api.get<LichBaoTri>(`${BASE}/${id}`),
   getByThietBi:  (idThietBi: number)  => api.get<LichBaoTri[]>(`${BASE}/thiet-bi/${idThietBi}`),
   getThongKe:    ()                   => api.get<ThongKeLichBaoTriDto>(`${BASE}/thong-ke`),
-  create:        (dto: CreateLichBaoTriDto) => api.post<LichBaoTri>(BASE, dto),
+  create:        (dto: CreateLichBaoTriDto) => api.post<LichBaoTri>(`${BASE}/create-lichbaotri`, dto),
   update:        (id: number, dto: UpdateLichBaoTriDto) => api.put<LichBaoTri>(`${BASE}/${id}`, dto),
   delete:        (id: number)         => api.delete(`${BASE}/${id}`),
   hoanThanh:     (id: number, dto: HoanThanhLichBaoTriDto) => api.post<LichBaoTri>(`${BASE}/${id}/hoan-thanh`, dto),

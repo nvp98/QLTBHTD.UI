@@ -31,7 +31,7 @@ export const chiTieuRuleApi = {
     toRule(await api.get<RawRule>(`${BASE}/${id}`)),
 
   create: async (dto: CreateChiTieuRuleDto) =>
-    toRule(await api.post<RawRule>(BASE, dto)),
+    toRule(await api.post<RawRule>(`${BASE}/create-chitieurule`, dto)),
 
   update: async (id: number, dto: UpdateChiTieuRuleDto) =>
     toRule(await api.put<RawRule>(`${BASE}/${id}`, dto)),

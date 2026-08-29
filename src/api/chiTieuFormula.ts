@@ -47,7 +47,7 @@ export const chiTieuFormulaApi = {
   getByChiTieu: async (id: number) =>
     (await api.get<RawFormula[]>(`${BASE}/by-chitieu/${id}`)).map(toFormula),
   getById: async (id: number) => toFormula(await api.get<RawFormula>(`${BASE}/${id}`)),
-  create: async (dto: CreateChiTieuFormulaDto) => toFormula(await api.post<RawFormula>(BASE, dto)),
+  create: async (dto: CreateChiTieuFormulaDto) => toFormula(await api.post<RawFormula>(`${BASE}/create-chitieuformula`, dto)),
   update: async (id: number, dto: UpdateChiTieuFormulaDto) => toFormula(await api.put<RawFormula>(`${BASE}/${id}`, dto)),
   delete: (id: number) => api.delete(`${BASE}/${id}`),
 };
@@ -56,7 +56,7 @@ export const chiTieuFormulaThamSoApi = {
   getByFormula: async (id: number) =>
     (await api.get<RawThamSo[]>(`${BASE_THAMSO}/by-formula/${id}`)).map(toThamSo),
   getById: async (id: number) => toThamSo(await api.get<RawThamSo>(`${BASE_THAMSO}/${id}`)),
-  create: async (dto: CreateChiTieuFormulaThamSoDto) => toThamSo(await api.post<RawThamSo>(BASE_THAMSO, dto)),
+  create: async (dto: CreateChiTieuFormulaThamSoDto) => toThamSo(await api.post<RawThamSo>(`${BASE_THAMSO}/create-chitieuformulathamso`, dto)),
   update: async (id: number, dto: UpdateChiTieuFormulaThamSoDto) => toThamSo(await api.put<RawThamSo>(`${BASE_THAMSO}/${id}`, dto)),
   delete: (id: number) => api.delete(`${BASE_THAMSO}/${id}`),
 };

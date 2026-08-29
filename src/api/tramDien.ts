@@ -37,18 +37,18 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 
 export const tramDienApi = {
   getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
-    const res = await api.get<TramDienApiRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<TramDienApiRaw[] | PagedRaw>(`${BASE}/get-all-tramdien${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toTramDien);
   },
   getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<TramDien>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-tramdien${buildQuery(params)}`);
     return { ...res, items: res.items.map(toTramDien) };
   },
   getActive:   async ()           => (await api.get<TramDienApiRaw[]>(`${BASE}/active`)).map(toTramDien),
   getByKhuVuc: async (id: number) => (await api.get<TramDienApiRaw[]>(`${BASE}/by-khuvuc/${id}`)).map(toTramDien),
   getById:     async (id: number) => toTramDien(await api.get<TramDienApiRaw>(`${BASE}/${id}`)),
-  create:      async (dto: CreateTramDienDto) => toTramDien(await api.post<TramDienApiRaw>(BASE, dto)),
+  create:      async (dto: CreateTramDienDto) => toTramDien(await api.post<TramDienApiRaw>(`${BASE}/create-tramdien`, dto)),
   update:      async (id: number, dto: UpdateTramDienDto) => toTramDien(await api.put<TramDienApiRaw>(`${BASE}/${id}`, dto)),
   delete:      (id: number) => api.delete(`${BASE}/${id}`),
 };

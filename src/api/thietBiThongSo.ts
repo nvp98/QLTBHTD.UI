@@ -49,7 +49,7 @@ export const thietBiThongSoApi = {
     (await api.get<RawUsage[]>(`${BASE}/by-thongso/${idThongSo}`)).map(toUsage),
 
   create: async (dto: CreateThietBiThongSoDto) =>
-    toThongSo(await api.post<Raw>(BASE, dto)),
+    toThongSo(await api.post<Raw>(`${BASE}/create-thietbithongso`, dto)),
 
   update: async (id: number, dto: UpdateThietBiThongSoDto) =>
     toThongSo(await api.put<Raw>(`${BASE}/${id}`, dto)),

@@ -33,7 +33,7 @@ export const chiTieuInputApi = {
     toInput(await api.get<RawInput>(`${BASE}/${id}`)),
 
   create: async (dto: CreateChiTieuInputDto) =>
-    toInput(await api.post<RawInput>(BASE, dto)),
+    toInput(await api.post<RawInput>(`${BASE}/create-chitieuinput`, dto)),
 
   update: async (id: number, dto: UpdateChiTieuInputDto) =>
     toInput(await api.put<RawInput>(`${BASE}/${id}`, dto)),

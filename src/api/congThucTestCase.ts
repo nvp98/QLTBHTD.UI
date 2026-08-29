@@ -34,7 +34,7 @@ export const congThucTestCaseApi = {
     (await api.get<Raw[]>(`${BASE}/by-congthuc/${idCongThuc}`)).map(toTestCase),
 
   create: async (dto: CreateCongThucTestCaseDto) =>
-    toTestCase(await api.post<Raw>(BASE, dto)),
+    toTestCase(await api.post<Raw>(`${BASE}/create-congthuctestcase`, dto)),
 
   update: async (id: number, dto: UpdateCongThucTestCaseDto) =>
     toTestCase(await api.put<Raw>(`${BASE}/${id}`, dto)),

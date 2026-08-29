@@ -1,5 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
+import RequireAuth from '../auth/RequireAuth';
+
+// Xác thực
+import LoginPage from '../pages/Auth/LoginPage';
 
 // Tổng quan
 import DashboardPage from '../pages/DashboardPage';
@@ -37,9 +41,13 @@ import LichBaoTriPage from '../pages/BaoTri/LichBaoTriPage';
 // Thống kê
 import ThongKePage from '../pages/ThongKe/ThongKePage';
 
+// Quản trị
+import NguoiDungPage from '../pages/QuanTri/NguoiDungPage';
+
 const router = createBrowserRouter([
+  { path: 'login', element: <LoginPage /> },
   {
-    element: <MainLayout />,
+    element: <RequireAuth><MainLayout /></RequireAuth>,
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
 
@@ -77,6 +85,9 @@ const router = createBrowserRouter([
       { path: 'bao-tri/lich', element: <LichBaoTriPage /> },
 
       { path: 'thong-ke',     element: <ThongKePage /> },
+
+      // ── Quản trị ──────────────────────────────────────────────────────────
+      { path: 'quan-tri/nguoi-dung', element: <NguoiDungPage /> },
     ],
   },
 ]);

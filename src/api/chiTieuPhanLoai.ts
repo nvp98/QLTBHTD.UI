@@ -58,7 +58,7 @@ export const chiTieuPhanLoaiApi = {
     toPhanLoai(await api.get<RawPhanLoai>(`${BASE}/${id}`)),
 
   create: async (dto: CreateChiTieuPhanLoaiNguongDto) =>
-    toPhanLoai(await api.post<RawPhanLoai>(BASE, dto)),
+    toPhanLoai(await api.post<RawPhanLoai>(`${BASE}/create-chitieuphanloai`, dto)),
 
   update: async (id: number, dto: UpdateChiTieuPhanLoaiNguongDto) =>
     toPhanLoai(await api.put<RawPhanLoai>(`${BASE}/${id}`, dto)),

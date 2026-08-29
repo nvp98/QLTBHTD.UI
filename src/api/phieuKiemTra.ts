@@ -153,12 +153,12 @@ function buildQuery(params?: PhieuKiemTraFilterParams & { page?: number; pageSiz
 
 export const phieuKiemTraApi = {
   getAll: async (params?: PhieuKiemTraFilterParams & { page?: number; pageSize?: number }) => {
-    const res = await api.get<PhieuKiemTraRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PhieuKiemTraRaw[] | PagedRaw>(`${BASE}/get-all-phieukiemtra${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toPhieu);
   },
   getPaged: async (params?: PhieuKiemTraFilterParams & { page?: number; pageSize?: number }): Promise<PagedResult<PhieuKiemTra>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-phieukiemtra${buildQuery(params)}`);
     return { ...res, items: res.items.map(toPhieu) };
   },
   /** Phiếu mới nhất của mỗi thiết bị, trong tập đã lọc — tính sẵn ở BE (GROUP BY + MAX(ID_Phieu)). */
@@ -174,7 +174,7 @@ export const phieuKiemTraApi = {
   getDetail: async (id: number) => toPhieuDetail(await api.get<PhieuKiemTraDetailRaw>(`${BASE}/${id}/detail`)),
   getLichSuChiTieu: async (idThietBi: number, idChiTieu: number) =>
     (await api.get<LichSuChiTieuRaw[]>(`${BASE}/lich-su-chi-tieu/${idThietBi}/${idChiTieu}`)).map(toLichSuChiTieu),
-  create:    async (dto: CreatePhieuKiemTraDto) => toPhieu(await api.post<PhieuKiemTraRaw>(BASE, dto)),
+  create:    async (dto: CreatePhieuKiemTraDto) => toPhieu(await api.post<PhieuKiemTraRaw>(`${BASE}/create-phieukiemtra`, dto)),
   update:    async (id: number, dto: UpdatePhieuKiemTraDto) => toPhieu(await api.put<PhieuKiemTraRaw>(`${BASE}/${id}`, dto)),
   delete:    (id: number) => api.delete(`${BASE}/${id}`),
 };

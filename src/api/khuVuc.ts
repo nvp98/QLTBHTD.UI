@@ -29,17 +29,17 @@ function buildQuery(params?: { search?: string; page?: number; pageSize?: number
 
 export const khuVucApi = {
   getAll: async (params?: { search?: string; page?: number; pageSize?: number }) => {
-    const res = await api.get<KhuVucApiRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<KhuVucApiRaw[] | PagedRaw>(`${BASE}/get-all-khuvuc${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toKhuVuc);
   },
   getPaged: async (params?: { search?: string; page?: number; pageSize?: number }): Promise<PagedResult<KhuVuc>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-khuvuc${buildQuery(params)}`);
     return { ...res, items: res.items.map(toKhuVuc) };
   },
   getActive: async ()           => (await api.get<KhuVucApiRaw[]>(`${BASE}/active`)).map(toKhuVuc),
   getById:   async (id: number) => toKhuVuc(await api.get<KhuVucApiRaw>(`${BASE}/${id}`)),
-  create:    async (dto: CreateKhuVucDto) => toKhuVuc(await api.post<KhuVucApiRaw>(BASE, dto)),
+  create:    async (dto: CreateKhuVucDto) => toKhuVuc(await api.post<KhuVucApiRaw>(`${BASE}/create-khuvuc`, dto)),
   update:    async (id: number, dto: UpdateKhuVucDto) => toKhuVuc(await api.put<KhuVucApiRaw>(`${BASE}/${id}`, dto)),
   delete:    (id: number) => api.delete(`${BASE}/${id}`),
 };

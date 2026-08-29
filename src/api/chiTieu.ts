@@ -45,18 +45,18 @@ function buildQuery(params?: QueryParams): string {
 
 export const chiTieuApi = {
   getAll: async (params?: QueryParams) => {
-    const res = await api.get<ChiTieuApiRaw[] | PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<ChiTieuApiRaw[] | PagedRaw>(`${BASE}/get-all-chitieu${buildQuery(params)}`);
     const items = Array.isArray(res) ? res : res.items;
     return items.map(toChiTieu);
   },
   getPaged: async (params?: QueryParams): Promise<PagedResult<ChiTieu>> => {
-    const res = await api.get<PagedRaw>(`${BASE}${buildQuery(params)}`);
+    const res = await api.get<PagedRaw>(`${BASE}/get-all-chitieu${buildQuery(params)}`);
     return { ...res, items: res.items.map(toChiTieu) };
   },
   getActive:  async ()           => (await api.get<ChiTieuApiRaw[]>(`${BASE}/active`)).map(toChiTieu),
   getByNhom:  async (id: number) => (await api.get<ChiTieuApiRaw[]>(`${BASE}/by-nhom/${id}`)).map(toChiTieu),
   getById:    async (id: number) => toChiTieu(await api.get<ChiTieuApiRaw>(`${BASE}/${id}`)),
-  create:     async (dto: CreateChiTieuDto) => toChiTieu(await api.post<ChiTieuApiRaw>(BASE, dto)),
+  create:     async (dto: CreateChiTieuDto) => toChiTieu(await api.post<ChiTieuApiRaw>(`${BASE}/create-chitieu`, dto)),
   update:     async (id: number, dto: UpdateChiTieuDto) => toChiTieu(await api.put<ChiTieuApiRaw>(`${BASE}/${id}`, dto)),
   delete:     (id: number) => api.delete(`${BASE}/${id}`),
 };
