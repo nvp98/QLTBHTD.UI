@@ -373,7 +373,7 @@ export default function CongThucTongHopPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Title level={3}>Cấu hình công thức tổng hợp</Title>
 
       {vongLap?.CoVongLap && (
@@ -412,10 +412,11 @@ export default function CongThucTongHopPage() {
         </Space>
       </Card>
 
-      <Row gutter={16}>
-        <Col span={currentCongThuc ? 12 : 24}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={currentCongThuc ? 12 : 24}>
           <Card title="Danh sách công thức" loading={loading}>
             <Table
+              scroll={{ x: 'max-content' }}
               rowKey="ID_CongThuc"
               dataSource={congThucs}
               columns={columnsCt}
@@ -427,7 +428,7 @@ export default function CongThucTongHopPage() {
         </Col>
 
         {currentCongThuc && (
-          <Col span={12}>
+          <Col xs={24} lg={12}>
             <Card
               title={`Biến trong công thức v${currentCongThuc.PhienBan}`}
               extra={
@@ -440,6 +441,7 @@ export default function CongThucTongHopPage() {
                 {currentCongThuc.BieuThuc}
               </Text>
               <Table
+                scroll={{ x: 'max-content' }}
                 rowKey="ID_Bien"
                 dataSource={currentCongThuc.DanhSachBien}
                 columns={columnsBien}
@@ -815,6 +817,7 @@ function TestCasePanel({ congThuc }: { congThuc: CongThucTongHop }) {
         />
       )}
       <Table<CongThucTestCase>
+        scroll={{ x: 'max-content' }}
         dataSource={data} columns={cols} rowKey="ID_TestCase"
         loading={loading} size="small" pagination={false}
         locale={{ emptyText: `Chưa có test case — dùng để chạy lại (regression) mỗi khi sửa công thức` }}

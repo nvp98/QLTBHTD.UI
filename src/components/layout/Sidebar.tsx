@@ -53,7 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'CẤU HÌNH CBM',
     items: [
-     
+
       {
         key: '/cau-hinh/cay-chi-tieu',
         label: 'Cây chỉ tiêu',
@@ -110,12 +110,13 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-interface SidebarProps {
+interface SidebarContentProps {
   collapsed: boolean;
-  onCollapse: (c: boolean) => void;
+  onNavigate?: () => void;
 }
 
-export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarProps) {
+/** Nội dung sidebar dùng chung — hiển thị bên trong <Sider> (desktop) hoặc <Drawer> (mobile). */
+export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { mode } = useThemeMode();
@@ -129,6 +130,11 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
     .map(g => ({ ...g, items: g.items.filter(item => canViewPath(role, item.key)) }))
     .filter(g => g.items.length > 0);
 
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    onNavigate?.();
+  };
+
   const menuItems: MenuProps['items'] = visibleGroups.map(({ title, items }) => ({
     type: 'group' as const,
     label: collapsed ? null : (
@@ -140,7 +146,7 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
       key: item.key,
       icon: <span style={{ fontSize: 15 }}>{item.icon}</span>,
       label: collapsed ? null : item.label,
-      onClick: () => navigate(item.key),
+      onClick: () => handleNavigate(item.key),
     })),
   }));
 
@@ -152,6 +158,88 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
     if (key === 'doi-mat-khau') setDoiMatKhauOpen(true);
     else if (key === 'dang-xuat') logout();
   };
+
+  return (
+    <Flex vertical style={{ height: '100%' }}>
+
+      {/* ── Logo ── */}
+      <Flex align="center" justify="center" style={{
+        padding: collapsed ? '18px 0' : '14px 20px',
+        borderBottom: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
+        flexShrink: 0, minHeight: 80,
+        transition: 'padding 0.25s ease',
+      }}>
+        {collapsed ? (
+          <Tooltip title="CBM Platform" placement="right">
+            <img src={logoSmall} alt="CBM" onClick={() => handleNavigate('/dashboard')}
+              style={{ width: 52, height: 52, objectFit: 'contain', cursor: 'pointer' }} />
+          </Tooltip>
+        ) : (
+          <img src={logoFull} alt="CBM Platform" onClick={() => handleNavigate('/dashboard')}
+            style={{ width: 200, height: 50, objectFit: 'contain', cursor: 'pointer' }} />
+        )}
+      </Flex>
+
+      {/* ── Nav menu ── */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        <Menu
+          mode="inline"
+          selectedKeys={[pathname]}
+          openKeys={openKeys}
+          onOpenChange={setOpenKeys}
+          items={menuItems}
+          inlineCollapsed={collapsed}
+          style={{ background: 'transparent', border: 'none', padding: '8px 0' }}
+        />
+      </div>
+
+      {/* ── User ── */}
+      <Dropdown
+        menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
+        placement="topRight"
+        trigger={['click']}
+      >
+        <Flex
+          align="center"
+          justify={collapsed ? 'center' : 'flex-start'}
+          gap={collapsed ? 0 : 10}
+          style={{
+            padding: collapsed ? '14px 0' : '12px 16px',
+            borderTop: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
+            flexShrink: 0,
+            transition: 'padding 0.25s ease',
+            cursor: 'pointer',
+          }}
+        >
+          <Tooltip title={collapsed ? (user?.HoTen ?? '') : ''} placement="right">
+            <Avatar style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', flexShrink: 0, cursor: 'default' }}>
+              {(user?.HoTen ?? '?').trim().charAt(0).toUpperCase()}
+            </Avatar>
+          </Tooltip>
+          {!collapsed && (
+            <Flex vertical gap={0} style={{ overflow: 'hidden' }}>
+              <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 13, whiteSpace: 'nowrap' }}>
+                {user?.HoTen ?? 'Chưa đăng nhập'}
+              </Text>
+              <Text style={{ color: '#6b7280', fontSize: 11 }}>{user?.TenVaiTro ?? ''}</Text>
+            </Flex>
+          )}
+        </Flex>
+      </Dropdown>
+
+      <DoiMatKhauModal open={doiMatKhauOpen} onClose={() => setDoiMatKhauOpen(false)} />
+    </Flex>
+  );
+}
+
+interface SidebarProps {
+  collapsed: boolean;
+  onCollapse: (c: boolean) => void;
+}
+
+export default function Sidebar({ collapsed }: SidebarProps) {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
 
   return (
     <Sider
@@ -168,76 +256,7 @@ export default function Sidebar({ collapsed, onCollapse: _onCollapse }: SidebarP
         transition: 'width 0.25s ease',
       }}
     >
-      <Flex vertical style={{ height: '100%' }}>
-
-        {/* ── Logo ── */}
-        <Flex align="center" justify="center" style={{
-          padding: collapsed ? '18px 0' : '14px 20px',
-          borderBottom: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
-          flexShrink: 0, minHeight: 80,
-          transition: 'padding 0.25s ease',
-        }}>
-          {collapsed ? (
-            <Tooltip title="CBM Platform" placement="right">
-              <img src={logoSmall} alt="CBM" onClick={() => navigate('/dashboard')}
-                style={{ width: 52, height: 52, objectFit: 'contain', cursor: 'pointer' }} />
-            </Tooltip>
-          ) : (
-            <img src={logoFull} alt="CBM Platform" onClick={() => navigate('/dashboard')}
-              style={{ width: 200, height: 50, objectFit: 'contain', cursor: 'pointer' }} />
-          )}
-        </Flex>
-
-        {/* ── Nav menu ── */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          <Menu
-            mode="inline"
-            selectedKeys={[pathname]}
-            openKeys={openKeys}
-            onOpenChange={setOpenKeys}
-            items={menuItems}
-            inlineCollapsed={collapsed}
-            style={{ background: 'transparent', border: 'none', padding: '8px 0' }}
-          />
-        </div>
-
-        {/* ── User ── */}
-        <Dropdown
-          menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
-          placement="topRight"
-          trigger={['click']}
-        >
-          <Flex
-            align="center"
-            justify={collapsed ? 'center' : 'flex-start'}
-            gap={collapsed ? 0 : 10}
-            style={{
-              padding: collapsed ? '14px 0' : '12px 16px',
-              borderTop: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
-              flexShrink: 0,
-              transition: 'padding 0.25s ease',
-              cursor: 'pointer',
-            }}
-          >
-            <Tooltip title={collapsed ? (user?.HoTen ?? '') : ''} placement="right">
-              <Avatar style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', flexShrink: 0, cursor: 'default' }}>
-                {(user?.HoTen ?? '?').trim().charAt(0).toUpperCase()}
-              </Avatar>
-            </Tooltip>
-            {!collapsed && (
-              <Flex vertical gap={0} style={{ overflow: 'hidden' }}>
-                <Text strong style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 13, whiteSpace: 'nowrap' }}>
-                  {user?.HoTen ?? 'Chưa đăng nhập'}
-                </Text>
-                <Text style={{ color: '#6b7280', fontSize: 11 }}>{user?.TenVaiTro ?? ''}</Text>
-              </Flex>
-            )}
-          </Flex>
-        </Dropdown>
-
-      </Flex>
-
-      <DoiMatKhauModal open={doiMatKhauOpen} onClose={() => setDoiMatKhauOpen(false)} />
+      <SidebarContent collapsed={collapsed} />
     </Sider>
   );
 }

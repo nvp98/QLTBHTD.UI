@@ -206,7 +206,7 @@ export default function NguoiDungPage() {
 
       <Card style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}` }}
         styles={{ body: { padding: '16px 20px' } }}>
-        <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+        <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
           <Input.Search
             placeholder="Tìm tên đăng nhập hoặc họ tên..."
             value={search}
@@ -221,6 +221,7 @@ export default function NguoiDungPage() {
         </Space>
 
         <Table<NguoiDung>
+          scroll={{ x: 'max-content' }}
           dataSource={filtered}
           columns={columns}
           rowKey="ID_NguoiDung"

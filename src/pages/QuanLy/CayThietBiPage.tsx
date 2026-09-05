@@ -505,8 +505,8 @@ export default function CayThietBiPage() {
         })}
       </Row>
 
-      <Row gutter={16}>
-        <Col span={selection ? 14 : 24}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={selection ? 14 : 24}>
           <Card
             style={{ background: isDark ? '#0e2c4a' : '#ffffff', border: `1px solid ${borderColor}` }}
             styles={{ body: { padding: '16px 20px' } }}
@@ -602,7 +602,7 @@ export default function CayThietBiPage() {
         </Col>
 
         {selection && (
-          <Col span={10}>
+          <Col xs={24} lg={10}>
             <Card
               title={
                 selection.type === 'kv' ? `Khu vực: ${selection.record.TenKhuVuc}`

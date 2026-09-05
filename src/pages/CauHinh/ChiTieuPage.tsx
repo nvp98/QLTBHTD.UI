@@ -644,6 +644,7 @@ function NguongPanel({
       )}
 
       <Table<Nguong>
+        scroll={{ x: 'max-content' }}
         dataSource={data} columns={cols} rowKey="ID_Nguong"
         loading={loading} size="small" pagination={false}
         locale={{ emptyText: 'Chưa có ngưỡng — nhấn "Thêm ngưỡng" để tạo' }}
@@ -880,6 +881,7 @@ function InputPanel({
         </Button>
       </Flex>
       <Table<ChiTieuInput>
+        scroll={{ x: 'max-content' }}
         dataSource={data} columns={cols} rowKey="ID_Input"
         loading={loading} size="small" pagination={false}
         locale={{ emptyText: 'Chưa có biến — các biến này dùng làm tên biến trong biểu thức NCalc' }}
@@ -1027,6 +1029,7 @@ function ThamSoManager({
       open onCancel={onClose} footer={null} width={800} destroyOnHidden
     >
       <Table<ChiTieuFormulaThamSo>
+        scroll={{ x: 'max-content' }}
         dataSource={data} columns={cols} rowKey="ID_ThamSo"
         loading={loading} size="small" pagination={false}
         locale={{ emptyText: 'Chưa có tham số' }} style={{ marginBottom: 14 }}
@@ -1205,6 +1208,7 @@ function FormulaPanel({
         Formula chỉ tính giá trị trung gian (không chấm điểm) — vd DT1 = T_tren − T_duoi. Kết quả tra ngưỡng theo MaKetQua ở panel "Ngưỡng điểm" bên dưới.
       </Text>
       <Table<ChiTieuFormula>
+        scroll={{ x: 'max-content' }}
         dataSource={data} columns={cols} rowKey="ID_Formula"
         loading={loading} size="small" pagination={false}
         locale={{ emptyText: 'Chưa có formula — chỉ tiêu này tra ngưỡng trực tiếp trên giá trị nhập' }}
@@ -1462,6 +1466,7 @@ function RulePanel({
       </Flex>
 
       <Table<ChiTieuRule>
+        scroll={{ x: 'max-content' }}
         dataSource={data} columns={cols} rowKey="ID_Rule"
         loading={loading} size="small" pagination={false}
         locale={{ emptyText: 'Chưa có quy tắc — nhấn "Thêm quy tắc"' }}
@@ -1673,6 +1678,7 @@ function PhanLoaiPanel({ chiTieuId, chiTieuName }: { chiTieuId: number; chiTieuN
         LF = Σ Trọng số các tháng khớp mức / Số tháng đo được. Kết quả LF sau đó được tra trong bảng "Ngưỡng điểm" bên dưới để ra Điểm Sᵢ cuối cùng.
       </Text>
       <Table<ChiTieuPhanLoaiNguong>
+        scroll={{ x: 'max-content' }}
         dataSource={data} columns={cols} rowKey="ID_PhanLoai"
         loading={loading} size="small" pagination={false}
         locale={{ emptyText: 'Chưa có mức nào — nhấn "Thêm mức" (VD: N0..N4)' }}
@@ -2203,6 +2209,7 @@ export default function ChiTieuPage() {
         </Space>
 
         <Table<ChiTieu>
+          scroll={{ x: 'max-content' }}
           dataSource={rows} columns={columns} rowKey="ID_ChiTieu"
           loading={loading} size="small"
           pagination={{

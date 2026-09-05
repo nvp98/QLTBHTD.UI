@@ -205,15 +205,15 @@ export default function LichSuPage() {
   const tenThietBi = thietBis.find(t => t.ID_ThietBi === selectedThietBi)?.TenThietBi;
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Title level={3}><HistoryOutlined style={{ marginRight: 8 }} />Lịch sử đo & kết quả tính toán</Title>
       <Text style={{ color: '#6b7280', display: 'block', marginBottom: 16 }}>
         Xem chi tiết lịch sử dữ liệu đo và điểm số đã tính của từng nhóm chỉ tiêu, theo từng loại thiết bị và từng thiết bị, qua các lần kiểm tra trước đây.
       </Text>
 
       <Card style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col span={7}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={7}>
             <Text strong style={{ display: 'block', marginBottom: 6 }}>Loại thiết bị</Text>
             <Select
               style={{ width: '100%' }}
@@ -223,7 +223,7 @@ export default function LichSuPage() {
               options={loais.map(l => ({ value: l.ID_LoaiThietBi, label: l.TenLoaiTB }))}
             />
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} lg={8}>
             <Text strong style={{ display: 'block', marginBottom: 6 }}>Thiết bị</Text>
             <Select
               style={{ width: '100%' }}
@@ -237,7 +237,7 @@ export default function LichSuPage() {
               notFoundContent={selectedLoai ? 'Chưa có thiết bị nào' : undefined}
             />
           </Col>
-          <Col span={9}>
+          <Col xs={24} lg={9}>
             <Text strong style={{ display: 'block', marginBottom: 6 }}>Nhóm chỉ tiêu (tùy chọn)</Text>
             <Select
               style={{ width: '100%' }}

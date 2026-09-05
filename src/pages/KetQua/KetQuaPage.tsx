@@ -163,7 +163,7 @@ export default function KetQuaPage() {
             size="small"
             showInfo={false}
             strokeColor={getCapDoSucKhoe(v, isDark).color}
-            trailColor={isDark ? '#1e4a72' : '#e5e7eb'}
+            railColor={isDark ? '#1e4a72' : '#e5e7eb'}
             style={{ width: 80 }}
           />
           <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontFamily: 'monospace', fontSize: 13 }}>
@@ -262,6 +262,7 @@ export default function KetQuaPage() {
           )
         ) : (
           <Table
+            scroll={{ x: 'max-content' }}
             dataSource={displayedPhieus}
             columns={columns}
             rowKey="ID_Phieu"

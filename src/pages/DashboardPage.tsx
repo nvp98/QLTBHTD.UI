@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Row, Col, Card, Typography, Flex, Spin, Tag, Empty, Collapse, Select, message } from 'antd';
+import { Row, Col, Card, Typography, Flex, Spin, Tag, Empty, Select, message, notification, Grid } from 'antd';
 import {
   EnvironmentOutlined, ThunderboltOutlined, ApartmentOutlined,
   SettingOutlined, BulbOutlined, UnorderedListOutlined,
@@ -23,6 +23,7 @@ import { chiTieuApi }     from '../api/chiTieu';
 import { thongKeApi } from '../api/thongKe';
 import type { ThongKeTongHopDto, CanhBaoThietBiDto, XuHuongThangDto, TongHopTheoLoaiDto, BaoCaoTramItemDto } from '../api/thongKe';
 import { lichBaoTriApi } from '../api/lichBaoTri';
+import { getNotificationConnection } from '../services/signalr';
 import type { ThongKeLichBaoTriDto } from '../api/lichBaoTri';
 import type { TramDien, LoaiThietBi, ThietBi } from '../types/entities';
 import dayjs from 'dayjs';
@@ -57,19 +58,15 @@ function groupCanhBaoTheoTram(items: CanhBaoThietBiDto[]): { tenTram: string; it
   return order.map(tenTram => ({ tenTram, items: map.get(tenTram)! }));
 }
 
-const WORKFLOW_STEPS = [
-  { step: '01', title: 'Cấu hình loại TB',    desc: 'Thêm MBA, MC, DCL, CSV...',          path: '/quan-ly/loai-thiet-bi',  color: '#6366f1' },
-  { step: '02', title: 'Tạo nhóm chỉ tiêu',  desc: 'Phân nhóm chỉ tiêu cho từng loại TB', path: '/cau-hinh/nhom-chi-tieu',  color: '#3b82f6' },
-  { step: '03', title: 'Thêm chỉ tiêu',       desc: 'Định nghĩa chỉ tiêu & ngưỡng điểm',  path: '/cau-hinh/chi-tieu',       color: '#0ea5e9' },
-  { step: '04', title: 'Thêm khu vực & trạm', desc: 'Khai báo vị trí địa lý thiết bị',    path: '/quan-ly/khu-vuc',         color: '#10b981' },
-  { step: '05', title: 'Đăng ký thiết bị',    desc: 'Thêm thiết bị vào trạm',              path: '/quan-ly/thiet-bi',        color: '#f59e0b' },
-  { step: '06', title: 'Nhập liệu & Tính CSSK',desc: 'Tạo phiếu kiểm tra, tính điểm CBM', path: '/nhap-lieu',               color: '#f97316' },
-];
-
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.sm;
+  const isTablet = !!screens.sm && !screens.lg;
+  const pagePadding = isMobile ? 8 : isTablet ? 12 : 16;
+  const cardBodyPadding = isMobile ? 12 : 20;
   const [stats, setStats]     = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [tongKe, setTongKe]       = useState<ThongKeTongHopDto | null>(null);
@@ -177,6 +174,32 @@ export default function DashboardPage() {
   useEffect(() => { load(); loadSucKhoe(); loadBaoTri(); }, [load, loadSucKhoe, loadBaoTri]);
   useEffect(() => { loadXuHuong(); }, [loadXuHuong]);
 
+  // Realtime: khi có phiếu kiểm tra mới (bất kỳ ai tạo), toast ngay nếu cấp độ xấu rồi đồng bộ
+  // lại số liệu Dashboard từ BE (tránh tự tính lại CHI_TIEU/CHI_TIEU_RIENG ở FE, dễ lệch logic).
+  useEffect(() => {
+    const conn = getNotificationConnection();
+    if (!conn) return;
+
+    const handler = (payload: {
+      TenThietBi: string; TenTram: string;
+      TongDiem_Soqt: number | null; CapDoCanhBao: string | null;
+    }) => {
+      if (payload.CapDoCanhBao === 'Cảnh báo' || payload.CapDoCanhBao === 'Nguy hiểm') {
+        notification.warning({
+          message: `Cảnh báo CSSK: ${payload.TenThietBi} (${payload.TenTram})`,
+          description: `Điểm CSSK: ${payload.TongDiem_Soqt ?? '-'} — ${payload.CapDoCanhBao}`,
+          placement: 'topRight',
+        });
+      }
+      loadSucKhoe();
+      loadBaoTri();
+      loadXuHuong();
+    };
+
+    conn.on('PhieuKiemTraCreated', handler);
+    return () => { conn.off('PhieuKiemTraCreated', handler); };
+  }, [loadSucKhoe, loadBaoTri, loadXuHuong]);
+
   const panelBg = isDark ? '#0e2c4a' : '#ffffff';
   const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
   const itemBg = isDark ? '#123a5e' : '#f9fafb';
@@ -243,32 +266,63 @@ export default function DashboardPage() {
     fontSize: 12, color: titleColor,
   };
 
+  const trendFilters = (
+    <Flex
+      align="center"
+      justify="flex-end"
+      wrap="wrap"
+      gap={8}
+      style={{ width: '100%', maxWidth: isMobile ? '100%' : 500 }}
+    >
+      <Select size="small" style={{ width: isMobile ? '100%' : 150, minWidth: 0 }}
+        placeholder="Tất cả trạm" allowClear showSearch optionFilterProp="label"
+        value={xhIdTram ?? undefined} onChange={v => setXhIdTram(v ?? null)}
+        options={xhTrams.map(t => ({ value: t.IDTram, label: t.TenTram }))} />
+      <Select size="small" style={{ width: isMobile ? '100%' : 150, minWidth: 0 }}
+        placeholder="Tất cả loại TB" allowClear showSearch optionFilterProp="label"
+        value={xhIdLoaiTB ?? undefined} onChange={v => setXhIdLoaiTB(v ?? null)}
+        options={xhLoais.map(l => ({ value: l.ID_LoaiThietBi, label: l.TenLoaiTB }))} />
+      <Select size="small" style={{ width: isMobile ? '100%' : 170, minWidth: 0 }}
+        placeholder="Tất cả thiết bị" allowClear showSearch optionFilterProp="label"
+        value={xhIdThietBi ?? undefined} onChange={v => setXhIdThietBi(v ?? null)}
+        options={xhThietBiOptions.map(t => ({ value: t.ID_ThietBi, label: t.TenThietBi }))}
+        notFoundContent="Không có thiết bị phù hợp" />
+    </Flex>
+  );
+
   return (
-    <div style={{ color: titleColor }}>
-      <Flex align="center" justify="space-between" style={{ marginBottom: 20 }}>
-        <div>
-          <Title level={4} style={{ color: titleColor, margin: 0 }}>
+    <div style={{ color: titleColor, width: '100%', maxWidth: '100%', overflowX: 'hidden', padding: `0 ${pagePadding}px` }}>
+      <Flex
+        align={isMobile ? 'flex-start' : 'center'}
+        justify="space-between"
+        wrap="wrap"
+        gap={isMobile ? 10 : 16}
+        style={{ marginBottom: 20 }}
+      >
+        <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+          <Title level={4} style={{ color: titleColor, margin: 0, fontSize: isMobile ? 17 : 20, lineHeight: 1.35 }}>
             Hệ thống CBM — Chỉ số sức khỏe thiết bị điện
           </Title>
           <Text style={{ color: dimText, fontSize: 13 }}>
             Phần mềm tính toán CSSK theo phương pháp CBM của EVN
           </Text>
         </div>
-        <Tag color="blue" style={{ fontSize: 12, padding: '4px 10px' }}>
+        <Tag color="blue" style={{ fontSize: 12, padding: '4px 10px', marginInlineEnd: 0 }}>
           CBM Platform v1.0
         </Tag>
       </Flex>
 
       {/* ── KPI: Sức khỏe thiết bị + Tổng quan bảo trì ── */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
         <Col xs={24} lg={14}>
           <Card
-            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
-            styles={{ body: { padding: '20px 24px' } }}
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
+            styles={{ body: { padding: isMobile ? '14px 12px' : '20px 24px', minWidth: 0 } }}
             loading={sucKhoeLoading}
           >
-            <Flex align="center" justify="space-between" style={{ marginBottom: 18 }}>
-              <Flex align="center" gap={8}>
+            <Flex align={isMobile ? 'flex-start' : 'center'} justify="space-between"
+              wrap="wrap" gap={8} style={{ marginBottom: 18 }}>
+              <Flex align="center" gap={8} style={{ minWidth: 0, flex: '1 1 220px' }}>
                 <HeartOutlined style={{ color: '#f87171', fontSize: 16 }} />
                 <Text strong style={{ color: titleColor, fontSize: 15 }}>Sức khỏe thiết bị toàn hệ thống</Text>
               </Flex>
@@ -283,7 +337,7 @@ export default function DashboardPage() {
 
             {tongKe && tongKe.tongThietBi > 0 ? (
               <Row gutter={16} align="middle">
-                <Col xs={24} sm={10}>
+                <Col xs={24} md={10}>
                   {/* CSSK trung bình theo TỪNG LOẠI THIẾT BỊ — không gộp thành 1 số toàn hệ thống vì
                       mỗi loại dùng bộ chỉ tiêu khác nhau và các trạm độc lập với nhau. */}
                   {tongHopLoai.length > 0 && (
@@ -314,8 +368,8 @@ export default function DashboardPage() {
                     </Flex>
                   )}
                 </Col>
-                <Col xs={24} sm={14}>
-                  <ResponsiveContainer width="100%" height={170}>
+                <Col xs={24} md={14}>
+                  <ResponsiveContainer width="100%" height={isMobile ? 190 : 170}>
                     <PieChart>
                       <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
                         innerRadius={42} outerRadius={68} paddingAngle={2}>
@@ -329,7 +383,7 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
                 </Col>
                 <Col span={24}>
-                  <Row gutter={[12, 6]} style={{ marginTop: 4 }}>
+                  <Row gutter={[8, 6]} style={{ marginTop: 4 }}>
                     {pieData.map(d => (
                       <Col key={d.name} xs={12} sm={8}>
                         <Flex align="center" gap={6}>
@@ -361,28 +415,28 @@ export default function DashboardPage() {
               </Flex>
             }
             extra={<Tag color="blue">Xem lịch →</Tag>}
-            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: cardBodyPadding } }}
           >
-            <Row gutter={12}>
-              <Col span={8}>
+            <Row gutter={[8, 14]}>
+              <Col xs={24} sm={8}>
                 <Flex vertical align="center" gap={4}>
-                  <Text style={{ fontSize: 32, fontWeight: 700, color: '#ef4444', fontFamily: 'monospace', lineHeight: 1 }}>
+                  <Text style={{ fontSize: isMobile ? 28 : 32, fontWeight: 700, color: '#ef4444', fontFamily: 'monospace', lineHeight: 1 }}>
                     {baoTri?.soQuaHan ?? 0}
                   </Text>
                   <Text style={{ fontSize: 11.5, color: dimText, textAlign: 'center' }}>Quá hạn</Text>
                 </Flex>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Flex vertical align="center" gap={4}>
-                  <Text style={{ fontSize: 32, fontWeight: 700, color: '#f97316', fontFamily: 'monospace', lineHeight: 1 }}>
+                  <Text style={{ fontSize: isMobile ? 28 : 32, fontWeight: 700, color: '#f97316', fontFamily: 'monospace', lineHeight: 1 }}>
                     {baoTri?.soSapToiHan7Ngay ?? 0}
                   </Text>
                   <Text style={{ fontSize: 11.5, color: dimText, textAlign: 'center' }}>Sắp đến hạn</Text>
                 </Flex>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Flex vertical align="center" gap={4}>
-                  <Text style={{ fontSize: 32, fontWeight: 700, color: '#10b981', fontFamily: 'monospace', lineHeight: 1 }}>
+                  <Text style={{ fontSize: isMobile ? 28 : 32, fontWeight: 700, color: '#10b981', fontFamily: 'monospace', lineHeight: 1 }}>
                     {baoTri?.soHoanThanhThangNay ?? 0}
                   </Text>
                   <Text style={{ fontSize: 11.5, color: dimText, textAlign: 'center' }}>Hoàn thành tháng này</Text>
@@ -417,7 +471,7 @@ export default function DashboardPage() {
       </Row>
 
       {/* ── KPI vận hành nhanh: độ phủ kiểm tra + khối lượng công việc ── */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
         {[
           {
             title: 'Phiếu kiểm tra tháng này', value: tongKe?.tongPhieuThangNay,
@@ -452,10 +506,10 @@ export default function DashboardPage() {
       </Row>
 
       {/* ── Cảnh báo: thiết bị cần chú ý + bảo trì cần xử lý ── */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
         <Col xs={24} lg={12}>
           <Card
-            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
             loading={sucKhoeLoading}
             title={
               <Flex align="center" gap={8}>
@@ -477,53 +531,48 @@ export default function DashboardPage() {
                 </Text>
               </Flex>
             ) : (
-              canhBaoTheoTram.slice(0, 3).map(nhom => (
-                <div key={nhom.tenTram}>
-                  <Flex align="center" gap={6} style={{
-                    padding: '6px 20px', background: itemBg,
-                    borderBottom: `1px solid ${panelBorder}`, borderTop: `1px solid ${panelBorder}`,
-                  }}>
-                    <EnvironmentOutlined style={{ color: dimText, fontSize: 11 }} />
-                    <Text strong style={{ color: dimText, fontSize: 11.5 }}>{nhom.tenTram}</Text>
-                    <Tag style={{ fontSize: 10, marginLeft: 'auto', lineHeight: '16px' }}>
-                      {nhom.items.length} thiết bị
-                    </Tag>
-                  </Flex>
-                  {nhom.items.slice(0, 4).map(r => {
-                    const info = getCapDoSucKhoe(r.diemHienThi, isDark);
-                    return (
-                      <div
-                        key={r.iD_ThietBi}
-                        onClick={() => navigate(`/ket-qua/${r.iD_Phieu}`)}
-                        style={{
-                          padding: '10px 20px 10px 32px', cursor: 'pointer', borderBottom: `1px solid ${panelBorder}`,
-                        }}
-                      >
-                        <Flex justify="space-between" align="center">
-                          <div style={{ minWidth: 0 }}>
-                            <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
-                              {r.tenThietBi}
-                            </Text>
-                            {r.nguonDiem === 'CHI_TIEU' && r.tenChiTieuThapNhat && (
-                              <Text style={{ color: '#6b7280', fontSize: 11 }}>
-                                Sᵢ thấp nhất: {r.tenChiTieuThapNhat}
-                              </Text>
-                            )}
-                          </div>
-                          <Tag style={{ color: info.color, background: info.bg, borderColor: info.border, flexShrink: 0 }}>
-                            {r.diemHienThi.toFixed(1)}
+              // Xếp thẳng theo mức xấu nhất lên đầu (BE đã sort), KHÔNG nhóm theo trạm — 1 trạm có
+              // nhiều thiết bị xấu không được che mất thiết bị cấp bách hơn ở trạm khác. Góc nhìn
+              // "trạm nào có nhiều vấn đề" đã có riêng ở biểu đồ "Thiết bị cần chú ý theo trạm điện".
+              canhBao.slice(0, 8).map(r => {
+                const info = getCapDoSucKhoe(r.diemHienThi, isDark);
+                const icon = r.diemHienThi < 2 ? '🔴' : r.diemHienThi < 4 ? '🟠' : '🟡';
+                const chiTiet = (r.nguonDiem === 'CHI_TIEU' || r.nguonDiem === 'CHI_TIEU_RIENG') ? r.tenChiTieuThapNhat : null;
+                return (
+                  <div
+                    key={r.iD_ThietBi}
+                    onClick={() => navigate(`/ket-qua/${r.iD_Phieu}`)}
+                    style={{ padding: '9px 20px', cursor: 'pointer', borderBottom: `1px solid ${panelBorder}` }}
+                  >
+                    <Flex justify="space-between" align="flex-start" gap={8} wrap="wrap">
+                      <Flex align="center" gap={6} style={{ minWidth: 0, flex: '1 1 220px' }}>
+                        <span style={{ fontSize: 12, flexShrink: 0 }}>{icon}</span>
+                        <Text strong style={{ color: titleColor, fontSize: 13 }} ellipsis>
+                          {r.tenThietBi}
+                        </Text>
+                        <Text style={{ color: dimText, fontSize: 11, flexShrink: 0 }}>· {r.tenTram}</Text>
+                        {r.nguonDiem === 'CHI_TIEU_RIENG' && (
+                          <Tag style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '14px', flexShrink: 0 }} color="gold">
+                            1 chỉ tiêu lẻ
                           </Tag>
-                        </Flex>
-                        {r.khuyenCaoHanhDong && (
-                          <Text style={{ color: '#b45309', fontSize: 11, display: 'block', marginTop: 3 }}>
-                            → {r.khuyenCaoHanhDong.length > 90 ? r.khuyenCaoHanhDong.slice(0, 90) + '…' : r.khuyenCaoHanhDong}
-                          </Text>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))
+                      </Flex>
+                      <Tag style={{ color: info.color, background: info.bg, borderColor: info.border, flexShrink: 0, margin: 0 }}>
+                        {r.diemHienThi.toFixed(1)}
+                      </Tag>
+                    </Flex>
+                    {(chiTiet || r.khuyenCaoHanhDong) && (
+                      <Text style={{ color: '#b45309', fontSize: 11, display: 'block', marginTop: 2, paddingLeft: 18 }} ellipsis>
+                        {chiTiet && <Text style={{ color: dimText, fontSize: 11 }}>{chiTiet}{r.khuyenCaoHanhDong ? ' → ' : ''}</Text>}
+                        {r.khuyenCaoHanhDong}
+                        {r.nguonDiem === 'CHI_TIEU_RIENG' && r.tongDiem_Soqt != null && (
+                          <Text style={{ color: dimText, fontSize: 11 }}> (CSSK tổng vẫn {r.tongDiem_Soqt.toFixed(1)}/10)</Text>
+                        )}
+                      </Text>
+                    )}
+                  </div>
+                );
+              })
             )}
             {canhBao.length > 8 && (
               <div style={{ padding: '10px 20px', textAlign: 'center' }}>
@@ -541,7 +590,7 @@ export default function DashboardPage() {
         {/* ── Bảo trì cần xử lý ── */}
         <Col xs={24} lg={12}>
           <Card
-            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
             loading={baoTriLoading}
             title={
               <Flex align="center" gap={8}>
@@ -574,8 +623,8 @@ export default function DashboardPage() {
                     onClick={() => navigate('/bao-tri/lich')}
                     style={{ padding: '10px 20px', cursor: 'pointer', borderBottom: `1px solid ${panelBorder}` }}
                   >
-                    <Flex justify="space-between" align="center">
-                      <div>
+                    <Flex justify="space-between" align="flex-start" gap={10} wrap="wrap">
+                      <div style={{ minWidth: 0, flex: '1 1 180px' }}>
                         <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
                           {r.tenThietBi}
                         </Text>
@@ -599,14 +648,14 @@ export default function DashboardPage() {
       </Row>
 
       {/* ── Xu hướng CSSK theo tháng ── */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
         <Col xs={24}>
           <Card
-            style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, minWidth: 0 }}
             loading={xuHuongLoading}
             title={
-              <Flex align="center" gap={8}>
-                <span>Xu hướng CSSK trung bình theo tháng</span>
+              <Flex align="center" gap={8} wrap="wrap">
+                <span style={{ minWidth: 0 }}>Xu hướng CSSK trung bình theo tháng</span>
                 {xuHuongDelta != null && (
                   <Tag color={xuHuongDelta > 0 ? 'success' : xuHuongDelta < 0 ? 'error' : 'default'}>
                     {xuHuongDelta > 0 ? '▲' : xuHuongDelta < 0 ? '▼' : '='} {Math.abs(xuHuongDelta).toFixed(2)} so với tháng trước
@@ -614,51 +663,19 @@ export default function DashboardPage() {
                 )}
               </Flex>
             }
-            extra={
-              <Flex align="center" gap={8}>
-                <Select
-                  size="small"
-                  style={{ width: 150 }}
-                  placeholder="Tất cả trạm"
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  value={xhIdTram ?? undefined}
-                  onChange={v => setXhIdTram(v ?? null)}
-                  options={xhTrams.map(t => ({ value: t.IDTram, label: t.TenTram }))}
-                />
-                <Select
-                  size="small"
-                  style={{ width: 150 }}
-                  placeholder="Tất cả loại TB"
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  value={xhIdLoaiTB ?? undefined}
-                  onChange={v => setXhIdLoaiTB(v ?? null)}
-                  options={xhLoais.map(l => ({ value: l.ID_LoaiThietBi, label: l.TenLoaiTB }))}
-                />
-                <Select
-                  size="small"
-                  style={{ width: 170 }}
-                  placeholder="Tất cả thiết bị"
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  value={xhIdThietBi ?? undefined}
-                  onChange={v => setXhIdThietBi(v ?? null)}
-                  options={xhThietBiOptions.map(t => ({ value: t.ID_ThietBi, label: t.TenThietBi }))}
-                  notFoundContent="Không có thiết bị phù hợp"
-                />
-              </Flex>
-            }
-            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}
+            extra={!isMobile ? trendFilters : undefined}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: isMobile ? '12px' : '16px 20px' } }}
           >
+            {isMobile && (
+              <div style={{ marginBottom: 12 }}>
+                {trendFilters}
+              </div>
+            )}
             {xuHuongData.every(x => x.soPhieu === 0) ? (
               <Empty description="Chưa có phiếu kiểm tra nào trong giai đoạn này" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={xuHuongData} margin={{ left: -8, right: 16, top: 8, bottom: 4 }}>
+                <LineChart data={xuHuongData} margin={{ left: isMobile ? -18 : -8, right: isMobile ? 4 : 16, top: 8, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} vertical={false} />
                   <XAxis dataKey="thang" tick={{ fill: dimText, fontSize: 11 }} />
                   <YAxis domain={[0, 10]} tick={{ fill: dimText, fontSize: 11 }} />
@@ -677,19 +694,19 @@ export default function DashboardPage() {
 
       {/* ── Sức khỏe theo trạm điện ── */}
       {(baoCaoTramData.length > 0 || barData.length > 0) && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
           {baoCaoTramData.length > 0 && (
             <Col xs={24} lg={barData.length > 0 ? 12 : 24}>
               <Card
                 title="CSSK trung bình theo trạm điện"
-                style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
-                styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}
+                style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
+                styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: isMobile ? '12px' : '16px 20px' } }}
               >
                 <ResponsiveContainer width="100%" height={Math.max(160, baoCaoTramData.length * 32)}>
                   <BarChart data={baoCaoTramData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} horizontal={false} />
                     <XAxis type="number" domain={[0, 10]} tick={{ fill: dimText, fontSize: 11 }} />
-                    <YAxis type="category" dataKey="tram" width={160} tick={{ fill: titleColor, fontSize: 12 }} />
+                    <YAxis type="category" dataKey="tram" width={isMobile ? 105 : 160} tick={{ fill: titleColor, fontSize: isMobile ? 10 : 12 }} />
                     <RechartsTooltip formatter={v => [`${v} / 10`, 'CSSK trung bình']} contentStyle={tooltipStyle} />
                     <Bar dataKey="diem" radius={[0, 4, 4, 0]} barSize={16}>
                       {baoCaoTramData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
@@ -703,14 +720,14 @@ export default function DashboardPage() {
             <Col xs={24} lg={baoCaoTramData.length > 0 ? 12 : 24}>
               <Card
                 title="Thiết bị cần chú ý theo trạm điện"
-                style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
-                styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}
+                style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
+                styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: isMobile ? '12px' : '16px 20px' } }}
               >
                 <ResponsiveContainer width="100%" height={Math.max(160, barData.length * 32)}>
                   <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} horizontal={false} />
                     <XAxis type="number" allowDecimals={false} tick={{ fill: dimText, fontSize: 11 }} />
-                    <YAxis type="category" dataKey="tram" width={160} tick={{ fill: titleColor, fontSize: 12 }} />
+                    <YAxis type="category" dataKey="tram" width={isMobile ? 105 : 160} tick={{ fill: titleColor, fontSize: isMobile ? 10 : 12 }} />
                     <RechartsTooltip formatter={v => [`${v} thiết bị`, 'Cần chú ý']} contentStyle={tooltipStyle} />
                     <Bar dataKey="soLuong" fill="#f97316" radius={[0, 4, 4, 0]} barSize={16} />
                   </BarChart>
@@ -723,7 +740,7 @@ export default function DashboardPage() {
 
       {/* ── Stats cards ── */}
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
           {[
             { title: 'Khu vực',      value: stats?.khuVucs,     icon: <EnvironmentOutlined />,  color: '#10b981', path: '/quan-ly/khu-vuc' },
             { title: 'Trạm điện',    value: stats?.tramDiens,   icon: <ThunderboltOutlined />,  color: '#3b82f6', path: '/quan-ly/tram-dien' },
@@ -746,16 +763,16 @@ export default function DashboardPage() {
       </Spin>
 
       {/* ── Công thức CSSK + Truy cập nhanh ── */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
         <Col xs={24} lg={14}>
           <Card title="Công thức tính CSSK"
-            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
-            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}`, fontSize: 13 }, body: { padding: 16 } }}>
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}`, fontSize: 13 }, body: { padding: isMobile ? 12 : 16 } }}>
             <Text style={{ color: dimText, fontSize: 12, display: 'block', marginBottom: 8 }}>
               Chỉ số sức khỏe tổng hợp (CSSK):
             </Text>
             <div style={{ padding: '10px 14px', background: formulaBoxBg, borderRadius: 6, fontFamily: 'monospace' }}>
-              <Text style={{ color: '#93c5fd', fontSize: 13 }}>
+              <Text style={{ color: '#93c5fd', fontSize: isMobile ? 11 : 13, lineHeight: 1.5 }}>
                 CSSK = Σ (Điểm_nhóm × W_nhóm) — thang 0–10
               </Text>
             </div>
@@ -776,7 +793,7 @@ export default function DashboardPage() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Text style={{ color: r.color, fontSize: 11, fontWeight: 700 }}>{r.rank}</Text>
                     </div>
-                    <Text style={{ color: dimText, fontSize: 12, fontFamily: 'monospace', width: 60 }}>
+                    <Text style={{ color: dimText, fontSize: 12, fontFamily: 'monospace', width: isMobile ? 52 : 60 }}>
                       {r.range}
                     </Text>
                     <Text style={{ color: r.color, fontSize: 12 }}>{r.label}</Text>
@@ -790,8 +807,8 @@ export default function DashboardPage() {
         {/* ── Quick actions ── */}
         <Col xs={24} lg={10}>
           <Card title="Truy cập nhanh"
-            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%' }}
-            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: 12 } }}>
+            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
+            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: isMobile ? 10 : 12 } }}>
             {QUICK_ACTIONS.map(item => (
               <div key={item.path} onClick={() => navigate(item.path)}
                 style={{
@@ -821,52 +838,6 @@ export default function DashboardPage() {
               </div>
             ))}
           </Card>
-        </Col>
-      </Row>
-
-      {/* ── Hướng dẫn thiết lập hệ thống (đóng mặc định) ── */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24}>
-          <Collapse
-            style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
-            items={[{
-              key: 'workflow',
-              label: <Text strong style={{ color: titleColor, fontSize: 13 }}>Hướng dẫn thiết lập & sử dụng CBM</Text>,
-              children: (
-                <Row gutter={[12, 12]}>
-                  {WORKFLOW_STEPS.map(step => (
-                    <Col xs={24} sm={12} md={8} key={step.step}>
-                      <div
-                        onClick={() => navigate(step.path)}
-                        style={{
-                          padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
-                          background: itemBg, border: `1px solid ${panelBorder}`,
-                          transition: 'border-color 0.2s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = step.color)}
-                        onMouseLeave={e => (e.currentTarget.style.borderColor = panelBorder)}
-                      >
-                        <Flex align="flex-start" gap={10}>
-                          <Text style={{
-                            color: step.color, fontFamily: 'monospace', fontSize: 18,
-                            fontWeight: 700, opacity: 0.5, lineHeight: 1, flexShrink: 0,
-                          }}>
-                            {step.step}
-                          </Text>
-                          <div>
-                            <Text strong style={{ color: titleColor, fontSize: 13, display: 'block' }}>
-                              {step.title}
-                            </Text>
-                            <Text style={{ color: dimText, fontSize: 11 }}>{step.desc}</Text>
-                          </div>
-                        </Flex>
-                      </div>
-                    </Col>
-                  ))}
-                </Row>
-              ),
-            }]}
-          />
         </Col>
       </Row>
     </div>

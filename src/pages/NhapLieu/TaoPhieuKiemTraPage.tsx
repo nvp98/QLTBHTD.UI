@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Card, Row, Col, Typography, Flex, Form, InputNumber, Select, Button,
-  Steps, Divider, Tag, Alert, Space, message, Spin, Input, Collapse, DatePicker, Segmented,
+  App as AntApp, Card, Row, Col, Typography, Flex, Form, InputNumber, Select, Button,
+  Steps, Divider, Tag, Alert, Space, Spin, Input, Collapse, DatePicker, Segmented,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
@@ -15,6 +15,7 @@ import { chiTieuApi }      from '../../api/chiTieu';
 import { nguongApi }       from '../../api/nguong';
 import { chiTieuInputApi } from '../../api/chiTieuInput';
 import { chiTieuRuleApi }  from '../../api/chiTieuRule';
+import { phieuKiemTraApi } from '../../api/phieuKiemTra';
 import { api }             from '../../api/client';
 import type {
   ThietBi, TramDien, LoaiThietBi, NganLo, NhomChiTieu, ChiTieu, Nguong, ChiTieuInput, ChiTieuRule,
@@ -71,6 +72,7 @@ function scoreTagColor(score: number): 'success' | 'processing' | 'warning' | 'e
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export default function TaoPhieuKiemTraPage() {
+  const { message, notification } = AntApp.useApp();
   const navigate = useNavigate();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
@@ -308,7 +310,14 @@ export default function TaoPhieuKiemTraPage() {
           }))
         );
 
-      await api.post('/api/PhieuKiemTra', {
+      const created = await api.post<{
+        ID_Phieu?: number;
+        iD_Phieu?: number;
+        TongDiem_Soqt?: number;
+        tongDiem_Soqt?: number;
+        CapDoCanhBao?: string;
+        capDoCanhBao?: string;
+      }>('/api/phieukiemtra/create-phieukiemtra', {
         ID_ThietBi:          selectedTB.ID_ThietBi,
         ID_NganLo:           entryMode === 'nganlo' ? selectedNganLo?.ID_NganLo ?? null : null,
         ID_NhomChiTieu:      selectedNhomId === CHON_TAT_CA ? null : selectedNhomId,
@@ -320,6 +329,60 @@ export default function TaoPhieuKiemTraPage() {
         ChiTietInputsNamed:  chiTietInputsNamed,
       });
       message.success(`Lưu phiếu kiểm tra thành công${selectedTB.TenThietBi ? ` — ${selectedTB.TenThietBi}` : ''}`);
+
+      const idPhieu = created.ID_Phieu ?? created.iD_Phieu;
+      const capDoCanhBao = created.CapDoCanhBao ?? created.capDoCanhBao;
+      const tongDiemSoqt = created.TongDiem_Soqt ?? created.tongDiem_Soqt;
+
+      // Nhiều loại thiết bị (DCL/TU/TI/CS...) KHÔNG có CSSK tổng — CapDoCanhBao ở phiếu luôn null dù
+      // 1 chỉ tiêu riêng lẻ tệ đến đâu (xem ScoringEngine.TinhVaLuuTongDiemAsync). Nên KHÔNG chỉ dựa
+      // vào CapDoCanhBao tổng: luôn tải chi tiết phiếu để soát từng chỉ tiêu, giống cách Dashboard
+      // xử lý case NguonDiem='CHI_TIEU'/'CHI_TIEU_RIENG'.
+      let chiTieuLoi: { ten: string; diem: number; khuyenCao?: string | null }[] = [];
+      if (idPhieu) {
+        try {
+          const detail = await phieuKiemTraApi.getDetail(idPhieu);
+          chiTieuLoi = detail.ChiTiets
+            .filter(ct => ct.Diem_Si_DatDuoc != null && ct.Diem_Si_DatDuoc < 6)
+            .sort((a, b) => (a.Diem_Si_DatDuoc ?? 0) - (b.Diem_Si_DatDuoc ?? 0))
+            .map(ct => ({
+              ten: ct.TenChiTieu ?? 'Chỉ tiêu chưa đặt tên',
+              diem: ct.Diem_Si_DatDuoc!,
+              khuyenCao: ct.HanhDongKhuyenCao,
+            }));
+        } catch {
+          // Không tải được chi tiết — vẫn xét cảnh báo theo CapDoCanhBao tổng (nếu có) bên dưới.
+        }
+      }
+
+      const coCanhBaoTong = capDoCanhBao === 'Chú ý' || capDoCanhBao === 'Cảnh báo' || capDoCanhBao === 'Nguy hiểm';
+      if (coCanhBaoTong || chiTieuLoi.length > 0) {
+        const laNguyHiem = capDoCanhBao === 'Nguy hiểm' || chiTieuLoi.some(ct => ct.diem < 2);
+
+        notification[laNguyHiem ? 'error' : 'warning']({
+          message: `Cần kiểm tra ngay: ${selectedTB.TenThietBi ?? 'Thiết bị'}`,
+          description: (
+            <Flex vertical gap={4}>
+              {coCanhBaoTong && <Text>Điểm CSSK: {tongDiemSoqt ?? '-'} — {capDoCanhBao}</Text>}
+              {chiTieuLoi.length > 0 ? (
+                <div>
+                  <Text strong>Chỉ tiêu cần chú ý:</Text>
+                  {chiTieuLoi.map(ct => (
+                    <div key={ct.ten} style={{ marginTop: 3 }}>
+                      <Text>{ct.diem < 2 ? '🔴' : ct.diem < 4 ? '🟠' : '🟡'} {ct.ten} ({ct.diem.toFixed(1)})</Text>
+                      {ct.khuyenCao && <Text type="secondary"> → {ct.khuyenCao}</Text>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Text>Vui lòng xem kết quả và thực hiện khuyến cáo.</Text>
+              )}
+            </Flex>
+          ),
+          placement: 'topRight',
+          duration: 0,
+        });
+      }
 
       if (entryMode === 'nganlo' && nganLoIdx + 1 < nganLoQueue.length) {
         // Còn thiết bị tiếp theo trong ngăn lộ — chuyển sang thiết bị kế, quay lại bước nhập giá trị.
@@ -505,9 +568,9 @@ export default function TaoPhieuKiemTraPage() {
                 />
               )}
               {nhoms.length === 0 && !loadingConfig ? (
-                <Alert type="warning" message="Không có cấu hình chỉ tiêu cho loại thiết bị này. Vào Cấu hình → Nhóm chỉ tiêu để thiết lập." />
+                <Alert type="warning" title="Không có cấu hình chỉ tiêu cho loại thiết bị này. Vào Cấu hình → Nhóm chỉ tiêu để thiết lập." />
               ) : step1Nhoms.length === 0 && !loadingConfig ? (
-                <Alert type="warning" message="Thiết bị này chưa có chỉ tiêu nào khớp bộ lọc hiện tại." />
+                <Alert type="warning" title="Thiết bị này chưa có chỉ tiêu nào khớp bộ lọc hiện tại." />
               ) : (
                 <>
                   {/* {nganLoTierFallback && (
@@ -811,7 +874,7 @@ export default function TaoPhieuKiemTraPage() {
               <Title level={5} style={{ color: titleColor, marginTop: 0 }}>Xác nhận và lưu phiếu kiểm tra</Title>
               {selectedTB && (
                 <Alert
-                  message={`Thiết bị: ${selectedTB.TenThietBi}${selectedTB.SoHieu ? ` (${selectedTB.SoHieu})` : ''}`}
+                  title={`Thiết bị: ${selectedTB.TenThietBi}${selectedTB.SoHieu ? ` (${selectedTB.SoHieu})` : ''}`}
                   type="info" style={{ marginBottom: 16 }} />
               )}
               <Form layout="vertical">

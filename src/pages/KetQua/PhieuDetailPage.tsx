@@ -166,7 +166,7 @@ export default function PhieuDetailPage() {
               size="small"
               showInfo={false}
               strokeColor={c}
-              trailColor={isDark ? '#1e4a72' : '#e5e7eb'}
+              railColor={isDark ? '#1e4a72' : '#e5e7eb'}
               style={{ width: 70 }}
             />
             <Text style={{ color: c, fontFamily: 'monospace', fontSize: 12 }}>
@@ -354,6 +354,7 @@ export default function PhieuDetailPage() {
                 ),
                 children: (
                   <Table<ChiTietKiemTra>
+                    scroll={{ x: 'max-content' }}
                     dataSource={g.items}
                     columns={columns}
                     rowKey="ID_ChiTiet"
@@ -378,6 +379,7 @@ export default function PhieuDetailPage() {
       >
         <Spin spinning={lichSuLoading}>
           <Table
+            scroll={{ x: 'max-content' }}
             dataSource={lichSuChiTieu?.data ?? []}
             rowKey="ID_Phieu"
             size="small"

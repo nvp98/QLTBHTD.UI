@@ -41,11 +41,13 @@ export default function LoginPage() {
       style={{
         minHeight: '100vh',
         background: isDark ? '#0a2540' : '#f3f4f6',
+        padding: 16,
       }}
     >
       <Card
         style={{
-          width: 380,
+          width: '100%',
+          maxWidth: 380,
           background: isDark ? '#0e2c4a' : '#ffffff',
           border: `1px solid ${isDark ? '#1e4a72' : '#e5e7eb'}`,
         }}

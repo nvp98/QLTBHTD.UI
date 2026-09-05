@@ -193,6 +193,7 @@ export default function TramDienPage() {
         </Space>
 
         <Table<TramDien>
+          scroll={{ x: 'max-content' }}
           dataSource={filtered}
           columns={columns}
           rowKey="IDTram"

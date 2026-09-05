@@ -204,6 +204,7 @@ export default function NhomChiTieuPage() {
         </Space>
 
         <Table<NhomChiTieu>
+          scroll={{ x: 'max-content' }}
           dataSource={filtered} columns={columns} rowKey="ID_NhomChiTieu"
           loading={loading} size="small"
           pagination={{ pageSize: 15, showTotal: t => `Tổng ${t} nhóm`, showSizeChanger: true }}

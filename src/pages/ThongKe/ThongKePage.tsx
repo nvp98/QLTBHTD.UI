@@ -157,7 +157,7 @@ function TabTongHop({ isDark }: { isDark: boolean }) {
                   percent={pct}
                   showInfo={false}
                   strokeColor={lv.color}
-                  trailColor={isDark ? '#1e4a72' : '#e5e7eb'}
+                  railColor={isDark ? '#1e4a72' : '#e5e7eb'}
                   size="small"
                 />
               </Col>
@@ -241,7 +241,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
         <Flex align="center" gap={8}>
           <Progress percent={v * 10} size="small" showInfo={false}
             strokeColor={getCapDo(v, isDark).color}
-            trailColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
+            railColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
           <Text style={{ color: getCapDo(v, isDark).color, fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
             {v.toFixed(1)}
           </Text>
@@ -334,6 +334,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
               style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
               styles={{ header: { color: tc, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '8px 0' } }}>
               <Table
+                scroll={{ x: 'max-content' }}
                 dataSource={[...history].reverse()}
                 columns={histCols}
                 rowKey="iD_Phieu"
@@ -420,7 +421,7 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
           <Text style={{ color: tc, fontFamily: 'monospace' }}>{v}/{r.tongThietBi}</Text>
           {r.tongThietBi > 0 && (
             <Progress percent={Math.round((v / r.tongThietBi) * 100)} size={[50, 4]}
-              showInfo={false} strokeColor="#3b82f6" trailColor={isDark ? '#1e4a72' : '#e5e7eb'} />
+              showInfo={false} strokeColor="#3b82f6" railColor={isDark ? '#1e4a72' : '#e5e7eb'} />
           )}
         </Flex>
       )
@@ -476,6 +477,7 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
           </Flex>
         }>
         <Table
+          scroll={{ x: 'max-content' }}
           dataSource={data}
           columns={cols}
           rowKey="iDTram"
@@ -538,7 +540,7 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
         <Flex align="center" gap={8}>
           <Progress percent={r.diemHienThi * 10} size="small" showInfo={false}
             strokeColor={getCapDo(r.diemHienThi, isDark).color}
-            trailColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
+            railColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
           <Text style={{ color: getCapDo(r.diemHienThi, isDark).color, fontFamily: 'monospace', fontWeight: 600 }}>
             {r.diemHienThi.toFixed(1)}
           </Text>
@@ -622,6 +624,7 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
           </Flex>
         ) : (
           <Table
+            scroll={{ x: 'max-content' }}
             dataSource={data}
             columns={cols}
             rowKey="iD_ThietBi"

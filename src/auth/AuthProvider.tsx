@@ -1,7 +1,8 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { authApi } from '../api/auth';
 import type { NguoiDung } from '../types/entities';
 import { AuthContext } from './AuthContext';
+import { startNotificationConnection, stopNotificationConnection } from '../services/signalr';
 
 const TOKEN_KEY = 'cbm_auth_token';
 const USER_KEY = 'cbm_auth_user';
@@ -34,6 +35,16 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     window.location.assign('/login');
   }, []);
+
+  // Kết nối SignalR khi đã đăng nhập (kể cả khi F5 lại trang, vẫn còn user từ localStorage) —
+  // ngắt kết nối khi đăng xuất.
+  useEffect(() => {
+    if (user) {
+      startNotificationConnection();
+    } else {
+      stopNotificationConnection();
+    }
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>

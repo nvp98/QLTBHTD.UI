@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ConfigProvider, theme } from 'antd';
+import { App as AntApp, ConfigProvider, theme } from 'antd';
 import { RouterProvider } from 'react-router-dom';
 import viVN from 'antd/locale/vi_VN';
 import router from './router';
@@ -201,7 +201,9 @@ export default function App() {
     <AuthProvider>
       <ThemeModeContext.Provider value={{ mode, toggleMode }}>
         <ConfigProvider locale={viVN} theme={themeConfig}>
-          <RouterProvider router={router} />
+          <AntApp>
+            <RouterProvider router={router} />
+          </AntApp>
         </ConfigProvider>
       </ThemeModeContext.Provider>
     </AuthProvider>

@@ -366,14 +366,14 @@ export default function CayChiTieuPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Title level={3}>Cây chỉ tiêu đánh giá</Title>
 
       <Card style={{ marginBottom: 16 }}>
-        <Space>
-          <Text strong>Loại thiết bị:</Text>
+        <Space wrap>
+          <Text strong style={{ whiteSpace: 'nowrap' }}>Loại thiết bị:</Text>
           <Select
-            style={{ width: 240 }}
+            style={{ width: 240, maxWidth: '100%' }}
             placeholder="Chọn loại thiết bị"
             value={selectedLoai ?? undefined}
             onChange={handleSelectLoai}
@@ -387,8 +387,8 @@ export default function CayChiTieuPage() {
         </Space>
       </Card>
 
-      <Row gutter={16}>
-        <Col span={selectedNode ? 14 : 24}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={selectedNode ? 14 : 24}>
           <Card title="Cây phân cấp nhóm chỉ tiêu" loading={loading}>
             {cay.length === 0 && !loading && (
               <Text type="secondary">
@@ -409,7 +409,7 @@ export default function CayChiTieuPage() {
         </Col>
 
         {selectedNode && (
-          <Col span={10}>
+          <Col xs={24} lg={10}>
             <Card
               title={`Chi tiết: ${selectedNode.TenNhom}`}
               extra={
@@ -476,6 +476,7 @@ export default function CayChiTieuPage() {
                     </Button>
                   </div>
                   <Table<ChiTieu>
+                    scroll={{ x: 'max-content' }}
                     rowKey="ID_ChiTieu"
                     size="small"
                     loading={ctLoading}

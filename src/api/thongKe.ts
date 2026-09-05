@@ -48,7 +48,7 @@ export interface CanhBaoThietBiDto {
   diemHienThi: number;
   /** 'CSSK' = diemHienThi lấy từ tongDiem_Soqt; 'CHI_TIEU' = lấy từ Sᵢ thấp nhất 1 chỉ tiêu
    * (thiết bị theo quy trình không tính CHI cấp 1/2/3, vd DCL/TU/TI/CS). */
-  nguonDiem: 'CSSK' | 'CHI_TIEU';
+  nguonDiem: 'CSSK' | 'CHI_TIEU' | 'CHI_TIEU_RIENG';
   /** Tên chỉ tiêu có Sᵢ thấp nhất — chỉ có giá trị khi nguonDiem='CHI_TIEU'. */
   tenChiTieuThapNhat: string | null;
   /** Khuyến cáo hành động (snapshot) của chỉ tiêu có Sᵢ thấp nhất trong phiếu — biết ngay cần làm gì. */

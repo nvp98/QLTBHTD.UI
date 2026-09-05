@@ -105,3 +105,42 @@ body {
 :root[data-theme='dark'] .badge-warning { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
 :root[data-theme='dark'] .badge-danger  { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
 :root[data-theme='dark'] .badge-info    { background: rgba(56, 189, 248, 0.15); color: var(--info); }
+
+/* ─── Responsive: an toàn chung cho Table/Modal/Card trên màn hình nhỏ ───
+   Đa số trang dùng AntD Table không khai báo scroll.x riêng — mặc định cho
+   phần thân bảng tự cuộn ngang trong khung của nó thay vì đẩy vỡ cả trang. */
+.ant-table-wrapper .ant-table-content {
+  overflow-x: auto;
+}
+
+/* Modal rộng hơn màn hình (form nhiều field khai báo width cố định 600-900px)
+   phải co lại vừa viewport thay vì tràn ngang trên điện thoại. */
+.ant-modal {
+  max-width: calc(100vw - 24px);
+}
+
+@media (max-width: 576px) {
+  .ant-modal {
+    max-width: calc(100vw - 16px);
+    top: 12px;
+    padding-bottom: 12px;
+  }
+  .ant-card-body {
+    padding: 12px !important;
+  }
+  .ant-statistic-content {
+    font-size: 20px !important;
+  }
+  /* Các form 2 cột bên trong Modal (Row/Col span cố định 6-14) phải xếp
+     chồng thành 1 cột — 50% của 1 modal ~343px quá hẹp để nhập liệu. */
+  .ant-modal .ant-col-6,
+  .ant-modal .ant-col-7,
+  .ant-modal .ant-col-8,
+  .ant-modal .ant-col-9,
+  .ant-modal .ant-col-10,
+  .ant-modal .ant-col-12,
+  .ant-modal .ant-col-14 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}

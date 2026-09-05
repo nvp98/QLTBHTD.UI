@@ -147,14 +147,14 @@ export default function NhapLieuDongPage() {
   };
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Title level={3}>Nhập liệu kiểm tra (Form động)</Title>
 
       <Card style={{ marginBottom: 16 }}>
-        <Space>
+        <Space wrap style={{ width: '100%' }}>
           <Text strong>Phiếu kiểm tra:</Text>
           <Select
-            style={{ width: 340 }}
+            style={{ width: 340, maxWidth: '100%' }}
             placeholder="Chọn phiếu kiểm tra"
             onChange={handleSelectPhieu}
             options={phieus.map(p => ({

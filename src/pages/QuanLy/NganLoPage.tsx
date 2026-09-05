@@ -194,6 +194,7 @@ export default function NganLoPage() {
         </Space>
 
         <Table<NganLo>
+          scroll={{ x: 'max-content' }}
           dataSource={filtered}
           columns={columns}
           rowKey="ID_NganLo"
