@@ -40,14 +40,14 @@ export default function MainLayout() {
         </Drawer>
       )}
 
-      <Layout style={{ background: contentBg, overflow: 'auto' }}>
+      <Layout style={{ background: contentBg, overflowY: 'auto', overflowX: 'hidden' }}>
         <Topbar
           collapsed={collapsed}
           onCollapse={setCollapsed}
           isMobile={isMobile}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
         />
-        <Content style={{ padding: isMobile ? '14px 12px' : '20px 24px' }}>
+        <Content style={{ padding: isMobile ? '14px 12px' : '20px 24px', overflowX: 'hidden' }}>
           <Outlet />
         </Content>
       </Layout>

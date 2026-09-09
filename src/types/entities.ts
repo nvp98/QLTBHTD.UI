@@ -454,33 +454,6 @@ export interface UpdateCongThucBienDto {
   MoTa?: string | null;
 }
 
-// ─── Formula Test (test case cho công thức tổng hợp) ─────────────────────────
-export interface CongThucTestCase {
-  ID_TestCase: number;
-  ID_CongThuc: number;
-  TenTestCase: string;
-  InputJson: string;
-  KetQuaMongDoi: number;
-  KetQuaThucTeLanCuoi?: number | null;
-  DatLanCuoi?: boolean | null;
-  ThoiGianChayCuoi?: string | null;
-  LoiLanCuoi?: string | null;
-  MoTa?: string | null;
-}
-export interface CreateCongThucTestCaseDto {
-  ID_CongThuc: number;
-  TenTestCase: string;
-  InputJson: string;
-  KetQuaMongDoi: number;
-  MoTa?: string | null;
-}
-export interface UpdateCongThucTestCaseDto {
-  TenTestCase: string;
-  InputJson: string;
-  KetQuaMongDoi: number;
-  MoTa?: string | null;
-}
-
 // ─── Config Validator ─────────────────────────────────────────────────────────
 export interface NguongValidationIssue {
   Loai: 'GAP' | 'OVERLAP';

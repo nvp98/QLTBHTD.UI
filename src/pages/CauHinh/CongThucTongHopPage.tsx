@@ -6,11 +6,9 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined, EditOutlined,
-  ExperimentOutlined, PlayCircleOutlined, PlusOutlined,
+  DeleteOutlined, EditOutlined, PlusOutlined,
 } from '@ant-design/icons';
 import { congThucTongHopApi, congThucBienApi } from '../../api/congThucTongHop';
-import { congThucTestCaseApi } from '../../api/congThucTestCase';
 import { nhomChiTieuApi } from '../../api/nhomChiTieu';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
 import { chiTieuApi } from '../../api/chiTieu';
@@ -18,8 +16,8 @@ import {
   useNCalcToolbar, NCALC_TOOLBAR_TAG_STYLE, NCALC_OPERATORS, NCALC_PUNCTUATION, NCALC_FUNCTIONS,
 } from '../../hooks/useNCalcToolbar';
 import type {
-  CongThucTongHop, CongThucBien, CongThucTestCase,
-  CreateCongThucTongHopDto, CreateCongThucBienDto, CreateCongThucTestCaseDto,
+  CongThucTongHop, CongThucBien,
+  CreateCongThucTongHopDto, CreateCongThucBienDto,
   NhomChiTieuCay, LoaiThietBi, ChiTieu, VongLapKetQua,
 } from '../../types/entities';
 
@@ -453,10 +451,6 @@ export default function CongThucTongHopPage() {
         )}
       </Row>
 
-      {currentCongThuc && (
-        <TestCasePanel congThuc={currentCongThuc} />
-      )}
-
       {/* Modal công thức */}
       <Modal
         title={editingCt ? 'Sửa công thức' : 'Tạo công thức mới'}
@@ -693,159 +687,5 @@ export default function CongThucTongHopPage() {
         </Form>
       </Modal>
     </div>
-  );
-}
-
-// ─── TestCasePanel — Formula Test: lưu bộ test case mẫu + chạy lại (regression) ────────────
-function TestCasePanel({ congThuc }: { congThuc: CongThucTongHop }) {
-  const [data, setData] = useState<CongThucTestCase[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState<CongThucTestCase | null>(null);
-  const [form] = Form.useForm();
-
-  const isWeightedAvg = congThuc.LoaiCongThuc === 'WEIGHTED_AVG' || congThuc.LoaiCongThuc === 'WEIGHTED_AVG_SCALED' || congThuc.LoaiCongThuc === 'MIN_BIEN';
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try { setData(await congThucTestCaseApi.getByCongThuc(congThuc.ID_CongThuc)); }
-    catch { message.error('Không thể tải test case'); }
-    finally { setLoading(false); }
-  }, [congThuc.ID_CongThuc]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const bienMauInput = useMemo(() => {
-    const obj: Record<string, number> = {};
-    for (const b of congThuc.DanhSachBien) obj[b.MaBien] = 0;
-    return JSON.stringify(obj, null, 2);
-  }, [congThuc.DanhSachBien]);
-
-  const openCreate = () => {
-    setEditing(null);
-    form.setFieldsValue({ TenTestCase: '', InputJson: bienMauInput, KetQuaMongDoi: undefined, MoTa: '' });
-    setModalOpen(true);
-  };
-  const openEdit = (r: CongThucTestCase) => {
-    setEditing(r);
-    form.setFieldsValue(r);
-    setModalOpen(true);
-  };
-
-  const handleSubmit = async () => {
-    setSaving(true);
-    try {
-      const v = await form.validateFields();
-      try { JSON.parse(v.InputJson); }
-      catch { message.error('Input JSON không hợp lệ'); setSaving(false); return; }
-
-      if (editing) await congThucTestCaseApi.update(editing.ID_TestCase, v);
-      else await congThucTestCaseApi.create({ ...v, ID_CongThuc: congThuc.ID_CongThuc } as CreateCongThucTestCaseDto);
-      message.success(editing ? 'Đã cập nhật test case' : 'Đã thêm test case');
-      setModalOpen(false);
-      load();
-    } catch (e: unknown) {
-      if (e instanceof Error && 'errorFields' in (e as object)) return;
-      message.error('Lỗi lưu test case');
-    } finally { setSaving(false); }
-  };
-
-  const handleDelete = async (id: number) => {
-    try { await congThucTestCaseApi.delete(id); message.success('Đã xóa test case'); load(); }
-    catch { message.error('Lỗi xóa test case'); }
-  };
-
-  const handleRunAll = async () => {
-    setRunning(true);
-    try {
-      const ketQua = await congThucTestCaseApi.run(congThuc.ID_CongThuc);
-      setData(ketQua);
-      const soDat = ketQua.filter(r => r.DatLanCuoi).length;
-      if (ketQua.length === 0) message.info('Chưa có test case nào — bấm "Thêm test case" trước.');
-      else if (soDat === ketQua.length) message.success(`Đạt toàn bộ ${ketQua.length}/${ketQua.length} test case.`);
-      else message.warning(`Chỉ đạt ${soDat}/${ketQua.length} test case — công thức có thể vừa bị sửa lệch kết quả.`);
-    } catch { message.error('Lỗi chạy test'); }
-    finally { setRunning(false); }
-  };
-
-  const cols: ColumnsType<CongThucTestCase> = [
-    { title: 'Tên test case', dataIndex: 'TenTestCase', key: 'ten' },
-    { title: 'Input', dataIndex: 'InputJson', key: 'input',
-      render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
-    { title: 'Kỳ vọng', dataIndex: 'KetQuaMongDoi', key: 'kyvong', width: 90, align: 'right' },
-    { title: 'Thực tế (lần cuối)', dataIndex: 'KetQuaThucTeLanCuoi', key: 'thucte', width: 130, align: 'right',
-      render: (v, r) => r.LoiLanCuoi
-        ? <Tooltip title={r.LoiLanCuoi}><Text type="danger" style={{ fontSize: 12 }}>Lỗi</Text></Tooltip>
-        : v ?? '—' },
-    { title: 'Kết quả', key: 'ketqua', width: 100, align: 'center',
-      render: (_, r) => r.DatLanCuoi == null
-        ? <Tag>Chưa chạy</Tag>
-        : r.DatLanCuoi
-          ? <Tag color="success" icon={<CheckCircleOutlined />}>Đạt</Tag>
-          : <Tag color="error" icon={<CloseCircleOutlined />}>Fail</Tag> },
-    { title: '', key: 'actions', width: 76, align: 'center',
-      render: (_, r) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-          <Popconfirm title="Xóa test case này?" okText="Xóa" cancelText="Hủy"
-            okButtonProps={{ danger: true }} onConfirm={() => handleDelete(r.ID_TestCase)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ) },
-  ];
-
-  return (
-    <Card
-      style={{ marginTop: 16 }}
-      title={<Space><ExperimentOutlined />Test case (Formula Test) · v{congThuc.PhienBan}</Space>}
-      extra={
-        <Space>
-          <Button size="small" icon={<PlusOutlined />} onClick={openCreate}>Thêm test case</Button>
-          <Button size="small" type="primary" icon={<PlayCircleOutlined />} loading={running} onClick={handleRunAll}>
-            Chạy test
-          </Button>
-        </Space>
-      }
-    >
-      {isWeightedAvg && (
-        <Alert
-          type="warning" showIcon style={{ marginBottom: 12 }}
-          message="Công thức kiểu &quot;Trung bình trọng số&quot; (WEIGHTED_AVG/WEIGHTED_AVG_SCALED) hoặc &quot;Nhỏ nhất trong các biến&quot; (MIN_BIEN) không evaluate ô Biểu thức NCalc — engine tự tính trực tiếp từ các biến, nên chạy test ở đây sẽ KHÔNG phản ánh đúng kết quả thật."
-        />
-      )}
-      <Table<CongThucTestCase>
-        scroll={{ x: 'max-content' }}
-        dataSource={data} columns={cols} rowKey="ID_TestCase"
-        loading={loading} size="small" pagination={false}
-        locale={{ emptyText: `Chưa có test case — dùng để chạy lại (regression) mỗi khi sửa công thức` }}
-      />
-      <Modal
-        title={editing ? 'Sửa test case' : 'Thêm test case'}
-        open={modalOpen}
-        onOk={handleSubmit} onCancel={() => setModalOpen(false)}
-        okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy"
-        confirmLoading={saving} destroyOnHidden width={560}
-      >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="TenTestCase" label="Tên test case" rules={[{ required: true }]}>
-            <Input placeholder="VD: Sdga = Sc·St·Sr trường hợp Sc=2.1" />
-          </Form.Item>
-          <Form.Item name="InputJson" label="Input (JSON — tên biến : giá trị giả lập)"
-            rules={[{ required: true }]}
-            tooltip="Điền đúng tên biến đã khai trong công thức (xem cột 'Biến trong công thức' ở bảng bên trên).">
-            <TextArea rows={5} style={{ fontFamily: 'monospace' }} />
-          </Form.Item>
-          <Form.Item name="KetQuaMongDoi" label="Kết quả mong đợi" rules={[{ required: true }]}>
-            <InputNumber style={{ width: '100%' }} step={0.01} />
-          </Form.Item>
-          <Form.Item name="MoTa" label="Mô tả">
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </Card>
   );
 }

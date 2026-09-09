@@ -336,7 +336,7 @@ export default function DashboardPage() {
             </Flex>
 
             {tongKe && tongKe.tongThietBi > 0 ? (
-              <Row gutter={16} align="middle">
+              <Row gutter={isMobile ? 10 : 16} align="middle">
                 <Col xs={24} md={10}>
                   {/* CSSK trung bình theo TỪNG LOẠI THIẾT BỊ — không gộp thành 1 số toàn hệ thống vì
                       mỗi loại dùng bộ chỉ tiêu khác nhau và các trạm độc lập với nhau. */}
@@ -493,7 +493,7 @@ export default function DashboardPage() {
             icon: <HeartOutlined />, color: '#ef4444', path: '/thong-ke',
           },
         ].map(k => (
-          <Col xs={12} md={6} key={k.title}>
+          <Col xs={12} md={12} lg={6} key={k.title}>
             <StatCard
               title={k.title}
               value={k.value ?? '—'}
