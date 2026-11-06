@@ -45,6 +45,7 @@ export default function ThietBiPage() {
   const [filterTram, setFilterTram]   = useState<number | 'all'>('all');
   const [filterLoai, setFilterLoai]   = useState<number | 'all'>('all');
   const [form]                        = Form.useForm();
+  const idLoaiForm                    = Form.useWatch('ID_LoaiTB', form) as number | undefined;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,6 +121,8 @@ export default function ThietBiPage() {
   const tramName = (id: number) => trams.find(t => t.IDTram === id)?.TenTram ?? `Trạm ${id}`;
   const loaiName = (id: number) => loais.find(l => l.ID_LoaiThietBi === id)?.TenLoaiTB ?? `Loại ${id}`;
   const loaiKH   = (id: number) => loais.find(l => l.ID_LoaiThietBi === id)?.KyHieu ?? '';
+  // Máy biến áp: MVA; các thiết bị khác: A
+  const donViTai = (idLoai?: number | null) => (idLoai != null && loaiKH(idLoai) === 'MBA' ? 'MVA' : 'A');
 
   const searchLower = search.toLowerCase();
 
@@ -182,7 +185,7 @@ export default function ThietBiPage() {
     },
     {
       title: 'Tải định mức', dataIndex: 'TaiDinhMuc', key: 'taiDinhMuc', width: 110, align: 'right',
-      render: v => <Text style={{ color: '#9ca3af', fontSize: 12 }}>{v != null ? `${v} MVA` : '—'}</Text>,
+      render: (v, r) => <Text style={{ color: '#9ca3af', fontSize: 12 }}>{v != null ? `${v} ${donViTai(r.ID_LoaiTB)}` : '—'}</Text>,
       sorter: (a, b) => (a.TaiDinhMuc ?? 0) - (b.TaiDinhMuc ?? 0),
     },
     {
@@ -328,8 +331,8 @@ export default function ThietBiPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="TaiDinhMuc" label="Tải định mức (MVA)"
-                tooltip="Dùng làm SB trong công thức LF (Si/SB) của chỉ tiêu 'Quá khứ mang tải' — chỉ áp dụng cho MBA.">
+              <Form.Item name="TaiDinhMuc" label={`Tải định mức (${donViTai(idLoaiForm)})`}
+                tooltip="Dùng làm SB trong công thức LF (Si/SB) của chỉ tiêu 'Quá khứ mang tải' — chỉ áp dụng cho MBA. Đơn vị: MVA với máy biến áp, A với thiết bị khác.">
                 <InputNumber style={{ width: '100%' }} min={0} step={0.1} precision={2} placeholder="VD: 25" />
               </Form.Item>
             </Col>
@@ -366,7 +369,7 @@ export default function ThietBiPage() {
               ['Ngăn lộ',       detail.TenNganLo ?? '—'],
               ['Nhãn hiệu',     detail.NhanHieu ?? '—'],
               ['Năm sản xuất',  detail.NamSanXuat ?? '—'],
-              ['Tải định mức',  detail.TaiDinhMuc != null ? `${detail.TaiDinhMuc} MVA` : '—'],
+              ['Tải định mức',  detail.TaiDinhMuc != null ? `${detail.TaiDinhMuc} ${donViTai(detail.ID_LoaiTB)}` : '—'],
               ['Trạng thái',    trangThaiTag(detail.TrangThai)],
               ['Ghi chú',       detail.GhiChu ?? '—'],
             ].map(([label, value]) => (

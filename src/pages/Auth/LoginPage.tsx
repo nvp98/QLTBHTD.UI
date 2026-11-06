@@ -27,8 +27,13 @@ export default function LoginPage() {
       await login(values.tenDangNhap, values.matKhau);
       const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
       navigate(from, { replace: true });
-    } catch {
-      message.error('Tên đăng nhập hoặc mật khẩu không đúng');
+    } catch (err) {
+      console.error('Login error:', err);
+      if (err instanceof TypeError) {
+        message.error('Không kết nối được máy chủ. Kiểm tra mạng hoặc API URL.');
+      } else {
+        message.error('Tên đăng nhập hoặc mật khẩu không đúng');
+      }
     } finally {
       setSubmitting(false);
     }

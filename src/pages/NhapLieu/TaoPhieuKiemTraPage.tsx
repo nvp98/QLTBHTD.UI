@@ -21,6 +21,7 @@ import type {
   ThietBi, TramDien, LoaiThietBi, NganLo, NhomChiTieu, ChiTieu, Nguong, ChiTieuInput, ChiTieuRule,
 } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
+import { useAuth } from '../../auth/AuthContext';
 
 const CHON_TAT_CA = 0;
 
@@ -75,6 +76,7 @@ export default function TaoPhieuKiemTraPage() {
   const { message, notification } = AntApp.useApp();
   const navigate = useNavigate();
   const { mode } = useThemeMode();
+  const { user } = useAuth();
   const isDark = mode === 'dark';
   const [step, setStep] = useState(0);
 
@@ -114,7 +116,7 @@ export default function TaoPhieuKiemTraPage() {
   const [syntheticCtIds, setSyntheticCtIds] = useState<Set<number>>(new Set());
 
   const [ghiChu, setGhiChu]           = useState('');
-  const [nguoiKT, setNguoiKT]         = useState('Nguyễn Văn A');
+  const [nguoiKT, setNguoiKT]         = useState(user?.HoTen ?? '');
   const [ngayKiemTra, setNgayKiemTra] = useState<Dayjs | null>(null);
   const [saving, setSaving]           = useState(false);
 
@@ -550,7 +552,7 @@ export default function TaoPhieuKiemTraPage() {
                   />
                 </Form.Item>
                 <Form.Item label={<Text style={{ color: textColor }}>Kỹ thuật viên</Text>}>
-                  <Input size="large" value={nguoiKT} onChange={e => setNguoiKT(e.target.value)} placeholder="Họ tên kỹ thuật viên" />
+                  <Input size="large" value={nguoiKT} onChange={e => setNguoiKT(e.target.value)} placeholder="Họ tên kỹ thuật viên" disabled/>
                 </Form.Item>
               </Form>
             </Card>
