@@ -93,8 +93,9 @@ export default function NhomChiTieuPage() {
       await nhomChiTieuApi.delete(id);
       message.success('Đã xóa nhóm chỉ tiêu');
       load();
-    } catch {
-      message.error('Không thể xóa — còn chỉ tiêu thuộc nhóm này');
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      message.error(msg ?? 'Không thể xóa nhóm chỉ tiêu này');
     }
   };
 

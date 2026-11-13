@@ -22,7 +22,7 @@ type NhomChiTieuApiRaw = Partial<NhomChiTieu> & {
   nhomCon?: NhomChiTieuApiRaw[];
 };
 
-const toNhomChiTieu = (raw: NhomChiTieuApiRaw): NhomChiTieu => ({
+export const toNhomChiTieu = (raw: NhomChiTieuApiRaw): NhomChiTieu => ({
   ID_NhomChiTieu: Number(raw.ID_NhomChiTieu ?? raw.iD_NhomChiTieu ?? 0),
   TenNhom: raw.TenNhom ?? raw.tenNhom ?? '',
   ID_LoaiThietBi: Number(raw.ID_LoaiThietBi ?? raw.iD_LoaiThietBi ?? 0),

@@ -14,7 +14,7 @@ type RawInput = Partial<ChiTieuInput> & {
   maThongSoThietBi?: string | null;
 };
 
-const toInput = (r: RawInput): ChiTieuInput => ({
+export const toInput = (r: RawInput): ChiTieuInput => ({
   ID_Input:   Number(r.ID_Input   ?? r.iD_Input   ?? 0),
   ID_ChiTieu: Number(r.ID_ChiTieu ?? r.iD_ChiTieu ?? 0),
   MaInput:    r.MaInput  ?? r.maInput  ?? '',

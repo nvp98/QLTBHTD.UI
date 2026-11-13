@@ -32,8 +32,7 @@ const LOAI_CONG_THUC_OPTIONS = [
   { value: 'LINEAR_COMBINE', label: 'Cộng dồn hiệu chỉnh — kiểu CHI (điểm cha + Xᵢ/Yᵢ)' },
   { value: 'PRODUCT', label: 'Nhân hệ số — kiểu DGA (Sdga × Sr)' },
   { value: 'CUSTOM_MONTHLY_CLASSIFY', label: 'Phân loại theo tháng — kiểu LF (mức mang tải)' },
-  { value: 'MIN_BIEN', label: 'Nhỏ nhất trong các biến — kiểu Sm (lịch sử bảo dưỡng)' },
-];
+  { value: 'MIN_BIEN', label: 'Nhỏ nhất trong các biến — kiểu Sm (lịch sử bảo dưỡng)' },];
 const loaiCongThucLabel = (v?: string) =>
   LOAI_CONG_THUC_OPTIONS.find(o => o.value === v)?.label ?? v ?? '—';
 
@@ -45,8 +44,7 @@ const LOAI_CONG_THUC_SHORT: Record<string, string> = {
   LINEAR_COMBINE: 'CHI',
   PRODUCT: 'DGA',
   CUSTOM_MONTHLY_CLASSIFY: 'LF',
-  MIN_BIEN: 'Sm',
-};
+  MIN_BIEN: 'Sm',};
 const loaiCongThucShort = (v?: string) => (v ? LOAI_CONG_THUC_SHORT[v] ?? v : '—');
 
 /** Nhãn tiếng Việt cho NguonBien — giá trị lưu DB giữ nguyên tiếng Anh. Nguồn duy nhất,

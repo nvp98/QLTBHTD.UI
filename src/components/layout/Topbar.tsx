@@ -25,7 +25,7 @@ const PAGE_TITLES: Record<string, { title: string; sub?: string }> = {
   '/cau-hinh/chi-tieu':          { title: 'Chỉ tiêu & Ngưỡng điểm',    sub: 'Cấu hình trọng số và ngưỡng chấm điểm CBM' },
   '/nhap-lieu':                  { title: 'Nhập liệu kiểm tra',         sub: 'Tạo phiếu kiểm tra thiết bị' },
   '/nhap-lieu/phieu-kiem-tra':   { title: 'Tạo phiếu kiểm tra',         sub: 'Nhập giá trị chỉ tiêu và lưu phiếu' },
-  '/ket-qua':                    { title: 'Kết quả phân hạng CBM',      sub: 'Chỉ số sức khỏe theo phương pháp EVN' },
+  '/ket-qua':                    { title: 'Phiếu kiểm tra',      sub: 'Chỉ số sức khỏe theo phương pháp EVN' },
   '/bao-cao':                    { title: 'Báo cáo',                    sub: 'Xuất báo cáo CBM định kỳ' },
 };
 

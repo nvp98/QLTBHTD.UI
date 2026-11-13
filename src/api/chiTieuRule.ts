@@ -13,7 +13,7 @@ type RawRule = Partial<ChiTieuRule> & {
   hanhDongKhuyenCao?: string | null;
 };
 
-const toRule = (r: RawRule): ChiTieuRule => ({
+export const toRule = (r: RawRule): ChiTieuRule => ({
   ID_Rule:    Number(r.ID_Rule    ?? r.iD_Rule    ?? 0),
   ID_ChiTieu: Number(r.ID_ChiTieu ?? r.iD_ChiTieu ?? 0),
   TenMuc:     r.TenMuc   ?? r.tenMuc   ?? '',

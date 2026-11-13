@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Card, Typography, Flex, Table, Button, message, Progress, Segmented, Select, DatePicker, Tag } from 'antd';
-import { ReloadOutlined, DownloadOutlined, FilterOutlined } from '@ant-design/icons';
+import { Card, Typography, Flex, Table, Button, message, Progress, Segmented, Select, DatePicker, Tag, Popconfirm, Space, Tooltip } from 'antd';
+import { ReloadOutlined, DownloadOutlined, FilterOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { Dayjs } from 'dayjs';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
@@ -130,23 +130,35 @@ export default function KetQuaPage() {
           <Text strong style={{ color: '#93c5fd', display: 'block', cursor: 'pointer' }}
             onClick={() => navigate(`/ket-qua/${r.ID_Phieu}`)}>
             {r.TenThietBi ?? `TB #${v}`}
-          </Text>
-          <Text style={{ color: '#6b7280', fontSize: 11 }}>
-            Kiểm tra: {fmtDate(r.NgayKiemTra)} · KTV: {r.NguoiKiemTra ?? '—'}
+            {r.TrangThai === 0 && <Tag color="orange" style={{ marginLeft: 8, fontWeight: 400 }}>Nháp</Tag>}
           </Text>
         </div>
       ),
     },
     {
-      title: 'Trạm / Loại TB', key: 'tramLoai', width: 170,
-      render: (_: unknown, r: PhieuKiemTra) => (
-        <div>
-          <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 12, display: 'block' }}>
-            {r.TenTram ?? '—'}
-          </Text>
-          {r.TenLoaiTB && <Tag style={{ fontSize: 10, marginTop: 2 }}>{r.TenLoaiTB}</Tag>}
-        </div>
+      title: 'Ngày kiểm tra', dataIndex: 'NgayKiemTra', key: 'ngay', width: 130,
+      sorter: (a: PhieuKiemTra, b: PhieuKiemTra) => new Date(a.NgayKiemTra).getTime() - new Date(b.NgayKiemTra).getTime(),
+      render: (v: string) => (
+        <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 13 }}>{fmtDate(v)}</Text>
       ),
+    },
+    {
+      title: 'Người kiểm tra', dataIndex: 'NguoiKiemTra', key: 'ktv', width: 160,
+      render: (v?: string | null) => (
+        <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 13 }}>{v ?? '—'}</Text>
+      ),
+    },
+    {
+      title: 'Trạm', dataIndex: 'TenTram', key: 'tram', width: 170,
+      render: (v?: string | null) => (
+        <Text style={{ color: isDark ? '#9ca3af' : '#4b5563', fontSize: 13 }}>{v ?? '—'}</Text>
+      ),
+    },
+    {
+      title: 'Loại thiết bị', dataIndex: 'TenLoaiTB', key: 'loaiTB', width: 160,
+      render: (v?: string | null) => v
+        ? <Tag style={{ fontSize: 11, margin: 0 }}>{v}</Tag>
+        : <Text style={{ color: '#9ca3af' }}>—</Text>,
     },
     {
       title: 'Nhóm chỉ tiêu', dataIndex: 'TenNhom', key: 'nhom', width: 160,
@@ -171,6 +183,33 @@ export default function KetQuaPage() {
           </Text>
         </Flex>
       ) : <Text style={{ color: isDark ? '#6b7280' : '#9ca3af' }}>Chưa tính</Text>,
+    },
+    {
+      title: 'Thao tác', key: 'actions', width: 110, align: 'center' as const,
+      render: (_: unknown, r: PhieuKiemTra) => (
+        <Space size={4}>
+          <Tooltip title="Mở để sửa">
+            <Button size="small" type="text" icon={<EditOutlined />}
+              onClick={() => navigate(`/nhap-lieu/phieu-kiem-tra/${r.ID_Phieu}`)} />
+          </Tooltip>
+          <Popconfirm
+            title="Xóa phiếu kiểm tra này?"
+            description="Toàn bộ giá trị đo và điểm của phiếu sẽ bị xóa, không khôi phục được."
+            okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
+            onConfirm={async () => {
+              try {
+                await phieuKiemTraApi.delete(r.ID_Phieu);
+                message.success('Đã xóa phiếu');
+                load(viewMode, filterParams);
+              } catch {
+                message.error('Không xóa được phiếu');
+              }
+            }}
+          >
+            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
     },
   ];
 

@@ -24,6 +24,7 @@ type PhieuKiemTraRaw = Partial<PhieuKiemTra> & {
   tongDiem_Soqt?: number;
   capDoCanhBao?: string;
   ghiChuChung?: string;
+  trangThai?: number;
 };
 
 type ChiTietInputValueRaw = Partial<ChiTietInputValueDto> & {
@@ -49,6 +50,7 @@ type ChiTietKiemTraRaw = Partial<ChiTietKiemTra> & {
   giaTriNhap_Chu?: string;
   diem_Si_DatDuoc?: number;
   hanhDongKhuyenCao?: string | null;
+  tinhTrang?: string | null;
   ghiChu?: string;
   danhSachInput?: ChiTietInputValueRaw[];
 };
@@ -60,6 +62,7 @@ type LichSuChiTieuRaw = Partial<LichSuChiTieu> & {
   giaTriNhap_Chu?: string;
   diem_Si_DatDuoc?: number;
   hanhDongKhuyenCao?: string | null;
+  tinhTrang?: string | null;
   danhSachInput?: ChiTietInputValueRaw[];
 };
 
@@ -74,6 +77,7 @@ const toChiTietKiemTra = (raw: ChiTietKiemTraRaw): ChiTietKiemTra => ({
   GiaTriNhap_Chu:  raw.GiaTriNhap_Chu  ?? raw.giaTriNhap_Chu,
   Diem_Si_DatDuoc: raw.Diem_Si_DatDuoc ?? raw.diem_Si_DatDuoc,
   HanhDongKhuyenCao: raw.HanhDongKhuyenCao ?? raw.hanhDongKhuyenCao ?? null,
+  TinhTrang:       raw.TinhTrang       ?? raw.tinhTrang       ?? null,
   GhiChu:          raw.GhiChu          ?? raw.ghiChu,
   DanhSachInput:   (raw.DanhSachInput ?? raw.danhSachInput)?.map(toInputValue),
 });
@@ -85,6 +89,7 @@ const toLichSuChiTieu = (raw: LichSuChiTieuRaw): LichSuChiTieu => ({
   GiaTriNhap_Chu:  raw.GiaTriNhap_Chu  ?? raw.giaTriNhap_Chu,
   Diem_Si_DatDuoc: raw.Diem_Si_DatDuoc ?? raw.diem_Si_DatDuoc,
   HanhDongKhuyenCao: raw.HanhDongKhuyenCao ?? raw.hanhDongKhuyenCao ?? null,
+  TinhTrang:       raw.TinhTrang       ?? raw.tinhTrang       ?? null,
   DanhSachInput:   (raw.DanhSachInput ?? raw.danhSachInput)?.map(toInputValue),
 });
 
@@ -113,6 +118,7 @@ const toPhieu = (raw: PhieuKiemTraRaw): PhieuKiemTra => ({
   TongDiem_Soqt:   raw.TongDiem_Soqt   ?? raw.tongDiem_Soqt,
   CapDoCanhBao:    raw.CapDoCanhBao    ?? raw.capDoCanhBao,
   GhiChuChung:     raw.GhiChuChung     ?? raw.ghiChuChung,
+  TrangThai:       raw.TrangThai       ?? raw.trangThai ?? 1,
 });
 
 type PhieuKiemTraDetailRaw = PhieuKiemTraRaw & { chiTiets?: ChiTietKiemTraRaw[] };
@@ -176,5 +182,8 @@ export const phieuKiemTraApi = {
     (await api.get<LichSuChiTieuRaw[]>(`${BASE}/lich-su-chi-tieu/${idThietBi}/${idChiTieu}`)).map(toLichSuChiTieu),
   create:    async (dto: CreatePhieuKiemTraDto) => toPhieu(await api.post<PhieuKiemTraRaw>(`${BASE}/create-phieukiemtra`, dto)),
   update:    async (id: number, dto: UpdatePhieuKiemTraDto) => toPhieu(await api.put<PhieuKiemTraRaw>(`${BASE}/${id}`, dto)),
+  /** Sửa nội dung phiếu đã lưu (giá trị đo + thông tin chung). payload.TinhDiem=false → Nháp, true → tính lại điểm. */
+  updateNoiDung: async (id: number, payload: Record<string, unknown>) =>
+    toPhieu(await api.put<PhieuKiemTraRaw>(`${BASE}/${id}/noi-dung`, payload)),
   delete:    (id: number) => api.delete(`${BASE}/${id}`),
 };

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert, AutoComplete, Button, Card, Col, Divider, Flex, Form, Input,
   InputNumber, Modal, Popconfirm, Radio, Row, Select, Space,
@@ -506,6 +507,7 @@ function NguongPanel({
         CanTren_BaoGom: editing.CanTren_BaoGom,
         MaKetQua:       editing.MaKetQua ?? null,
         HanhDongKhuyenCao: editing.HanhDongKhuyenCao ?? null,
+        TinhTrang:      editing.TinhTrang ?? null,
       });
     } else {
       form.setFieldsValue({ ID_ChiTieu: chiTieuId, CanDuoi_BaoGom: true, CanTren_BaoGom: false, MaKetQua: null });
@@ -594,6 +596,12 @@ function NguongPanel({
           </Flex>
         );
       },
+    },
+    {
+      title: 'Tình trạng', dataIndex: 'TinhTrang', key: 'tinhtrang', width: 100, align: 'center',
+      render: (v?: string | null) => v
+        ? <Text style={{ fontSize: 13 }}>{v}</Text>
+        : <Text style={{ color: '#6b7280', fontSize: 11 }}>—</Text>,
     },
     {
       title: 'Điểm Sᵢ', dataIndex: 'Diem_Si', key: 'diem', width: 88, align: 'center',
@@ -758,8 +766,14 @@ function NguongPanel({
 
           <Form.Item name="Diem_Si" label="Điểm Sᵢ đạt được"
             rules={[{ required: true, message: 'Nhập điểm' }]}
-            tooltip="Điểm 0 – 10 khi giá trị thỏa mãn điều kiện trên">
-            <InputNumber style={{ width: '100%' }} min={0} max={10} step={0.5} placeholder="0 – 10" />
+            tooltip="Điểm Sᵢ khi giá trị thỏa mãn điều kiện trên. Thang 0 – 3 (hạng mục Cấp 1), hoặc điểm trừ âm 0 / −0,5 / −1 / −1,5 (hạng mục Cấp 2).">
+            <InputNumber style={{ width: '100%' }} min={-10} max={10} step={0.5} placeholder="VD: 3, 2, 1, 0 hoặc −0,5" />
+          </Form.Item>
+
+          <Form.Item name="TinhTrang" label="Tình trạng"
+            tooltip="Mức xếp loại của khoảng giá trị này — lưu riêng, hiển thị thành cột 'Tình trạng' ở chi tiết phiếu.">
+            <Select allowClear placeholder="Chọn tình trạng"
+              options={['Tốt', 'Khá', 'Trung bình', 'Xấu'].map(t => ({ label: t, value: t }))} />
           </Form.Item>
 
           <Form.Item name="HanhDongKhuyenCao" label="Hành động khuyến cáo (khi mức này khớp)"
@@ -2037,17 +2051,24 @@ export default function ChiTieuPage() {
   const isDark = mode === 'dark';
   const [rows, setRows]               = useState<ChiTieu[]>([]);
   const [total, setTotal]             = useState(0);
-  const [page, setPage]               = useState(1);
-  const [pageSize, setPageSize]       = useState(15);
+  // Bộ lọc/tìm kiếm/phân trang đồng bộ với URL (?q=&loai=&nhom=&page=&size=) — chia sẻ link, F5 vẫn giữ nguyên.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const numParam = (k: string): number | undefined => {
+    const v = searchParams.get(k);
+    const n = v == null || v === '' ? NaN : Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const [page, setPage]               = useState(() => numParam('page') ?? 1);
+  const [pageSize, setPageSize]       = useState(() => numParam('size') ?? 15);
   const [nhoms, setNhoms]             = useState<NhomChiTieu[]>([]);
   const [loais, setLoais]             = useState<LoaiThietBi[]>([]);
   const [loading, setLoading]         = useState(false);
   const [modalOpen, setModalOpen]     = useState(false);
   const [saving, setSaving]           = useState(false);
   const [editing, setEditing]         = useState<ChiTieu | null>(null);
-  const [search, setSearch]           = useState('');
-  const [filterNhom, setFilterNhom]   = useState<number | undefined>(undefined);
-  const [filterLoai, setFilterLoai]   = useState<number | undefined>(undefined);
+  const [search, setSearch]           = useState(() => searchParams.get('q') ?? '');
+  const [filterNhom, setFilterNhom]   = useState<number | undefined>(() => numParam('nhom'));
+  const [filterLoai, setFilterLoai]   = useState<number | undefined>(() => numParam('loai'));
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const [form]                        = Form.useForm();
 
@@ -2069,6 +2090,17 @@ export default function ChiTieuPage() {
   }, [search, filterNhom, filterLoai, page, pageSize]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Ghi bộ lọc hiện tại lên URL (chỉ giữ tham số khác mặc định, thay thế bản ghi lịch sử hiện tại).
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (search)               next.set('q', search);
+    if (filterLoai != null)   next.set('loai', String(filterLoai));
+    if (filterNhom != null)   next.set('nhom', String(filterNhom));
+    if (page !== 1)           next.set('page', String(page));
+    if (pageSize !== 15)      next.set('size', String(pageSize));
+    setSearchParams(next, { replace: true });
+  }, [search, filterLoai, filterNhom, page, pageSize, setSearchParams]);
 
   useEffect(() => {
     if (!modalOpen) return;

@@ -15,7 +15,7 @@ type ChiTieuApiRaw = Partial<ChiTieu> & {
   giaTri_L1?: number | null;
 };
 
-const toChiTieu = (raw: ChiTieuApiRaw): ChiTieu => ({
+export const toChiTieu = (raw: ChiTieuApiRaw): ChiTieu => ({
   ID_ChiTieu:      Number(raw.ID_ChiTieu      ?? raw.iD_ChiTieu      ?? 0),
   ID_NhomChiTieu:  Number(raw.ID_NhomChiTieu  ?? raw.iD_NhomChiTieu  ?? 0),
   TenNhom:         raw.TenNhom    ?? raw.tenNhom,

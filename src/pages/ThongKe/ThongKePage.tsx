@@ -11,15 +11,18 @@ import {
   WarningOutlined, CheckCircleOutlined, ReloadOutlined,
   ApartmentOutlined, BarChartOutlined, LineChartOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useThemeMode } from '../../theme/ThemeModeContext';
-import { getCapDoSucKhoe } from '../../theme/capDoSucKhoe';
+import { getCapDoSucKhoe, getCapDoByKey } from '../../theme/capDoSucKhoe';
 import { thongKeApi } from '../../api/thongKe';
 import { thietBiApi } from '../../api/thietBi';
+import { tramDienApi } from '../../api/tramDien';
+import { loaiThietBiApi } from '../../api/loaiThietBi';
 import type {
   ThongKeTongHopDto, LichSuCSSKDto, BaoCaoTramItemDto, CanhBaoThietBiDto,
 } from '../../api/thongKe';
-import type { ThietBi } from '../../types/entities';
+import type { ThietBi, TramDien, LoaiThietBi } from '../../types/entities';
+import DuLieuDoNhomChart from '../../components/charts/DuLieuDoNhomChart';
 
 const { Title, Text } = Typography;
 
@@ -192,8 +195,35 @@ function TabTongHop({ isDark }: { isDark: boolean }) {
 // ─── Tab 2: Lịch sử CSSK thiết bị ──────────────────────────────────────────
 function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [thietBis, setThietBis] = useState<ThietBi[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [trams, setTrams] = useState<TramDien[]>([]);
+  const [loais, setLoais] = useState<LoaiThietBi[]>([]);
+  // Bộ lọc lấy từ query ?tram=<id>&loai=<id>&thietBi=<id> để chia sẻ/mở thẳng được đường dẫn.
+  const readId = (key: string): number | null => {
+    const n = Number(searchParams.get(key));
+    return Number.isInteger(n) && n > 0 ? n : null;
+  };
+  const tramId = readId('tram');
+  const loaiId = readId('loai');
+  const selected = readId('thietBi');
+  const updateParams = (changes: Record<string, number | null>) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(changes).forEach(([k, v]) => { if (v == null) next.delete(k); else next.set(k, String(v)); });
+    setSearchParams(next, { replace: true });
+  };
+  const setSelected = (id: number | null) => updateParams({ thietBi: id });
+  // Đổi trạm/loại thì bỏ thiết bị đang chọn nếu nó không còn thuộc bộ lọc mới.
+  const setTram = (id: number | null) => {
+    const stillOk = selected != null && thietBis.find(t => t.ID_ThietBi === selected)?.ID_Tram === id;
+    updateParams({ tram: id, thietBi: id == null || stillOk ? selected : null });
+  };
+  const setLoai = (id: number | null) => {
+    const stillOk = selected != null && thietBis.find(t => t.ID_ThietBi === selected)?.ID_LoaiTB === id;
+    updateParams({ loai: id, thietBi: id == null || stillOk ? selected : null });
+  };
+  const thietBiLoc = thietBis.filter(t =>
+    (tramId == null || t.ID_Tram === tramId) && (loaiId == null || t.ID_LoaiTB === loaiId));
   const [history, setHistory] = useState<LichSuCSSKDto[]>([]);
   const [loading, setLoading] = useState(false);
   const panelBg = isDark ? '#0e2c4a' : '#ffffff';
@@ -202,6 +232,8 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
 
   useEffect(() => {
     thietBiApi.getActive().then(setThietBis).catch(() => { });
+    tramDienApi.getActive().then(setTrams).catch(() => { });
+    loaiThietBiApi.getActive().then(setLoais).catch(() => { });
   }, []);
 
   const loadHistory = useCallback(async (id: number) => {
@@ -254,7 +286,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
       key: 'cap',
       width: 110,
       render: (_: unknown, r: LichSuCSSKDto) => {
-        const cd = getCapDo(r.tongDiem_Soqt, isDark);
+        const cd = getCapDoByKey(r.capDo, isDark);
 
         return (
           <Tag
@@ -266,7 +298,7 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
               opacity: 1,
             }}
           >
-            {r.capDoCanhBao || cd.label}
+            {r.capDoCanhBao || r.capDoLabel}
           </Tag>
         );
       },
@@ -291,17 +323,32 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
       <Card style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
         styles={{ body: { padding: '16px 20px' } }}>
         <Flex align="center" gap={16} wrap="wrap">
-          <Text style={{ color: tc, fontWeight: 600 }}>Chọn thiết bị:</Text>
+          <Select
+            placeholder="Tất cả trạm"
+            style={{ minWidth: 200 }}
+            value={tramId}
+            onChange={v => setTram(v ?? null)}
+            allowClear
+            options={trams.map(t => ({ value: t.IDTram, label: t.TenTram }))}
+          />
+          <Select
+            placeholder="Tất cả loại thiết bị"
+            style={{ minWidth: 220 }}
+            value={loaiId}
+            onChange={v => setLoai(v ?? null)}
+            allowClear
+            options={loais.map(l => ({ value: l.ID_LoaiThietBi, label: `${l.TenLoaiTB}${l.KyHieu ? ` (${l.KyHieu})` : ''}` }))}
+          />
           <Select
             showSearch
             placeholder="Tìm và chọn thiết bị..."
             style={{ minWidth: 320 }}
             value={selected}
-            onChange={setSelected}
+            onChange={v => setSelected(v ?? null)}
             allowClear
             filterOption={(input, opt) =>
               (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
-            options={thietBis.map(tb => ({
+            options={thietBiLoc.map(tb => ({
               value: tb.ID_ThietBi,
               label: `${tb.TenThietBi}${tb.TenTram ? ` — ${tb.TenTram}` : ''}`,
             }))}
@@ -328,6 +375,17 @@ function TabLichSuThietBi({ isDark }: { isDark: boolean }) {
               <CSSKLineChart data={chartData} color="#3b82f6" isDark={isDark} />
             )}
           </Card>
+
+          {(() => {
+            const tb = thietBis.find(t => t.ID_ThietBi === selected);
+            return tb ? (
+              <Card title="Dữ liệu đo theo nhóm chỉ tiêu (các lần đo trước và hiện tại)"
+                style={{ background: panelBg, border: `1px solid ${panelBorder}`, marginTop: 16 }}
+                styles={{ header: { color: tc, borderBottom: `1px solid ${panelBorder}` }, body: { padding: '16px 20px' } }}>
+                <DuLieuDoNhomChart idThietBi={tb.ID_ThietBi} idLoaiTB={tb.ID_LoaiTB} isDark={isDark} />
+              </Card>
+            ) : null;
+          })()}
 
           {history.length > 0 && (
             <Card title="Lịch sử các lần kiểm tra"
@@ -498,13 +556,15 @@ function TabBaoCaoTram({ isDark }: { isDark: boolean }) {
 function TabCanhBao({ isDark }: { isDark: boolean }) {
   const navigate = useNavigate();
   const [data, setData] = useState<CanhBaoThietBiDto[]>([]);
+  const [soXau, setSoXau] = useState(0);
+  const [soTrungBinh, setSoTrungBinh] = useState(0);
   const [loading, setLoading] = useState(true);
   const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
   const tc = isDark ? '#f9fafb' : '#111827';
 
   useEffect(() => {
-    thongKeApi.getCanhBao()
-      .then(setData)
+    thongKeApi.getCanhBaoTongHop()
+      .then(r => { setData(r.items); setSoXau(r.soNguyHiem); setSoTrungBinh(r.soCanhBao); })
       .catch(() => message.error('Không thể tải danh sách cảnh báo'))
       .finally(() => setLoading(false));
   }, []);
@@ -539,9 +599,9 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
       render: (_: unknown, r: CanhBaoThietBiDto) => (
         <Flex align="center" gap={8}>
           <Progress percent={r.diemHienThi * 10} size="small" showInfo={false}
-            strokeColor={getCapDo(r.diemHienThi, isDark).color}
+            strokeColor={getCapDoByKey(r.capDo, isDark).color}
             railColor={isDark ? '#1e4a72' : '#e5e7eb'} style={{ width: 80 }} />
-          <Text style={{ color: getCapDo(r.diemHienThi, isDark).color, fontFamily: 'monospace', fontWeight: 600 }}>
+          <Text style={{ color: getCapDoByKey(r.capDo, isDark).color, fontFamily: 'monospace', fontWeight: 600 }}>
             {r.diemHienThi.toFixed(1)}
           </Text>
           {r.nguonDiem === 'CHI_TIEU' && (
@@ -553,11 +613,11 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
     {
       title: 'Mức độ', dataIndex: 'capDoCanhBao', key: 'cap', width: 120,
       render: (v: string, r: CanhBaoThietBiDto) => {
-        const cd = getCapDo(r.diemHienThi, isDark);
+        const cd = getCapDoByKey(r.capDo, isDark);
         return (
           <Tag icon={<ExclamationCircleOutlined />}
             style={{ background: cd.bg, color: cd.color, border: `1px solid ${cd.color}55`, fontWeight: 600 }}>
-            {v || cd.label}
+            {r.tinhTrang || v || cd.label}
           </Tag>
         );
       }
@@ -577,21 +637,16 @@ function TabCanhBao({ isDark }: { isDark: boolean }) {
     },
   ];
 
-  const nguHiem = data.filter(d => d.diemHienThi < 2).length;
-  const canhBao = data.filter(d => d.diemHienThi >= 2 && d.diemHienThi < 4).length;
-  const chuY = data.filter(d => d.diemHienThi >= 4 && d.diemHienThi < 6).length;
-
   return (
     <Flex vertical gap={16}>
       {/* Alert summary */}
       {data.length > 0 && (
         <Row gutter={[12, 12]}>
           {[
-            { label: 'Trung bình (4–6)', count: chuY, color: getCapDoSucKhoe(5, isDark).color, icon: <WarningOutlined /> },
-            { label: 'Cảnh báo (2–4)', count: canhBao, color: getCapDoSucKhoe(3, isDark).color, icon: <WarningOutlined /> },
-            { label: 'Nguy hiểm (<2)', count: nguHiem, color: getCapDoSucKhoe(1, isDark).color, icon: <ExclamationCircleOutlined /> },
+            { label: 'Tình trạng Trung bình', count: soTrungBinh, color: getCapDoByKey('canhBao', isDark).color, icon: <WarningOutlined /> },
+            { label: 'Tình trạng Xấu', count: soXau, color: getCapDoByKey('nguyHiem', isDark).color, icon: <ExclamationCircleOutlined /> },
           ].map(s => (
-            <Col xs={8} key={s.label}>
+            <Col xs={12} key={s.label}>
               <Card style={{ background: `${s.color}11`, border: `1px solid ${s.color}44`, textAlign: 'center' as const }}
                 styles={{ body: { padding: '12px 16px' } }}>
                 <div style={{ color: s.color, fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
@@ -649,6 +704,23 @@ export default function ThongKePage() {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const tc = isDark ? '#f9fafb' : '#111827';
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Tab đang mở lấy từ query ?tab=tong-hop|lich-su|theo-tram|canh-bao
+  const TAB_KEYS = ['tong-hop', 'lich-su', 'theo-tram', 'canh-bao'];
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'tong-hop';
+  const handleTabChange = (key: string) => {
+    const next = new URLSearchParams();
+    next.set('tab', key);
+    // Giữ thiết bị đã chọn chỉ khi còn ở tab lịch sử.
+    const tb = searchParams.get('thietBi');
+    if (key === 'lich-su') {
+      ['tram', 'loai'].forEach(k => { const v = searchParams.get(k); if (v) next.set(k, v); });
+      if (tb) next.set('thietBi', tb);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const tabs = [
     {
@@ -712,7 +784,8 @@ export default function ThongKePage() {
       </Flex>
 
       <Tabs
-        defaultActiveKey="tong-hop"
+        activeKey={activeTab}
+        onChange={handleTabChange}
         items={tabs}
         size="large"
         style={{ color: tc }}

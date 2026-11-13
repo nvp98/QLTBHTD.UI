@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Badge, Button, Card, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm,
-  Row, Select, Space, Tag, Tooltip, Tree, Typography, message,
+  Row, Segmented, Select, Space, Tag, Tooltip, Tree, Typography, message,
 } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import {
@@ -12,11 +12,12 @@ import {
 import { khuVucApi } from '../../api/khuVuc';
 import { tramDienApi } from '../../api/tramDien';
 import { thietBiApi } from '../../api/thietBi';
+import { nganLoApi } from '../../api/nganLo';
 import { loaiThietBiApi } from '../../api/loaiThietBi';
-import { phieuKiemTraApi } from '../../api/phieuKiemTra';
-import type { KhuVuc, TramDien, ThietBi, LoaiThietBi, PhieuKiemTra } from '../../types/entities';
+import { cayThietBiApi, type CayNode, type CayThietBiResult } from '../../api/cayThietBi';
+import type { KhuVuc, TramDien, ThietBi, LoaiThietBi, NganLo } from '../../types/entities';
 import { useThemeMode } from '../../theme/ThemeModeContext';
-import { capDoKeyOf, getCapDoSucKhoe, type CapDoKey } from '../../theme/capDoSucKhoe';
+import { getCapDoByKey, type CapDoKey } from '../../theme/capDoSucKhoe';
 
 const { Title, Text } = Typography;
 
@@ -37,11 +38,11 @@ const TRANG_THAI_TB = [
   { label: 'Hoạt động', value: 1 }, { label: 'Bảo trì', value: 2 }, { label: 'Ngừng vận hành', value: 0 },
 ];
 
-const trangThaiTag2 = (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>;
+const trangThaiTag2 = (v: number) => <Tag>{v === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>;
 const trangThaiTagTB = (v: number) => {
-  if (v === 1) return <Tag color="success">Hoạt động</Tag>;
-  if (v === 2) return <Tag color="warning">Bảo trì</Tag>;
-  return <Tag color="default">Ngừng</Tag>;
+  if (v === 1) return <Tag>Hoạt động</Tag>;
+  if (v === 2) return <Tag>Bảo trì</Tag>;
+  return <Tag>Ngừng</Tag>;
 };
 
 type Selection =
@@ -59,7 +60,13 @@ export default function CayThietBiPage() {
   const [trams, setTrams]       = useState<TramDien[]>([]);
   const [thietBis, setThietBis] = useState<ThietBi[]>([]);
   const [loais, setLoais]       = useState<LoaiThietBi[]>([]);
-  const [latestByThietBi, setLatestByThietBi] = useState<Record<number, PhieuKiemTra>>({});
+  const [nganLos, setNganLos]   = useState<NganLo[]>([]);
+  // Cấp thứ 3 của cây (dưới Trạm): nhóm theo Ngăn lộ (mặc định) hoặc theo Loại thiết bị.
+  const [groupBy, setGroupBy]   = useState<'nganlo' | 'loai'>('nganlo');
+  // Cây do BE dựng sẵn (lọc + nhóm + CSSK); FE chỉ hiển thị.
+  const [cay, setCay]           = useState<CayThietBiResult | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [reloadTick, setReloadTick] = useState(0);
   const [loading, setLoading]   = useState(false);
   const [search, setSearch]     = useState('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -89,70 +96,52 @@ export default function CayThietBiPage() {
   const [tbModalOpen, setTbModalOpen]   = useState(false);
   const [editingTb, setEditingTb]       = useState<ThietBi | null>(null);
   const [parentTramForTb, setParentTramForTb] = useState<TramDien | null>(null);
+  const [parentNganLoForTb, setParentNganLoForTb] = useState<NganLo | null>(null);
   const [savingTb, setSavingTb]         = useState(false);
   const [tbForm] = Form.useForm();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  /** Tải danh mục (dùng cho form sửa/xóa + panel chi tiết) rồi nhờ BE dựng lại cây. */
+  const load = useCallback(async (refreshTree = true) => {
     try {
-      const [kvs, ts, tbs, ls, phieuPaged] = await Promise.all([
+      const [kvs, ts, tbs, ls, nls] = await Promise.all([
         khuVucApi.getAll(),
         tramDienApi.getAll(),
         thietBiApi.getAll(),
         loaiThietBiApi.getActive(),
-        phieuKiemTraApi.getPaged({ page: 1, pageSize: 1000 }),
+        nganLoApi.getAll(),
       ]);
       setKhuVucs(kvs);
       setTrams(ts);
       setThietBis(tbs);
       setLoais(ls);
-
-      // Phiếu mới nhất của mỗi thiết bị — dùng để hiện CSSK trên cây
-      const latest: Record<number, PhieuKiemTra> = {};
-      for (const p of phieuPaged.items) {
-        const cur = latest[p.ID_ThietBi];
-        if (!cur || p.ID_Phieu > cur.ID_Phieu) latest[p.ID_ThietBi] = p;
-      }
-      setLatestByThietBi(latest);
+      setNganLos(nls);
+      if (refreshTree) setReloadTick(t => t + 1);
     } catch {
       message.error('Không thể tải cây thiết bị');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(false); }, [load]);
 
   const loaiName = (id: number) => loais.find(l => l.ID_LoaiThietBi === id)?.TenLoaiTB ?? `Loại ${id}`;
 
-  /** Cấp độ CSSK của 1 thiết bị (điểm phiếu mới nhất), 'chuaDo' nếu chưa có phiếu nào. */
-  const csskOf = (idThietBi: number): CsskFilter => {
-    const diem = latestByThietBi[idThietBi]?.TongDiem_Soqt;
-    return diem == null ? 'chuaDo' : capDoKeyOf(diem);
-  };
+  /** CSSK (phiếu đã tính điểm mới nhất) của từng thiết bị — BE trả sẵn. */
+  const csskMap = useMemo(() => {
+    const m: Record<number, { diem: number | null; label: string; idPhieu: number | null }> = {};
+    for (const x of cay?.thietBiCssk ?? []) m[x.idThietBi] = { diem: x.diem, label: x.capDoLabel, idPhieu: x.idPhieu };
+    return m;
+  }, [cay]);
 
-  /** Tag CSSK cho 1 thiết bị — dùng điểm phiếu mới nhất, "Chưa đo" nếu chưa có phiếu nào. */
-  const csskTag = (idThietBi: number) => {
-    const diem = latestByThietBi[idThietBi]?.TongDiem_Soqt;
+  /** Tag CSSK cho 1 thiết bị — "Chưa đo" nếu chưa có phiếu nào đã tính điểm. */
+  const csskTagOf = (diem: number | null | undefined, label?: string | null) => {
     if (diem == null) return <Tag style={{ fontSize: 10 }}>Chưa đo</Tag>;
-    const info = getCapDoSucKhoe(diem, isDark);
     return (
-      <Tag style={{ fontSize: 10, color: info.color, background: info.bg, borderColor: info.border }}>
-        {diem.toFixed(1)} · {info.label}
+      <Tag style={{ fontSize: 10 }}>
+        {Number(diem).toFixed(1)} · {label}
       </Tag>
     );
   };
-
-  /** Số lượng thiết bị theo từng cấp độ CSSK — dùng cho dải thống kê + lọc nhanh. */
-  const csskCounts = useMemo(() => {
-    const counts: Record<CsskFilter, number> = { all: thietBis.length, tot: 0, kha: 0, trungBinh: 0, canhBao: 0, nguyHiem: 0, chuaDo: 0 };
-    for (const tb of thietBis) {
-      const key = csskOf(tb.ID_ThietBi);
-      counts[key] += 1;
-    }
-    return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [thietBis, latestByThietBi]);
+  const csskTag = (idThietBi: number) => csskTagOf(csskMap[idThietBi]?.diem, csskMap[idThietBi]?.label);
 
   // ── Khu vực: CRUD ──────────────────────────────────────────────────────
   const openAddKv = () => { setEditingKv(null); setKvModalOpen(true); };
@@ -228,14 +217,19 @@ export default function CayThietBiPage() {
   };
 
   // ── Thiết bị: CRUD ─────────────────────────────────────────────────────
-  const openAddThietBi = (tram: TramDien) => { setEditingTb(null); setParentTramForTb(tram); setTbModalOpen(true); };
-  const openEditThietBi = (tb: ThietBi) => { setEditingTb(tb); setParentTramForTb(null); setTbModalOpen(true); };
+  const openAddThietBi = (tram: TramDien, nganLo?: NganLo | null) => {
+    setEditingTb(null); setParentTramForTb(tram); setParentNganLoForTb(nganLo ?? null); setTbModalOpen(true);
+  };
+  const openEditThietBi = (tb: ThietBi) => { setEditingTb(tb); setParentTramForTb(null); setParentNganLoForTb(null); setTbModalOpen(true); };
 
   useEffect(() => {
     if (!tbModalOpen) return;
     if (editingTb) tbForm.setFieldsValue(editingTb);
-    else tbForm.setFieldsValue({ ID_Tram: parentTramForTb?.IDTram, TenThietBi: '', TrangThai: 1 });
-  }, [tbModalOpen, editingTb, parentTramForTb, tbForm]);
+    else tbForm.setFieldsValue({ ID_Tram: parentTramForTb?.IDTram, ID_NganLo: parentNganLoForTb?.ID_NganLo ?? null, TenThietBi: '', TrangThai: 1 });
+  }, [tbModalOpen, editingTb, parentTramForTb, parentNganLoForTb, tbForm]);
+
+  // Ngăn lộ chọn được = các ngăn lộ thuộc trạm đang chọn trong form thiết bị.
+  const tbFormTram = Form.useWatch('ID_Tram', tbForm);
 
   const saveThietBi = async () => {
     setSavingTb(true);
@@ -278,16 +272,8 @@ export default function CayThietBiPage() {
     return null;
   }, [selectedKey, khuVucs, trams, thietBis]);
 
-  // ── Tree data (lọc theo tìm kiếm + bộ lọc nâng cao) ─────────────────────
+  // ── Tree data: BE đã lọc + nhóm + tính CSSK; FE chỉ ánh xạ sang node của antd ─────────
   const searchLower = search.trim().toLowerCase();
-  const matchTb = (tb: ThietBi) => {
-    if (searchLower && ![tb.TenThietBi, tb.SoHieu, tb.NhanHieu].some(s => (s ?? '').toLowerCase().includes(searchLower))) return false;
-    if (filterLoai !== 'all' && tb.ID_LoaiTB !== filterLoai) return false;
-    if (filterTrangThai !== 'all' && tb.TrangThai !== filterTrangThai) return false;
-    if (filterCssk !== 'all' && csskOf(tb.ID_ThietBi) !== filterCssk) return false;
-    return true;
-  };
-
   const hasActiveFilter = !!searchLower || filterKhuVuc !== 'all' || filterLoai !== 'all'
     || filterTrangThai !== 'all' || filterCssk !== 'all';
   const activeFilterCount = [searchLower, filterKhuVuc !== 'all', filterLoai !== 'all',
@@ -297,126 +283,146 @@ export default function CayThietBiPage() {
     setSearch(''); setFilterKhuVuc('all'); setFilterLoai('all'); setFilterTrangThai('all'); setFilterCssk('all');
   };
 
-  const nodeRowStyle = (accent?: string) => ({
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    cayThietBiApi.get({
+      idKhuVuc: filterKhuVuc === 'all' ? undefined : filterKhuVuc,
+      idLoaiTB: filterLoai === 'all' ? undefined : filterLoai,
+      trangThai: filterTrangThai === 'all' ? undefined : filterTrangThai,
+      cssk: filterCssk === 'all' ? undefined : filterCssk,
+      search: debouncedSearch || undefined,
+      groupBy,
+    })
+      .then(r => { if (!cancelled) setCay(r); })
+      .catch(() => { if (!cancelled) message.error('Không thể tải cây thiết bị'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [filterKhuVuc, filterLoai, filterTrangThai, filterCssk, debouncedSearch, groupBy, reloadTick]);
+
+  const nodeRowStyle = () => ({
     width: '100%', display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const,
-    padding: '4px 8px', borderRadius: 6, borderLeft: `3px solid ${accent ?? 'transparent'}`,
+    padding: '4px 8px', borderRadius: 6, borderLeft: '3px solid transparent',
   });
 
-  const treeData: DataNode[] = useMemo(() => khuVucs
-    .filter(kv => filterKhuVuc === 'all' || kv.ID_KhuVuc === filterKhuVuc)
-    .map(kv => {
-      const tramsOfKv = trams.filter(t => t.IDKhuVuc === kv.ID_KhuVuc);
-      const tramNodes = tramsOfKv
-        .map(t => {
-          const tbsOfTram = thietBis.filter(tb => tb.ID_Tram === t.IDTram && matchTb(tb));
-          if (hasActiveFilter && tbsOfTram.length === 0) return null;
-          const diems = tbsOfTram
-            .map(tb => latestByThietBi[tb.ID_ThietBi]?.TongDiem_Soqt)
-            .filter((d): d is number => d != null);
-          const tramInfo = diems.length ? getCapDoSucKhoe(diems.reduce((a, b) => a + b, 0) / diems.length, isDark) : null;
-          return {
-            key: `tram-${t.IDTram}`,
-            icon: <ThunderboltOutlined />,
-            title: (
-              <Space size={4} style={nodeRowStyle(tramInfo?.color)}>
-                <Space size={4} wrap>
-                  <Text>{t.TenTram}</Text>
-                  <Tag color={t.TrangThai === 1 ? 'success' : 'default'} style={{ fontSize: 10 }}>
-                    {t.TrangThai === 1 ? 'Hoạt động' : 'Ngừng'}
-                  </Tag>
-                  <Tag style={{ fontSize: 10 }}>{tbsOfTram.length} thiết bị</Tag>
-                  {tramInfo && diems.length > 0 && (
-                    <Tag style={{ fontSize: 10, color: tramInfo.color, background: tramInfo.bg, borderColor: tramInfo.border }}>
-                      CSSK TB: {(diems.reduce((a, b) => a + b, 0) / diems.length).toFixed(1)}
-                    </Tag>
-                  )}
-                </Space>
-                <Space size={2} onClick={e => e.stopPropagation()}>
-                  <Tooltip title="Thêm thiết bị">
-                    <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => openAddThietBi(t)} />
-                  </Tooltip>
-                  <Tooltip title="Sửa trạm">
-                    <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditTram(t)} />
-                  </Tooltip>
-                  <Popconfirm title={`Xóa trạm "${t.TenTram}"?`} okText="Xóa" cancelText="Hủy"
-                    okButtonProps={{ danger: true }} onConfirm={() => handleDeleteTram(t)}>
-                    <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-                  </Popconfirm>
-                </Space>
-              </Space>
-            ),
-            children: Array.from(new Set(tbsOfTram.map(tb => tb.ID_LoaiTB)))
-              .sort((a, b) => loaiName(a).localeCompare(loaiName(b)))
-              .map(idLoai => {
-                const tbsOfLoai = tbsOfTram.filter(tb => tb.ID_LoaiTB === idLoai);
-                const diemsLoai = tbsOfLoai
-                  .map(tb => latestByThietBi[tb.ID_ThietBi]?.TongDiem_Soqt)
-                  .filter((d): d is number => d != null);
-                const loaiInfo = diemsLoai.length ? getCapDoSucKhoe(diemsLoai.reduce((a, b) => a + b, 0) / diemsLoai.length, isDark) : null;
-                return {
-                  key: `loai-${t.IDTram}-${idLoai}`,
-                  selectable: false,
-                  icon: <ClusterOutlined />,
-                  title: (
-                    <Space size={4} style={nodeRowStyle(loaiInfo?.color)}>
-                      <Space size={4} wrap>
-                        <Tag color="blue" style={{ fontSize: 10 }}>{loaiName(idLoai)}</Tag>
-                        <Tag style={{ fontSize: 10 }}>{tbsOfLoai.length} thiết bị</Tag>
-                        {loaiInfo && diemsLoai.length > 0 && (
-                          <Tag style={{ fontSize: 10, color: loaiInfo.color, background: loaiInfo.bg, borderColor: loaiInfo.border }}>
-                            CSSK TB: {(diemsLoai.reduce((a, b) => a + b, 0) / diemsLoai.length).toFixed(1)}
-                          </Tag>
-                        )}
-                      </Space>
-                    </Space>
-                  ),
-                  children: tbsOfLoai.map(tb => {
-                    const info = getCapDoSucKhoe(latestByThietBi[tb.ID_ThietBi]?.TongDiem_Soqt, isDark);
-                    return {
-                      key: `tb-${tb.ID_ThietBi}`,
-                      isLeaf: true,
-                      icon: <ApartmentOutlined />,
-                      title: (
-                        <Space size={4} style={nodeRowStyle(info.color)}>
-                          <Space size={4} wrap>
-                            <Text>{tb.TenThietBi}</Text>
-                            {tb.TenNganLo && <Tag color="purple" style={{ fontSize: 10 }}>{tb.TenNganLo}</Tag>}
-                            {trangThaiTagTB(tb.TrangThai)}
-                            {csskTag(tb.ID_ThietBi)}
-                          </Space>
-                          <Space size={2} onClick={e => e.stopPropagation()}>
-                            <Tooltip title="Sửa thiết bị">
-                              <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditThietBi(tb)} />
-                            </Tooltip>
-                            <Popconfirm title={`Xóa thiết bị "${tb.TenThietBi}"?`} okText="Xóa" cancelText="Hủy"
-                              okButtonProps={{ danger: true }} onConfirm={() => handleDeleteThietBi(tb)}>
-                              <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-                            </Popconfirm>
-                          </Space>
-                        </Space>
-                      ),
-                    };
-                  }),
-                };
-              }),
-          };
-        })
-        .filter((n): n is NonNullable<typeof n> => n !== null);
+  const cssAvgTag = (n: CayNode, size = 10) =>
+    n.csskTrungBinh != null && (
+      <Tag style={{ fontSize: size }}>CSSK TB: {Number(n.csskTrungBinh).toFixed(1)}</Tag>
+    );
 
-      if (hasActiveFilter && tramNodes.length === 0) return null;
-
-      return {
-        key: `kv-${kv.ID_KhuVuc}`,
-        icon: <EnvironmentOutlined />,
-        title: (
-          <Space size={4} style={nodeRowStyle()}>
-            <Space size={4} wrap>
-              <Text strong>{kv.TenKhuVuc}</Text>
-              <Tag color={kv.TrangThai === 1 ? 'success' : 'default'} style={{ fontSize: 10 }}>
-                {kv.TrangThai === 1 ? 'Hoạt động' : 'Ngừng'}
-              </Tag>
-              <Tag style={{ fontSize: 10 }}>{tramsOfKv.length} trạm</Tag>
+  /** Node 1 thiết bị (lá của cây). */
+  const buildTbNode = (n: CayNode): DataNode => {
+    const tb = thietBis.find(t => t.ID_ThietBi === n.id);
+    return {
+      key: n.key,
+      isLeaf: true,
+      icon: <ApartmentOutlined />,
+      title: (
+        <Space size={4} style={nodeRowStyle()}>
+          <Space size={4} wrap>
+            <Text>{n.ten}</Text>
+            {groupBy === 'loai' && n.tenNganLo && <Tag style={{ fontSize: 10 }}>{n.tenNganLo}</Tag>}
+            {trangThaiTagTB(n.trangThai ?? 0)}
+            {csskTagOf(n.diem, n.capDoLabel)}
+          </Space>
+          {tb && (
+            <Space size={2} onClick={e => e.stopPropagation()}>
+              <Tooltip title="Sửa thiết bị">
+                <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditThietBi(tb)} />
+              </Tooltip>
+              <Popconfirm title={`Xóa thiết bị "${tb.TenThietBi}"?`} okText="Xóa" cancelText="Hủy"
+                okButtonProps={{ danger: true }} onConfirm={() => handleDeleteThietBi(tb)}>
+                <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
             </Space>
+          )}
+        </Space>
+      ),
+    };
+  };
+
+  /** Node nhóm: ngăn lộ hoặc loại thiết bị. */
+  const buildGroupNode = (n: CayNode): DataNode => {
+    // key ngăn lộ dạng nl-{idTram}-{idNganLo}
+    const tramId = n.loai === 'nganlo' ? Number(n.key.split('-')[1]) : 0;
+    const tram = trams.find(t => t.IDTram === tramId);
+    const nl = n.loai === 'nganlo' && n.id > 0 ? nganLos.find(x => x.ID_NganLo === n.id) : undefined;
+    return {
+      key: n.key,
+      selectable: false,
+      icon: <ClusterOutlined />,
+      title: (
+        <Space size={4} style={nodeRowStyle()}>
+          <Space size={4} wrap>
+            <Text>{n.ten}</Text>
+            {n.loai === 'nganlo' && n.trangThai === 0 && <Tag style={{ fontSize: 10 }}>Ngừng</Tag>}
+            <Tag style={{ fontSize: 10 }}>{n.soThietBi} thiết bị</Tag>
+            {cssAvgTag(n)}
+          </Space>
+          {tram && nl && (
+            <Space size={2} onClick={e => e.stopPropagation()}>
+              <Tooltip title="Thêm thiết bị vào ngăn lộ này">
+                <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => openAddThietBi(tram, nl)} />
+              </Tooltip>
+            </Space>
+          )}
+        </Space>
+      ),
+      children: n.children.map(c => (c.loai === 'tb' ? buildTbNode(c) : buildGroupNode(c))),
+    };
+  };
+
+  const buildTramNode = (n: CayNode): DataNode => {
+    const t = trams.find(x => x.IDTram === n.id);
+    return {
+      key: n.key,
+      icon: <ThunderboltOutlined />,
+      title: (
+        <Space size={4} style={nodeRowStyle()}>
+          <Space size={4} wrap>
+            <Text>{n.ten}</Text>
+            <Tag style={{ fontSize: 10 }}>{n.trangThai === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>
+            <Tag style={{ fontSize: 10 }}>{n.soThietBi} thiết bị</Tag>
+            {cssAvgTag(n)}
+          </Space>
+          {t && (
+            <Space size={2} onClick={e => e.stopPropagation()}>
+              <Tooltip title="Thêm thiết bị">
+                <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => openAddThietBi(t)} />
+              </Tooltip>
+              <Tooltip title="Sửa trạm">
+                <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditTram(t)} />
+              </Tooltip>
+              <Popconfirm title={`Xóa trạm "${t.TenTram}"?`} okText="Xóa" cancelText="Hủy"
+                okButtonProps={{ danger: true }} onConfirm={() => handleDeleteTram(t)}>
+                <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Space>
+          )}
+        </Space>
+      ),
+      children: n.children.map(buildGroupNode),
+    };
+  };
+
+  const buildKvNode = (n: CayNode): DataNode => {
+    const kv = khuVucs.find(k => k.ID_KhuVuc === n.id);
+    return {
+      key: n.key,
+      icon: <EnvironmentOutlined />,
+      title: (
+        <Space size={4} style={nodeRowStyle()}>
+          <Space size={4} wrap>
+            <Text strong>{n.ten}</Text>
+            <Tag style={{ fontSize: 10 }}>{n.trangThai === 1 ? 'Hoạt động' : 'Ngừng'}</Tag>
+            <Tag style={{ fontSize: 10 }}>{n.soTram ?? n.children.length} trạm</Tag>
+          </Space>
+          {kv && (
             <Space size={2} onClick={e => e.stopPropagation()}>
               <Tooltip title="Thêm trạm điện">
                 <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => openAddTram(kv)} />
@@ -429,23 +435,29 @@ export default function CayThietBiPage() {
                 <Button size="small" type="text" danger icon={<DeleteOutlined />} />
               </Popconfirm>
             </Space>
-          </Space>
-        ),
-        children: tramNodes,
-      };
-    })
-    .filter((n): n is NonNullable<typeof n> => n !== null),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [khuVucs, trams, thietBis, loais, searchLower, filterKhuVuc, filterLoai, filterTrangThai, filterCssk, latestByThietBi, isDark]);
+          )}
+        </Space>
+      ),
+      children: n.children.map(buildTramNode),
+    };
+  };
 
-  const allExpandableKeys = useMemo(() => [
-    ...khuVucs.map(k => `kv-${k.ID_KhuVuc}`),
-    ...trams.map(t => `tram-${t.IDTram}`),
-    ...trams.flatMap(t => {
-      const loaiIds = new Set(thietBis.filter(tb => tb.ID_Tram === t.IDTram).map(tb => tb.ID_LoaiTB));
-      return Array.from(loaiIds).map(idLoai => `loai-${t.IDTram}-${idLoai}`);
-    }),
-  ], [khuVucs, trams, thietBis]);
+  const treeData: DataNode[] = useMemo(
+    () => (cay?.nodes ?? []).map(buildKvNode),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cay, khuVucs, trams, thietBis, nganLos, groupBy],
+  );
+
+  const allExpandableKeys = useMemo(() => {
+    const keys: string[] = [];
+    const walk = (nodes: DataNode[]) => {
+      for (const n of nodes) {
+        if (n.children && n.children.length) { keys.push(String(n.key)); walk(n.children as DataNode[]); }
+      }
+    };
+    walk(treeData);
+    return keys;
+  }, [treeData]);
 
   useEffect(() => { setExpandedKeys(allExpandableKeys); }, [allExpandableKeys]);
 
@@ -469,7 +481,7 @@ export default function CayThietBiPage() {
       <div style={{ marginBottom: 20 }}>
         <Title level={4} style={{ color: isDark ? '#f9fafb' : '#111827', margin: 0 }}>Cây thiết bị</Title>
         <Text style={{ color: mutedColor, fontSize: 13 }}>
-          Xem &amp; quản lý theo cấu trúc Khu vực → Trạm điện → Loại thiết bị → Thiết bị · {khuVucs.length} khu vực,{' '}
+          Xem &amp; quản lý theo cấu trúc Khu vực → Trạm điện → {groupBy === 'nganlo' ? 'Ngăn lộ' : 'Loại thiết bị'} → Thiết bị · {khuVucs.length} khu vực,{' '}
           {trams.length} trạm, {thietBis.length} thiết bị
         </Text>
       </div>
@@ -477,9 +489,7 @@ export default function CayThietBiPage() {
       {/* ── Dải thống kê CSSK — bấm để lọc nhanh theo cấp độ ── */}
       <Row gutter={10} style={{ marginBottom: 16 }}>
         {CSSK_FILTER_OPTIONS.filter(o => o.value !== 'all').map(opt => {
-          const info = opt.value === 'chuaDo'
-            ? getCapDoSucKhoe(null, isDark)
-            : getCapDoSucKhoe(opt.value === 'tot' ? 9 : opt.value === 'kha' ? 7 : opt.value === 'trungBinh' ? 5 : opt.value === 'canhBao' ? 3 : 1, isDark);
+          const info = getCapDoByKey(opt.value, isDark);
           const active = filterCssk === opt.value;
           return (
             <Col key={opt.value} flex="1 1 0">
@@ -496,7 +506,7 @@ export default function CayThietBiPage() {
                 styles={{ body: { padding: '8px 10px' } }}
               >
                 <Text style={{ color: info.color, fontSize: 20, fontWeight: 700, display: 'block', lineHeight: 1.2 }}>
-                  {csskCounts[opt.value]}
+                  {cay?.csskCounts?.[opt.value] ?? 0}
                 </Text>
                 <Text style={{ color: active ? info.color : mutedColor, fontSize: 12 }}>{opt.label}</Text>
               </Card>
@@ -533,6 +543,8 @@ export default function CayThietBiPage() {
                 {hasActiveFilter && (
                   <Button icon={<ClearOutlined />} onClick={clearFilters}>Xóa lọc</Button>
                 )}
+                <Segmented size="middle" value={groupBy} onChange={v => setGroupBy(v as 'nganlo' | 'loai')}
+                  options={[{ label: 'Theo ngăn lộ', value: 'nganlo' }, { label: 'Theo loại TB', value: 'loai' }]} />
                 <Tooltip title="Mở rộng tất cả">
                   <Button icon={<ExpandAltOutlined />} disabled={hasActiveFilter}
                     onClick={() => setExpandedKeys(allExpandableKeys)} />
@@ -664,13 +676,13 @@ export default function CayThietBiPage() {
                   <div><Text strong>ID: </Text><Text>{selection.record.ID_ThietBi}</Text></div>
                   <div><Text strong>Số hiệu: </Text><Text>{selection.record.SoHieu ?? '—'}</Text></div>
                   <div><Text strong>Loại thiết bị: </Text>
-                    <Tag color="blue">{selection.record.TenLoaiTB ?? loaiName(selection.record.ID_LoaiTB)}</Tag>
+                    <Tag>{selection.record.TenLoaiTB ?? loaiName(selection.record.ID_LoaiTB)}</Tag>
                   </div>
                   <div><Text strong>Trạm điện: </Text>
                     <Text>{selection.record.TenTram ?? trams.find(t => t.IDTram === selection.record.ID_Tram)?.TenTram}</Text>
                   </div>
                   <div><Text strong>Ngăn lộ: </Text>
-                    {selection.record.TenNganLo ? <Tag color="purple">{selection.record.TenNganLo}</Tag> : <Text>—</Text>}
+                    {selection.record.TenNganLo ? <Tag>{selection.record.TenNganLo}</Tag> : <Text>—</Text>}
                   </div>
                   <div><Text strong>Nhãn hiệu: </Text><Text>{selection.record.NhanHieu ?? '—'}</Text></div>
                   <div><Text strong>Năm sản xuất: </Text><Text>{selection.record.NamSanXuat ?? '—'}</Text></div>
@@ -680,9 +692,9 @@ export default function CayThietBiPage() {
                     <div><Text strong>Ghi chú: </Text><Text>{selection.record.GhiChu}</Text></div>
                   )}
                   <Space wrap>
-                    {latestByThietBi[selection.record.ID_ThietBi] && (
+                    {csskMap[selection.record.ID_ThietBi]?.idPhieu != null && (
                       <Button size="small" onClick={() =>
-                        navigate(`/ket-qua/${latestByThietBi[selection.record.ID_ThietBi].ID_Phieu}`)
+                        navigate(`/ket-qua/${csskMap[selection.record.ID_ThietBi].idPhieu}`)
                       }>
                         Xem chi tiết phiếu →
                       </Button>
@@ -776,6 +788,11 @@ export default function CayThietBiPage() {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="ID_NganLo" label="Ngăn lộ" tooltip="Ngăn lộ thuộc trạm đã chọn. Để trống nếu thiết bị chưa gán ngăn lộ.">
+            <Select allowClear placeholder={tbFormTram ? 'Chọn ngăn lộ...' : 'Chọn trạm điện trước'}
+              disabled={!tbFormTram} showSearch optionFilterProp="label"
+              options={nganLos.filter(n => n.ID_Tram === tbFormTram).map(n => ({ label: n.TenNganLo, value: n.ID_NganLo }))} />
+          </Form.Item>
           <Form.Item name="TenThietBi" label="Tên thiết bị" rules={[{ required: true, message: 'Nhập tên thiết bị' }]}>
             <Input placeholder="VD: Máy biến áp T1 110/22kV" />
           </Form.Item>

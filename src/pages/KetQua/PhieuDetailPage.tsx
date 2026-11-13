@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Row, Col, Typography, Flex, Tag, Button, Spin, Progress,
-  Table, Divider, message, Modal, Space, Tooltip, Collapse,
+  Card, Row, Col, Typography, Flex, Tag, Button, Spin,
+  Table, Divider, message, Modal, Space, Tooltip, Collapse, Popconfirm,
 } from 'antd';
-import { ArrowLeftOutlined, FileTextOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, FileTextOutlined, HistoryOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
 import { tinhDiemApi } from '../../api/tinhDiem';
 import type { PhieuKiemTraDetailDto, ChiTietKiemTra, LichSuChiTieu } from '../../types/entities';
@@ -154,25 +154,15 @@ export default function PhieuDetailPage() {
       title: 'Điểm Sᵢ',
       dataIndex: 'Diem_Si_DatDuoc',
       key: 'diem',
-      width: 160,
+      width: 120,
+      align: 'center' as const,
       render: (v?: number) => {
         if (v === undefined || v === null)
           return <Text style={{ color: isDark ? '#4b5563' : '#9ca3af' }}>Chưa chấm</Text>;
-        const c = getCapDoSucKhoe(v, isDark).color;
         return (
-          <Flex align="center" gap={8}>
-            <Progress
-              percent={v * 10}
-              size="small"
-              showInfo={false}
-              strokeColor={c}
-              railColor={isDark ? '#1e4a72' : '#e5e7eb'}
-              style={{ width: 70 }}
-            />
-            <Text style={{ color: c, fontFamily: 'monospace', fontSize: 12 }}>
-              {v}/10
-            </Text>
-          </Flex>
+          <Text style={{ display: 'block', textAlign: 'center', color: isDark ? '#f3f4f6' : '#000', fontFamily: 'monospace', fontSize: 18, fontWeight: 700 }}>
+            {v}
+          </Text>
         );
       },
     },
@@ -181,15 +171,28 @@ export default function PhieuDetailPage() {
       dataIndex: 'HanhDongKhuyenCao',
       key: 'khuyencao',
       width: 260,
-      render: (v?: string | null) => v ? (
+      render: (v?: string | null) => {
+        return v ? (
         <Tooltip title={v}>
           <Text style={{ color: isDark ? '#fbbf24' : '#b45309', fontSize: 12, cursor: 'help' }}>
             {v.length > 60 ? v.slice(0, 60) + '…' : v}
           </Text>
         </Tooltip>
-      ) : (
-        <Text style={{ color: isDark ? '#4b5563' : '#9ca3af', fontSize: 12 }}>—</Text>
-      ),
+        ) : (
+          <Text style={{ color: isDark ? '#4b5563' : '#9ca3af', fontSize: 12 }}>—</Text>
+        );
+      },
+    },
+    {
+      title: 'Tình trạng',
+      dataIndex: 'TinhTrang',
+      key: 'tinhtrang',
+      width: 120,
+      render: (tinhTrang?: string | null) => {
+        if (!tinhTrang)
+          return <Text style={{ color: isDark ? '#4b5563' : '#9ca3af', fontSize: 12 }}>—</Text>;
+        return <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 13 }}>{tinhTrang}</Text>;
+      },
     },
     {
       title: 'Ghi chú',
@@ -254,6 +257,7 @@ export default function PhieuDetailPage() {
         </Button>
         <Text style={{ color: '#4b5563' }}>/</Text>
         <Text style={{ color: isDark ? '#f9fafb' : '#111827' }}>Chi tiết phiếu #{phieu.ID_Phieu}</Text>
+        {phieu.TrangThai === 0 && <Tag color="orange">Nháp — chưa tính điểm</Tag>}
       </Flex>
 
       <Row gutter={[16, 16]}>
@@ -303,6 +307,33 @@ export default function PhieuDetailPage() {
               <Text style={{ color: '#4b5563' }}>Chưa tính điểm</Text>
             )}
 
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              block
+              style={{ marginTop: 12 }}
+              onClick={() => navigate(`/nhap-lieu/phieu-kiem-tra/${phieu.ID_Phieu}`)}
+            >
+              {phieu.TrangThai === 0 ? 'Sửa / Tính điểm' : 'Sửa phiếu'}
+            </Button>
+            <Popconfirm
+              title="Xóa phiếu kiểm tra này?"
+              description="Toàn bộ giá trị đo và điểm của phiếu sẽ bị xóa, không khôi phục được."
+              okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
+              onConfirm={async () => {
+                try {
+                  await phieuKiemTraApi.delete(phieu.ID_Phieu);
+                  message.success('Đã xóa phiếu');
+                  navigate('/ket-qua');
+                } catch {
+                  message.error('Không xóa được phiếu');
+                }
+              }}
+            >
+              <Button danger icon={<DeleteOutlined />} block style={{ marginTop: 8 }}>Xóa phiếu</Button>
+            </Popconfirm>
+
+            {phieu.TrangThai !== 0 && (<>
             <Tooltip title="Chỉ gộp lại CSSK từ Sᵢ đã lưu — KHÔNG tính lại Sᵢ. Nếu vừa sửa Rule/Formula/Ngưỡng, dùng nút 'Tính lại Sᵢ' bên dưới thay vì nút này.">
               <Button
                 icon={<ReloadOutlined />}
@@ -325,6 +356,7 @@ export default function PhieuDetailPage() {
                 Tính lại Sᵢ & khuyến cáo
               </Button>
             </Tooltip>
+            </>)}
           </Card>
         </Col>
 
@@ -418,9 +450,22 @@ export default function PhieuDetailPage() {
               {
                 title: 'Khuyến cáo hành động (tại thời điểm đo)',
                 dataIndex: 'HanhDongKhuyenCao',
-                render: (v?: string | null) => v
-                  ? <Text style={{ color: isDark ? '#fbbf24' : '#b45309', fontSize: 12 }}>{v}</Text>
-                  : <Text style={{ color: '#9ca3af' }}>—</Text>,
+                render: (v?: string | null) => {
+                  return v
+                    ? <Text style={{ color: isDark ? '#fbbf24' : '#b45309', fontSize: 12 }}>{v}</Text>
+                    : <Text style={{ color: '#9ca3af' }}>—</Text>;
+                },
+              },
+              {
+                title: 'Tình trạng',
+                dataIndex: 'TinhTrang',
+                key: 'tinhtrang',
+                width: 110,
+                render: (tinhTrang?: string | null) => {
+                  return tinhTrang
+                    ? <Text style={{ color: isDark ? '#e5e7eb' : '#111827', fontSize: 13 }}>{tinhTrang}</Text>
+                    : <Text style={{ color: '#9ca3af' }}>—</Text>;
+                },
               },
             ]}
           />

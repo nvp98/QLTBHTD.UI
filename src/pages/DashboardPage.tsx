@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Row, Col, Card, Typography, Flex, Spin, Tag, Empty, Select, message, notification, Grid } from 'antd';
+import { Row, Col, Card, Typography, Flex, Spin, Tag, Empty, Select, Segmented, message, notification, Grid } from 'antd';
 import {
   EnvironmentOutlined, ThunderboltOutlined, ApartmentOutlined,
   SettingOutlined, BulbOutlined, UnorderedListOutlined,
@@ -12,14 +12,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from 'recharts';
 import StatCard from '../components/common/StatCard';
+import PhanBoCapDoChart from '../components/charts/PhanBoCapDoChart';
+import type { PhanBoCapDoRow } from '../components/charts/PhanBoCapDoChart';
+import { csskBands } from '../components/charts/csskBands';
 import { useThemeMode } from '../theme/ThemeModeContext';
-import { getCapDoSucKhoe } from '../theme/capDoSucKhoe';
-import { khuVucApi }      from '../api/khuVuc';
+import { getCapDoSucKhoe, getCapDoByKey } from '../theme/capDoSucKhoe';
 import { tramDienApi }    from '../api/tramDien';
 import { thietBiApi }     from '../api/thietBi';
 import { loaiThietBiApi } from '../api/loaiThietBi';
-import { nhomChiTieuApi } from '../api/nhomChiTieu';
-import { chiTieuApi }     from '../api/chiTieu';
 import { thongKeApi } from '../api/thongKe';
 import type { ThongKeTongHopDto, CanhBaoThietBiDto, XuHuongThangDto, TongHopTheoLoaiDto, BaoCaoTramItemDto } from '../api/thongKe';
 import { lichBaoTriApi } from '../api/lichBaoTri';
@@ -84,26 +84,22 @@ export default function DashboardPage() {
   const [xhIdTram, setXhIdTram]       = useState<number | null>(null);
   const [xhIdLoaiTB, setXhIdLoaiTB]   = useState<number | null>(null);
   const [xhIdThietBi, setXhIdThietBi] = useState<number | null>(null);
+  const [phanBoTheo, setPhanBoTheo]  = useState<'tram' | 'loai'>('tram');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [kvs, tds, tbs, ltbs, ncts, cts] = await Promise.allSettled([
-        khuVucApi.getAll(),
-        tramDienApi.getAll(),
-        thietBiApi.getAll(),
-        loaiThietBiApi.getAll(),
-        nhomChiTieuApi.getAll(),
-        chiTieuApi.getAll(),
-      ]);
+      const dem = await thongKeApi.getDemHeThong();
       setStats({
-        khuVucs:     kvs.status   === 'fulfilled' ? kvs.value.length   : 0,
-        tramDiens:   tds.status   === 'fulfilled' ? tds.value.length   : 0,
-        thietBis:    tbs.status   === 'fulfilled' ? tbs.value.length   : 0,
-        loaiThietBi: ltbs.status  === 'fulfilled' ? ltbs.value.length  : 0,
-        nhomChiTieu: ncts.status  === 'fulfilled' ? ncts.value.length  : 0,
-        chiTieu:     cts.status   === 'fulfilled' ? cts.value.length   : 0,
+        khuVucs:     dem.khuVucs,
+        tramDiens:   dem.tramDiens,
+        thietBis:    dem.thietBis,
+        loaiThietBi: dem.loaiThietBi,
+        nhomChiTieu: dem.nhomChiTieu,
+        chiTieu:     dem.chiTieu,
       });
+    } catch {
+      setStats({ khuVucs: 0, tramDiens: 0, thietBis: 0, loaiThietBi: 0, nhomChiTieu: 0, chiTieu: 0 });
     } finally {
       setLoading(false);
     }
@@ -260,6 +256,23 @@ export default function DashboardPage() {
       .sort((a, b) => a.diem - b.diem),
     [baoCaoTram, isDark],
   );
+
+  /** Phân bố số thiết bị theo cấp CSSK — mỗi hàng là 1 trạm hoặc 1 loại thiết bị (số đếm do BE tính). */
+  const phanBoRows = useMemo<PhanBoCapDoRow[]>(() => {
+    const src = phanBoTheo === 'tram'
+      ? baoCaoTram.map(t => ({ ten: t.tenTram, r: t }))
+      : tongHopLoai.map(l => ({ ten: l.tenLoaiTB, r: l }));
+    return src
+      .filter(x => x.r.tongThietBi > 0)
+      .map(({ ten, r }) => ({
+        ten,
+        tot: r.totCount, kha: r.binhThuongCount, trungBinh: r.chuYCount,
+        canhBao: r.canhBaoCount, nguyHiem: r.nguHiemCount,
+        chuaDo: Math.max(0, r.tongThietBi - r.daKiemTra),
+      }))
+      // trạm/loại nhiều thiết bị xấu nhất lên đầu
+      .sort((a, b) => (b.nguyHiem - a.nguyHiem) || (b.canhBao - a.canhBao) || (b.trungBinh - a.trungBinh));
+  }, [phanBoTheo, baoCaoTram, tongHopLoai]);
 
   const tooltipStyle = {
     background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: 6,
@@ -535,9 +548,10 @@ export default function DashboardPage() {
               // nhiều thiết bị xấu không được che mất thiết bị cấp bách hơn ở trạm khác. Góc nhìn
               // "trạm nào có nhiều vấn đề" đã có riêng ở biểu đồ "Thiết bị cần chú ý theo trạm điện".
               canhBao.slice(0, 8).map(r => {
-                const info = getCapDoSucKhoe(r.diemHienThi, isDark);
-                const icon = r.diemHienThi < 2 ? '🔴' : r.diemHienThi < 4 ? '🟠' : '🟡';
-                const chiTiet = (r.nguonDiem === 'CHI_TIEU' || r.nguonDiem === 'CHI_TIEU_RIENG') ? r.tenChiTieuThapNhat : null;
+                const info = getCapDoByKey(r.capDo, isDark);
+                const isXau = (r.tinhTrang ?? '').toLowerCase() === 'xấu';
+                const icon = isXau ? '🔴' : '🟠';
+                const chiTiet = r.tenChiTieuThapNhat;
                 return (
                   <div
                     key={r.iD_ThietBi}
@@ -551,23 +565,15 @@ export default function DashboardPage() {
                           {r.tenThietBi}
                         </Text>
                         <Text style={{ color: dimText, fontSize: 11, flexShrink: 0 }}>· {r.tenTram}</Text>
-                        {r.nguonDiem === 'CHI_TIEU_RIENG' && (
-                          <Tag style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '14px', flexShrink: 0 }} color="gold">
-                            1 chỉ tiêu lẻ
-                          </Tag>
-                        )}
                       </Flex>
                       <Tag style={{ color: info.color, background: info.bg, borderColor: info.border, flexShrink: 0, margin: 0 }}>
-                        {r.diemHienThi.toFixed(1)}
+                        {r.tinhTrang ?? r.diemHienThi.toFixed(1)}
                       </Tag>
                     </Flex>
                     {(chiTiet || r.khuyenCaoHanhDong) && (
                       <Text style={{ color: '#b45309', fontSize: 11, display: 'block', marginTop: 2, paddingLeft: 18 }} ellipsis>
                         {chiTiet && <Text style={{ color: dimText, fontSize: 11 }}>{chiTiet}{r.khuyenCaoHanhDong ? ' → ' : ''}</Text>}
                         {r.khuyenCaoHanhDong}
-                        {r.nguonDiem === 'CHI_TIEU_RIENG' && r.tongDiem_Soqt != null && (
-                          <Text style={{ color: dimText, fontSize: 11 }}> (CSSK tổng vẫn {r.tongDiem_Soqt.toFixed(1)}/10)</Text>
-                        )}
                       </Text>
                     )}
                   </div>
@@ -676,6 +682,7 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={xuHuongData} margin={{ left: isMobile ? -18 : -8, right: isMobile ? 4 : 16, top: 8, bottom: 4 }}>
+                  {csskBands(isDark)}
                   <CartesianGrid strokeDasharray="3 3" stroke={panelBorder} vertical={false} />
                   <XAxis dataKey="thang" tick={{ fill: dimText, fontSize: 11 }} />
                   <YAxis domain={[0, 10]} tick={{ fill: dimText, fontSize: 11 }} />
@@ -691,6 +698,30 @@ export default function DashboardPage() {
           </Card>
         </Col>
       </Row>
+
+      {/* ── Phân bố cấp CSSK theo trạm / loại thiết bị (stacked bar) ── */}
+      {phanBoRows.length > 0 && (
+        <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
+          <Col xs={24}>
+            <Card
+              style={{ background: panelBg, border: `1px solid ${panelBorder}`, minWidth: 0 }}
+              loading={sucKhoeLoading}
+              title="Phân bố tình trạng thiết bị"
+              extra={
+                <Segmented
+                  size="small"
+                  value={phanBoTheo}
+                  onChange={v => setPhanBoTheo(v as 'tram' | 'loai')}
+                  options={[{ label: 'Theo trạm', value: 'tram' }, { label: 'Theo loại thiết bị', value: 'loai' }]}
+                />
+              }
+              styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: isMobile ? '12px' : '16px 20px' } }}
+            >
+              <PhanBoCapDoChart rows={phanBoRows} isDark={isDark} isMobile={isMobile} />
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       {/* ── Sức khỏe theo trạm điện ── */}
       {(baoCaoTramData.length > 0 || barData.length > 0) && (
@@ -761,85 +792,6 @@ export default function DashboardPage() {
           ))}
         </Row>
       </Spin>
-
-      {/* ── Công thức CSSK + Truy cập nhanh ── */}
-      <Row gutter={[isMobile ? 10 : 16, isMobile ? 10 : 16]} style={{ marginBottom: isMobile ? 10 : 16 }}>
-        <Col xs={24} lg={14}>
-          <Card title="Công thức tính CSSK"
-            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
-            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}`, fontSize: 13 }, body: { padding: isMobile ? 12 : 16 } }}>
-            <Text style={{ color: dimText, fontSize: 12, display: 'block', marginBottom: 8 }}>
-              Chỉ số sức khỏe tổng hợp (CSSK):
-            </Text>
-            <div style={{ padding: '10px 14px', background: formulaBoxBg, borderRadius: 6, fontFamily: 'monospace' }}>
-              <Text style={{ color: '#93c5fd', fontSize: isMobile ? 11 : 13, lineHeight: 1.5 }}>
-                CSSK = Σ (Điểm_nhóm × W_nhóm) — thang 0–10
-              </Text>
-            </div>
-            <Text style={{ color: dimText, fontSize: 12, display: 'block', marginTop: 8 }}>
-              Trong đó Điểm_nhóm = Σ (Điểm_Sᵢ × Wᵢ)
-            </Text>
-            <Row gutter={8} style={{ marginTop: 12 }}>
-              {[
-                { range: '8–10', rank: 'A', label: 'Rất tốt',   color: getCapDoSucKhoe(9, isDark).color },
-                { range: '6–8',  rank: 'B', label: 'Tốt',       color: getCapDoSucKhoe(7, isDark).color },
-                { range: '4–6',  rank: 'C', label: 'Trung bình',color: getCapDoSucKhoe(5, isDark).color },
-                { range: '2–4',  rank: 'D', label: 'Kém',       color: getCapDoSucKhoe(3, isDark).color },
-                { range: '0–2',  rank: 'E', label: 'Rất kém',   color: getCapDoSucKhoe(1, isDark).color },
-              ].map(r => (
-                <Col span={24} key={r.rank} style={{ marginBottom: 4 }}>
-                  <Flex align="center" gap={8}>
-                    <div style={{ width: 24, height: 24, borderRadius: 4, background: `${r.color}22`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Text style={{ color: r.color, fontSize: 11, fontWeight: 700 }}>{r.rank}</Text>
-                    </div>
-                    <Text style={{ color: dimText, fontSize: 12, fontFamily: 'monospace', width: isMobile ? 52 : 60 }}>
-                      {r.range}
-                    </Text>
-                    <Text style={{ color: r.color, fontSize: 12 }}>{r.label}</Text>
-                  </Flex>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-        </Col>
-
-        {/* ── Quick actions ── */}
-        <Col xs={24} lg={10}>
-          <Card title="Truy cập nhanh"
-            style={{ background: panelBg, border: `1px solid ${panelBorder}`, height: '100%', minWidth: 0 }}
-            styles={{ header: { color: titleColor, borderBottom: `1px solid ${panelBorder}` }, body: { padding: isMobile ? 10 : 12 } }}>
-            {QUICK_ACTIONS.map(item => (
-              <div key={item.path} onClick={() => navigate(item.path)}
-                style={{
-                  padding: '10px 14px', marginBottom: 6, borderRadius: 8, cursor: 'pointer',
-                  background: itemBg, border: `1px solid ${panelBorder}`,
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = item.color;
-                  e.currentTarget.style.background = `${item.color}11`;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = panelBorder;
-                  e.currentTarget.style.background = itemBg;
-                }}
-              >
-                <Flex align="center" gap={10}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 6, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: `${item.color}22`, color: item.color, fontSize: 15,
-                  }}>
-                    {item.icon}
-                  </div>
-                  <Text style={{ color: titleColor, fontSize: 13 }}>{item.label}</Text>
-                </Flex>
-              </div>
-            ))}
-          </Card>
-        </Col>
-      </Row>
     </div>
   );
 }

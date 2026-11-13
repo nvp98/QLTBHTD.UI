@@ -71,6 +71,7 @@ const router = createBrowserRouter([
       // ── Nhập liệu ─────────────────────────────────────────────────────────
       { path: 'nhap-lieu',                  element: <NhapLieuPage /> },
       { path: 'nhap-lieu/phieu-kiem-tra',   element: <TaoPhieuKiemTraPage /> },
+      { path: 'nhap-lieu/phieu-kiem-tra/:id', element: <TaoPhieuKiemTraPage /> },
       { path: 'nhap-lieu/may-bien-ap',      element: <MayBienApForm /> },
       { path: 'nhap-lieu/may-cat',          element: <MayCatForm /> },
       { path: 'nhap-lieu/dong',             element: <NhapLieuDongPage /> },

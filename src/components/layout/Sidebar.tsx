@@ -85,7 +85,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'KẾT QUẢ & BÁO CÁO',
     items: [
-      { key: '/ket-qua', label: 'Kết quả phân hạng', icon: <FundOutlined /> },
+      { key: '/ket-qua', label: 'Phiếu kiểm tra', icon: <FundOutlined /> },
       { key: '/ket-qua/lich-su', label: 'Lịch sử đo & tính toán', icon: <HistoryOutlined /> },
       { key: '/bao-cao', label: 'Báo cáo', icon: <FileTextOutlined /> },
     ],

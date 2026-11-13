@@ -18,6 +18,9 @@ export interface LichSuCSSKDto {
   tongDiem_Soqt: number | null;
   capDoCanhBao: string | null;
   nguoiKiemTra: string | null;
+  /** Cấp CSSK do BE phân (tot|kha|trungBinh|canhBao|nguyHiem|chuaDo) + nhãn. */
+  capDo: string;
+  capDoLabel: string;
 }
 
 export interface BaoCaoTramItemDto {
@@ -48,11 +51,32 @@ export interface CanhBaoThietBiDto {
   diemHienThi: number;
   /** 'CSSK' = diemHienThi lấy từ tongDiem_Soqt; 'CHI_TIEU' = lấy từ Sᵢ thấp nhất 1 chỉ tiêu
    * (thiết bị theo quy trình không tính CHI cấp 1/2/3, vd DCL/TU/TI/CS). */
-  nguonDiem: 'CSSK' | 'CHI_TIEU' | 'CHI_TIEU_RIENG';
+  nguonDiem: 'CSSK' | 'CHI_TIEU' | 'CHI_TIEU_RIENG' | 'TINH_TRANG';
+  /** Tình trạng (Trung bình / Xấu) của chỉ tiêu tệ nhất. */
+  tinhTrang?: string | null;
+  /** 'nguyHiem' (Xấu) | 'canhBao' (Trung bình) — để chọn màu. */
+  capDo: string;
   /** Tên chỉ tiêu có Sᵢ thấp nhất — chỉ có giá trị khi nguonDiem='CHI_TIEU'. */
   tenChiTieuThapNhat: string | null;
   /** Khuyến cáo hành động (snapshot) của chỉ tiêu có Sᵢ thấp nhất trong phiếu — biết ngay cần làm gì. */
   khuyenCaoHanhDong: string | null;
+}
+
+export interface CanhBaoTongHopDto {
+  items: CanhBaoThietBiDto[];
+  /** Số thiết bị có chỉ tiêu Tình trạng Xấu. */
+  soNguyHiem: number;
+  /** Số thiết bị chỉ có chỉ tiêu Tình trạng Trung bình. */
+  soCanhBao: number;
+}
+
+export interface DemHeThongDto {
+  khuVucs: number;
+  tramDiens: number;
+  thietBis: number;
+  loaiThietBi: number;
+  nhomChiTieu: number;
+  chiTieu: number;
 }
 
 export interface TongHopTheoLoaiDto {
@@ -85,6 +109,8 @@ export const thongKeApi = {
   getBaoCaoTram: () => api.get<BaoCaoTramItemDto[]>(`${BASE}/bao-cao-tram`),
   getTongHopTheoLoai: () => api.get<TongHopTheoLoaiDto[]>(`${BASE}/tong-hop-theo-loai`),
   getCanhBao: () => api.get<CanhBaoThietBiDto[]>(`${BASE}/canh-bao`),
+  getCanhBaoTongHop: () => api.get<CanhBaoTongHopDto>(`${BASE}/canh-bao-tong-hop`),
+  getDemHeThong: () => api.get<DemHeThongDto>(`${BASE}/dem-he-thong`),
   getXuHuongThang: (
     soThang = 6, idTram?: number | null, idLoaiTB?: number | null, idThietBi?: number | null,
   ) => {

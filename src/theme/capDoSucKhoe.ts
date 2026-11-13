@@ -53,3 +53,10 @@ export function getCapDoSucKhoe(diem: number | null | undefined, isDark: boolean
   const palette = isDark ? DARK : LIGHT;
   return palette[capDoKeyOf(diem)];
 }
+
+/** Tra màu theo KEY cấp độ do BE phân sẵn (tot|kha|trungBinh|canhBao|nguyHiem|chuaDo) — FE không tự phân cấp theo điểm. */
+export function getCapDoByKey(key: string | null | undefined, isDark: boolean): CapDoInfo {
+  const palette = isDark ? DARK : LIGHT;
+  if (key && key in palette) return palette[key as CapDoKey];
+  return getCapDoSucKhoe(null, isDark);
+}

@@ -1,20 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   App as AntApp, Card, Row, Col, Typography, Flex, Form, InputNumber, Select, Button,
-  Steps, Divider, Tag, Alert, Space, Spin, Input, Collapse, DatePicker, Segmented,
+  Steps, Divider, Tag, Alert, Space, Spin, Input, DatePicker, Segmented,
 } from 'antd';
-import type { Dayjs } from 'dayjs';
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import dayjs, { type Dayjs } from 'dayjs';
+import { ArrowLeftOutlined, SaveOutlined, CalculatorOutlined } from '@ant-design/icons';
 import { thietBiApi }      from '../../api/thietBi';
 import { tramDienApi }     from '../../api/tramDien';
 import { loaiThietBiApi }  from '../../api/loaiThietBi';
 import { nganLoApi }       from '../../api/nganLo';
-import { nhomChiTieuApi }  from '../../api/nhomChiTieu';
-import { chiTieuApi }      from '../../api/chiTieu';
-import { nguongApi }       from '../../api/nguong';
-import { chiTieuInputApi } from '../../api/chiTieuInput';
-import { chiTieuRuleApi }  from '../../api/chiTieuRule';
+import { nhapLieuCauHinhApi } from '../../api/nhapLieuCauHinh';
 import { phieuKiemTraApi } from '../../api/phieuKiemTra';
 import { api }             from '../../api/client';
 import type {
@@ -28,23 +24,10 @@ const CHON_TAT_CA = 0;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-interface ChiTieuWithNguong extends ChiTieu { nguongs: Nguong[] }
+interface ChiTieuWithNguong extends ChiTieu { nguongs: Nguong[]; inputs: ChiTieuInput[]; rules: ChiTieuRule[] }
 interface NhomWithChiTieu extends NhomChiTieu { chiTieus: ChiTieuWithNguong[] }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-
-/** Định dạng khoảng giá trị của ngưỡng thành chuỗi dễ đọc. */
-function formatNguongRange(ng: Nguong): string {
-  if (ng.BieuThuc_Logic) return ng.BieuThuc_Logic;
-  const lo = ng.CanDuoi !== null
-    ? `${ng.CanDuoi_BaoGom ? '≥' : '>'} ${ng.CanDuoi}`
-    : null;
-  const hi = ng.CanTren !== null
-    ? `${ng.CanTren_BaoGom ? '≤' : '<'} ${ng.CanTren}`
-    : null;
-  if (lo && hi) return `${lo}  và  ${hi}`;
-  return lo ?? hi ?? 'Bất kỳ giá trị';
-}
 
 /**
  * Trích xuất tên biến từ biểu thức NCalc.
@@ -63,18 +46,14 @@ function extractNCalcVars(expr: string): string[] {
   return [...new Set(matches)].filter(v => !NCALC_BUILTINS.has(v));
 }
 
-function scoreTagColor(score: number): 'success' | 'processing' | 'warning' | 'error' {
-  if (score >= 8) return 'success';
-  if (score >= 6) return 'processing';
-  if (score >= 4) return 'warning';
-  return 'error';
-}
-
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export default function TaoPhieuKiemTraPage() {
   const { message, notification } = AntApp.useApp();
   const navigate = useNavigate();
+  const { id: idParam } = useParams<{ id: string }>();
+  // Có :id trên URL = mở lại phiếu đã lưu để SỬA (nháp hoặc đã tính điểm).
+  const editId = idParam ? Number(idParam) : null;
   const { mode } = useThemeMode();
   const { user } = useAuth();
   const isDark = mode === 'dark';
@@ -111,7 +90,7 @@ export default function TaoPhieuKiemTraPage() {
 
   // Metadata: input definitions & rules per criterion
   const [chiTieuInputs, setChiTieuInputs] = useState<Record<number, ChiTieuInput[]>>({});
-  const [chiTieuRules,  setChiTieuRules]  = useState<Record<number, ChiTieuRule[]>>({});
+  const [, setChiTieuRules]  = useState<Record<number, ChiTieuRule[]>>({});
   // Tập ID chỉ tiêu có biến được tự trích từ BieuThuc_Logic (không có DB ChiTieuInput)
   const [syntheticCtIds, setSyntheticCtIds] = useState<Set<number>>(new Set());
 
@@ -143,51 +122,16 @@ export default function TaoPhieuKiemTraPage() {
 
     setLoadingConfig(true);
     try {
-      nhomChiTieuApi.getKhaDungNhapLieu(tb.ID_LoaiTB)
-        .then(setNhomKhaDung)
-        .catch(() => message.error('Không thể tải danh sách nhóm khả dụng để nhập liệu'));
-
-      // getByLoai() trả cả nhóm đã ngừng hoạt động (dùng chung cho trang khác cần thấy nhóm cũ,
-      // vd Lịch sử) — lọc TrangThai=1 riêng ở đây vì "Kiểm tra toàn diện" không nên hiện/tính cả
-      // nhóm đã ngừng (khác getKhaDungNhapLieu ở dropdown chọn 1 nhóm cụ thể, BE đã tự lọc sẵn).
-      const nhomList = (await nhomChiTieuApi.getByLoai(tb.ID_LoaiTB)).filter(n => n.TrangThai === 1);
-      const nhomWithCT: NhomWithChiTieu[] = await Promise.all(
-        nhomList.map(async nhom => {
-          // Chỉ hiện chỉ tiêu đang hoạt động — chỉ tiêu bị vô hiệu hoá (vd thuộc công thức cũ đã
-          // thay bằng bản khác, như Sdga OLTC Loại 1 -> Loại 2) không còn được tính điểm nên không
-          // nên hiện trên form nhập liệu, dù vẫn cần giữ lại trong DB để không phá lịch sử phiếu cũ.
-          const chiTieuList = (await chiTieuApi.getByNhom(nhom.ID_NhomChiTieu)).filter(c => c.TrangThai !== 0);
-          const chiTieuWithNg = await Promise.all(
-            chiTieuList.map(async ct => ({
-              ...ct,
-              nguongs: await nguongApi.getByChiTieu(ct.ID_ChiTieu),
-            }))
-          );
-          return { ...nhom, chiTieus: chiTieuWithNg };
-        })
-      );
+      // BE gom sẵn: nhóm đang hoạt động → chỉ tiêu đang hoạt động → ngưỡng / biến đầu vào / quy tắc.
+      const cfg = await nhapLieuCauHinhApi.get(tb.ID_LoaiTB);
+      setNhomKhaDung(cfg.nhomKhaDung);
+      const nhomWithCT: NhomWithChiTieu[] = cfg.nhoms;
       setNhoms(nhomWithCT);
 
-      // Load định nghĩa biến đầu vào VÀ quy tắc biểu thức song song cho tất cả chỉ tiêu
       const allCT = nhomWithCT.flatMap(n => n.chiTieus);
-      const [inputEntries, ruleEntries] = await Promise.all([
-        Promise.all(
-          allCT.map(ct =>
-            chiTieuInputApi.getByChiTieu(ct.ID_ChiTieu)
-              .then(inputs => [ct.ID_ChiTieu, inputs] as const)
-          )
-        ),
-        Promise.all(
-          allCT.map(ct =>
-            chiTieuRuleApi.getByChiTieu(ct.ID_ChiTieu)
-              .then(rules => [ct.ID_ChiTieu, rules] as const)
-          )
-        ),
-      ]);
-
       const inputsMap: Record<number, ChiTieuInput[]> = {};
-      for (const [ctId, inputs] of inputEntries) {
-        if (inputs.length > 0) inputsMap[ctId] = inputs;
+      for (const ct of allCT) {
+        if (ct.inputs.length > 0) inputsMap[ct.ID_ChiTieu] = ct.inputs;
       }
 
       // Tự trích biến từ BieuThuc_Logic cho chỉ tiêu Nguong chưa có ChiTieuInput trong DB
@@ -215,8 +159,8 @@ export default function TaoPhieuKiemTraPage() {
       setChiTieuInputs(inputsMap);
 
       const rulesMap: Record<number, ChiTieuRule[]> = {};
-      for (const [ctId, rules] of ruleEntries) {
-        if (rules.length > 0) rulesMap[ctId] = rules;
+      for (const ct of allCT) {
+        if (ct.rules.length > 0) rulesMap[ct.ID_ChiTieu] = ct.rules;
       }
       setChiTieuRules(rulesMap);
 
@@ -269,7 +213,42 @@ export default function TaoPhieuKiemTraPage() {
   const panelBorder = isDark ? '#1e4a72' : '#e5e7eb';
   const itemBg      = isDark ? '#0e2c4a' : '#f9fafb';
 
-  const handleSave = async () => {
+  // Nạp lại phiếu đã lưu khi mở ở chế độ sửa: chọn lại thiết bị (nạp cấu hình chỉ tiêu) rồi điền lại giá trị đo.
+  const [editLoaded, setEditLoaded] = useState(false);
+  const [editTrangThai, setEditTrangThai] = useState<number | null>(null);
+  useEffect(() => {
+    if (!editId || editLoaded || thietBis.length === 0) return;
+    (async () => {
+      try {
+        const detail = await phieuKiemTraApi.getDetail(editId);
+        await handleSelectTB(detail.ID_ThietBi);
+
+        const nextValues: Record<number, number> = {};
+        const nextRule: Record<number, Record<string, number>> = {};
+        for (const ct of detail.ChiTiets) {
+          if (ct.DanhSachInput && ct.DanhSachInput.length > 0) {
+            nextRule[ct.ID_ChiTieu] = Object.fromEntries(ct.DanhSachInput.map(i => [i.MaInput, i.GiaTriSo]));
+          } else if (ct.GiaTriNhap_So != null) {
+            nextValues[ct.ID_ChiTieu] = ct.GiaTriNhap_So;
+          }
+        }
+        setValues(nextValues);
+        setRuleValues(nextRule);
+        setSelectedNhomId(detail.ID_NhomChiTieu ?? CHON_TAT_CA);
+        setGhiChu(detail.GhiChuChung ?? '');
+        setNguoiKT(detail.NguoiKiemTra ?? user?.HoTen ?? '');
+        setNgayKiemTra(detail.NgayKiemTra ? dayjs(detail.NgayKiemTra) : null);
+        setEditTrangThai(detail.TrangThai ?? 1);
+        setStep(1);
+        setEditLoaded(true);
+      } catch {
+        message.error('Không thể tải phiếu để sửa');
+      }
+    })();
+  }, [editId, editLoaded, thietBis]);
+
+  /** tinhDiem=false → "Lưu" (nháp, chưa tính điểm); true → "Lưu và tính điểm". */
+  const handleSave = async (tinhDiem: boolean) => {
     if (!selectedTB) return;
     setSaving(true);
     try {
@@ -312,15 +291,24 @@ export default function TaoPhieuKiemTraPage() {
           }))
         );
 
-      const created = await api.post<{
+      type PhieuSaved = {
         ID_Phieu?: number;
         iD_Phieu?: number;
         TongDiem_Soqt?: number;
         tongDiem_Soqt?: number;
         CapDoCanhBao?: string;
         capDoCanhBao?: string;
-      }>('/api/phieukiemtra/create-phieukiemtra', {
+        /** BE tính sẵn các chỉ tiêu Tình trạng Trung bình/Xấu + mức độ cảnh báo. */
+        canhBao?: {
+          canThongBao: boolean;
+          mucDo: 'nguyHiem' | 'canhBao' | null;
+          coCanhBaoTong: boolean;
+          chiTieus: { tenChiTieu: string; diem_Si: number | null; tinhTrang: string; hanhDongKhuyenCao?: string | null; mucDo: string }[];
+        };
+      };
+      const payload = {
         ID_ThietBi:          selectedTB.ID_ThietBi,
+        TinhDiem:            tinhDiem,
         ID_NganLo:           entryMode === 'nganlo' ? selectedNganLo?.ID_NganLo ?? null : null,
         ID_NhomChiTieu:      selectedNhomId === CHON_TAT_CA ? null : selectedNhomId,
         NgayKiemTra:         ngayKiemTra ? ngayKiemTra.toISOString() : undefined,
@@ -329,50 +317,39 @@ export default function TaoPhieuKiemTraPage() {
         ChiTiets:            chiTiets,
         ChiTietInputs:       chiTietInputsPayload,
         ChiTietInputsNamed:  chiTietInputsNamed,
-      });
-      message.success(`Lưu phiếu kiểm tra thành công${selectedTB.TenThietBi ? ` — ${selectedTB.TenThietBi}` : ''}`);
+      };
+      const created: PhieuSaved = editId
+        ? await api.put<PhieuSaved>(`/api/phieukiemtra/${editId}/noi-dung`, payload)
+        : await api.post<PhieuSaved>('/api/phieukiemtra/create-phieukiemtra', payload);
+      const tenTB = selectedTB.TenThietBi ? ` — ${selectedTB.TenThietBi}` : '';
+      message.success(tinhDiem
+        ? `Đã lưu và tính điểm phiếu kiểm tra${tenTB}`
+        : `Đã lưu phiếu nháp${tenTB} (chưa tính điểm)`);
 
       const idPhieu = created.ID_Phieu ?? created.iD_Phieu;
+
+      // Lưu nháp: chưa có điểm nên không soát cảnh báo; chuyển tới trang chi tiết phiếu để xem/sửa tiếp.
+      if (!tinhDiem) {
+        navigate(idPhieu ? `/ket-qua/${idPhieu}` : '/ket-qua');
+        return;
+      }
       const capDoCanhBao = created.CapDoCanhBao ?? created.capDoCanhBao;
       const tongDiemSoqt = created.TongDiem_Soqt ?? created.tongDiem_Soqt;
+      const cb = created.canhBao;
 
-      // Nhiều loại thiết bị (DCL/TU/TI/CS...) KHÔNG có CSSK tổng — CapDoCanhBao ở phiếu luôn null dù
-      // 1 chỉ tiêu riêng lẻ tệ đến đâu (xem ScoringEngine.TinhVaLuuTongDiemAsync). Nên KHÔNG chỉ dựa
-      // vào CapDoCanhBao tổng: luôn tải chi tiết phiếu để soát từng chỉ tiêu, giống cách Dashboard
-      // xử lý case NguonDiem='CHI_TIEU'/'CHI_TIEU_RIENG'.
-      let chiTieuLoi: { ten: string; diem: number; khuyenCao?: string | null }[] = [];
-      if (idPhieu) {
-        try {
-          const detail = await phieuKiemTraApi.getDetail(idPhieu);
-          chiTieuLoi = detail.ChiTiets
-            .filter(ct => ct.Diem_Si_DatDuoc != null && ct.Diem_Si_DatDuoc < 6)
-            .sort((a, b) => (a.Diem_Si_DatDuoc ?? 0) - (b.Diem_Si_DatDuoc ?? 0))
-            .map(ct => ({
-              ten: ct.TenChiTieu ?? 'Chỉ tiêu chưa đặt tên',
-              diem: ct.Diem_Si_DatDuoc!,
-              khuyenCao: ct.HanhDongKhuyenCao,
-            }));
-        } catch {
-          // Không tải được chi tiết — vẫn xét cảnh báo theo CapDoCanhBao tổng (nếu có) bên dưới.
-        }
-      }
-
-      const coCanhBaoTong = capDoCanhBao === 'Chú ý' || capDoCanhBao === 'Cảnh báo' || capDoCanhBao === 'Nguy hiểm';
-      if (coCanhBaoTong || chiTieuLoi.length > 0) {
-        const laNguyHiem = capDoCanhBao === 'Nguy hiểm' || chiTieuLoi.some(ct => ct.diem < 2);
-
-        notification[laNguyHiem ? 'error' : 'warning']({
+      if (cb?.canThongBao) {
+        notification[cb.mucDo === 'nguyHiem' ? 'error' : 'warning']({
           message: `Cần kiểm tra ngay: ${selectedTB.TenThietBi ?? 'Thiết bị'}`,
           description: (
             <Flex vertical gap={4}>
-              {coCanhBaoTong && <Text>Điểm CSSK: {tongDiemSoqt ?? '-'} — {capDoCanhBao}</Text>}
-              {chiTieuLoi.length > 0 ? (
+              {cb.coCanhBaoTong && <Text>Điểm CSSK: {tongDiemSoqt ?? '-'} — {capDoCanhBao}</Text>}
+              {cb.chiTieus.length > 0 ? (
                 <div>
                   <Text strong>Chỉ tiêu cần chú ý:</Text>
-                  {chiTieuLoi.map(ct => (
-                    <div key={ct.ten} style={{ marginTop: 3 }}>
-                      <Text>{ct.diem < 2 ? '🔴' : ct.diem < 4 ? '🟠' : '🟡'} {ct.ten} ({ct.diem.toFixed(1)})</Text>
-                      {ct.khuyenCao && <Text type="secondary"> → {ct.khuyenCao}</Text>}
+                  {cb.chiTieus.map(ct => (
+                    <div key={ct.tenChiTieu} style={{ marginTop: 3 }}>
+                      <Text>{ct.tenChiTieu} — {ct.tinhTrang}</Text>
+                      {ct.hanhDongKhuyenCao && <Text type="secondary"> → {ct.hanhDongKhuyenCao}</Text>}
                     </div>
                   ))}
                 </div>
@@ -410,7 +387,10 @@ export default function TaoPhieuKiemTraPage() {
         <Button icon={<ArrowLeftOutlined />} type="text" style={{ color: textColor }}
           onClick={() => navigate('/nhap-lieu')}>Nhập liệu</Button>
         <Text style={{ color: '#4b5563' }}>/</Text>
-        <Text style={{ color: titleColor }}>Tạo phiếu kiểm tra mới</Text>
+        <Text style={{ color: titleColor }}>
+          {editId ? `Sửa phiếu kiểm tra #${editId}` : 'Tạo phiếu kiểm tra mới'}
+        </Text>
+        {editId && editTrangThai === 0 && <Tag color="orange">Nháp</Tag>}
       </Flex>
 
       <Steps current={step} size="small" style={{ marginBottom: 24 }} items={[
@@ -594,15 +574,15 @@ export default function TaoPhieuKiemTraPage() {
                           <Tag style={{ fontSize: 10 }}>{nhom.chiTieus.length} chỉ tiêu</Tag>
                         </Flex>
                       }
-                      style={{ background: panelBg, border: `1px solid ${panelBorder}`, marginBottom: 16 }}
-                      styles={{ header: { borderBottom: `1px solid ${panelBorder}` }, body: { padding: 20 } }}>
+                      style={{ background: panelBg, border: `1px solid ${panelBorder}`, marginBottom: 10 }}
+                      styles={{ header: { borderBottom: `1px solid ${panelBorder}` }, body: { padding: 10 } }}>
                       {/* CSS Grid auto-fit/minmax thay vì Row/Col phần trăm cố định — cột tự co giãn
                           theo khoảng trống thật, và cột KHÔNG có phần tử tự co về 0 nhường chỗ cho
                           cột đang có nội dung giãn ra lấp đầy (giải quyết "phần tử lẻ cuối hàng bỏ
                           trống 1 khoảng" mà không cần tự đếm/tính span thủ công). Card Rule (nhiều
                           biến + bảng quy tắc) chiếm 2 ô liền (gridColumn: 'span 2') để đủ chỗ hiện
                           lưới biến con bên trong; card Ngưỡng đơn giản chiếm 1 ô. */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
                         {nhom.chiTieus.map(ct => {
                           const inputsAll = chiTieuInputs[ct.ID_ChiTieu];
                           // Biến nguồn 'CHITIEU_CUNG_PHIEU' (tự lấy từ chỉ tiêu khác cùng phiếu,
@@ -613,7 +593,6 @@ export default function TaoPhieuKiemTraPage() {
                             inp.NguonGiaTri !== 'CHITIEU_CUNG_PHIEU' && inp.NguonGiaTri !== 'THIETBI_THONGSO');
                           const isRule = !!(inputs && inputs.length > 0);
                           const isLF   = ct.LoaiTinhDiem === 'LF';
-                          const rules  = chiTieuRules[ct.ID_ChiTieu] ?? [];
 
                           // Có Input cấu hình nhưng SAU KHI lọc không còn biến nào cần nhập tay
                           // (toàn bộ đều tự tính từ chỉ tiêu khác) — ẩn hẳn khỏi form, không rơi về
@@ -631,7 +610,7 @@ export default function TaoPhieuKiemTraPage() {
                               // hàng, các ô trống còn lại tự co về 0 nên nó tự giãn hết chiều rộng.
                               <div key={ct.ID_ChiTieu} style={{ gridColumn: 'span 2' }}>
                                 <div style={{
-                                  padding: '14px 16px',
+                                  padding: '8px 10px',
                                   background: itemBg,
                                   borderRadius: 8,
                                   border: `1px solid ${allFilled
@@ -640,8 +619,8 @@ export default function TaoPhieuKiemTraPage() {
                                   transition: 'border-color 0.25s',
                                 }}>
                                   {/* Header chỉ tiêu */}
-                                  <Flex align="center" gap={8} wrap="wrap" style={{ marginBottom: 12 }}>
-                                    <div style={{ width: 4, height: 20, borderRadius: 2, background: '#7c3aed', flexShrink: 0 }} />
+                                  <Flex align="center" gap={8} wrap="wrap" style={{ marginBottom: 6 }}>
+                                    <div style={{ width: 4, height: 16, borderRadius: 2, background: '#7c3aed', flexShrink: 0 }} />
                                     <Text strong style={{ color: titleColor, fontSize: 14, flex: 1 }}>
                                       {ct.TenChiTieu}
                                     </Text>
@@ -653,16 +632,13 @@ export default function TaoPhieuKiemTraPage() {
                                   </Flex>
 
                                   {/* Lưới nhập biến */}
-                                  <Text style={{ color: textColor, fontSize: 12, display: 'block', marginBottom: 10 }}>
-                                    Nhập giá trị đo cho từng đại lượng trong biểu thức:
-                                  </Text>
-                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8 }}>
                                     {inputs.map(inp => {
                                       const isFilled = varMap[inp.MaInput] !== undefined;
                                       return (
                                         <div key={inp.ID_Input}>
                                           <div style={{
-                                            padding: '10px 12px',
+                                            padding: '5px 8px',
                                             background: panelBg,
                                             borderRadius: 6,
                                             border: `1px solid ${isFilled
@@ -670,7 +646,7 @@ export default function TaoPhieuKiemTraPage() {
                                               : (isDark ? '#374151' : '#d1d5db')}`,
                                             transition: 'border-color 0.2s',
                                           }}>
-                                            <Flex align="center" gap={6} style={{ marginBottom: 6 }}>
+                                            <Flex align="center" gap={6} style={{ marginBottom: 3 }}>
                                               <Text style={{ color: titleColor, fontSize: 13, fontWeight: 500, flex: 1 }}>
                                                 {inp.TenInput}
                                               </Text>
@@ -686,11 +662,11 @@ export default function TaoPhieuKiemTraPage() {
                                               </code>
                                             </Flex>
                                             <InputNumber
-                                              size="large"
+                                              size="middle"
                                               style={{
                                                 width: '100%',
                                                 background: panelBg,
-                                                fontSize: 17,
+                                                fontSize: 15,
                                                 borderColor: isFilled
                                                   ? (isDark ? '#4ade80' : '#86efac')
                                                   : (isDark ? '#374151' : '#d1d5db'),
@@ -714,64 +690,6 @@ export default function TaoPhieuKiemTraPage() {
                                     })}
                                   </div>
 
-                                  {/* Bảng quy tắc tính điểm (có thể thu/mở) */}
-                                  {rules.length > 0 && (
-                                    <Collapse
-                                      ghost
-                                      size="small"
-                                      style={{ marginTop: 10 }}
-                                      items={[{
-                                        key: 'rules',
-                                        label: (
-                                          <Text style={{ color: textColor, fontSize: 11 }}>
-                                            Quy tắc tính điểm — {rules.length} mức xếp loại
-                                          </Text>
-                                        ),
-                                        children: (
-                                          <div style={{ overflowX: 'auto' }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                                              <thead>
-                                                <tr style={{ background: isDark ? '#1e4a72' : '#f3f4f6' }}>
-                                                  <th style={{ padding: '6px 10px', textAlign: 'left', color: textColor, fontWeight: 500 }}>Mức</th>
-                                                  <th style={{ padding: '6px 10px', textAlign: 'left', color: textColor, fontWeight: 500 }}>Điều kiện biểu thức</th>
-                                                  <th style={{ padding: '6px 10px', textAlign: 'center', color: textColor, fontWeight: 500 }}>Điểm</th>
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {[...rules].sort((a, b) => b.Diem_Si - a.Diem_Si).map(rule => (
-                                                  <tr key={rule.ID_Rule}
-                                                    style={{ borderTop: `1px solid ${panelBorder}` }}>
-                                                    <td style={{ padding: '6px 10px', color: titleColor, whiteSpace: 'nowrap' }}>
-                                                      {rule.TenMuc}
-                                                    </td>
-                                                    <td style={{ padding: '6px 10px' }}>
-                                                      <code style={{
-                                                        fontSize: 11,
-                                                        background: isDark ? '#1e4a72' : '#f5f3ff',
-                                                        padding: '3px 7px',
-                                                        borderRadius: 4,
-                                                        color: isDark ? '#c4b5fd' : '#6d28d9',
-                                                        border: `1px solid ${isDark ? '#374151' : '#e9d5ff'}`,
-                                                        display: 'inline-block',
-                                                        wordBreak: 'break-all',
-                                                      }}>
-                                                        {rule.BieuThuc}
-                                                      </code>
-                                                    </td>
-                                                    <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                                      <Tag color={scoreTagColor(rule.Diem_Si)} style={{ margin: 0, fontWeight: 600 }}>
-                                                        {rule.Diem_Si}/10
-                                                      </Tag>
-                                                    </td>
-                                                  </tr>
-                                                ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        ),
-                                      }]}
-                                    />
-                                  )}
                                 </div>
                               </div>
                             );
@@ -787,24 +705,24 @@ export default function TaoPhieuKiemTraPage() {
                           return (
                             <div key={ct.ID_ChiTieu}>
                               <div style={{
-                                padding: '12px 14px',
+                                padding: '6px 8px',
                                 background: itemBg,
-                                borderRadius: 8,
+                                borderRadius: 6,
                                 border: `1px solid ${panelBorder}`,
                               }}>
                                 {/* Header chỉ tiêu */}
-                                <Flex align="center" gap={6} wrap="wrap" style={{ marginBottom: 8 }}>
-                                  <div style={{ width: 3, height: 16, borderRadius: 2, background: '#3b82f6', flexShrink: 0 }} />
+                                <Flex align="center" gap={6} wrap="wrap" style={{ marginBottom: 3 }}>
+                                  <div style={{ width: 3, height: 13, borderRadius: 2, background: '#3b82f6', flexShrink: 0 }} />
                                   <Text style={{ color: titleColor, fontSize: 13, flex: 1 }}>{ct.TenChiTieu}</Text>
                                 </Flex>
 
                                 <Flex align="center" gap={8}>
                                   <InputNumber
-                                    size="large"
+                                    size="middle"
                                     style={{
                                       flex: 1,
                                       background: panelBg,
-                                      fontSize: 18,
+                                      fontSize: 15,
                                       borderColor: isDark ? '#374151' : '#d1d5db',
                                     }}
                                     value={val}
@@ -819,43 +737,6 @@ export default function TaoPhieuKiemTraPage() {
                                     <Tag style={{ margin: 0, fontSize: 11 }}>Điểm tính khi lưu (gộp 12 tháng)</Tag>
                                   )}
                                 </Flex>
-
-                                {/* Bảng ngưỡng tham khảo (có thể thu/mở) */}
-                                {ct.nguongs.length > 0 && (
-                                  <Collapse
-                                    ghost
-                                    size="small"
-                                    style={{ marginTop: 6 }}
-                                    items={[{
-                                      key: 'nguong',
-                                      label: (
-                                        <Text style={{ color: textColor, fontSize: 11 }}>
-                                          {isLF
-                                            ? `Bảng tra điểm theo LF (không áp dụng trực tiếp cho giá trị vừa nhập) — ${ct.nguongs.length} mức`
-                                            : `Bảng ngưỡng tham khảo — ${ct.nguongs.length} mức`}
-                                        </Text>
-                                      ),
-                                      children: (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                          {[...ct.nguongs].sort((a, b) => b.Diem_Si - a.Diem_Si).map(ng => (
-                                            <Flex key={ng.ID_Nguong} align="center" justify="space-between"
-                                              style={{ padding: '4px 8px', borderRadius: 5 }}>
-                                              <Text style={{ fontSize: 12, color: textColor, fontFamily: 'monospace' }}>
-                                                {formatNguongRange(ng)}
-                                                {ng.BieuThuc_Logic && (
-                                                  <Tag style={{ marginLeft: 6, fontSize: 9 }} color="orange">logic</Tag>
-                                                )}
-                                              </Text>
-                                              <Tag color={scoreTagColor(ng.Diem_Si)} style={{ margin: 0, fontSize: 11 }}>
-                                                {ng.Diem_Si} điểm
-                                              </Tag>
-                                            </Flex>
-                                          ))}
-                                        </div>
-                                      ),
-                                    }]}
-                                  />
-                                )}
                               </div>
                             </div>
                           );
@@ -890,7 +771,7 @@ export default function TaoPhieuKiemTraPage() {
 
           {/* ── Nút điều hướng bước ── */}
           <Flex justify="space-between" style={{ marginTop: 16 }}>
-            <Button disabled={step === 0} onClick={() => setStep(s => s - 1)}>← Bước trước</Button>
+            <Button disabled={step === 0 || (!!editId && step === 1)} onClick={() => setStep(s => s - 1)}>← Bước trước</Button>
             <Space>
               {step < 2 && (
                 <Button type="primary"
@@ -899,11 +780,17 @@ export default function TaoPhieuKiemTraPage() {
                   Bước tiếp →
                 </Button>
               )}
-              {step === 2 && (
-                <Button type="primary" icon={<SaveOutlined />}
-                  loading={saving} onClick={handleSave}>
-                  Lưu phiếu kiểm tra
-                </Button>
+              {step >= 1 && (
+                <>
+                  <Button icon={<SaveOutlined />} disabled={saving || !selectedTB}
+                    onClick={() => handleSave(false)}>
+                    Lưu
+                  </Button>
+                  <Button type="primary" icon={<CalculatorOutlined />}
+                    loading={saving} disabled={!selectedTB} onClick={() => handleSave(true)}>
+                    Lưu và tính điểm
+                  </Button>
+                </>
               )}
             </Space>
           </Flex>

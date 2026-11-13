@@ -247,6 +247,8 @@ export interface Nguong {
   BieuThuc_Logic?: string | null;
   /** Hành động khuyến cáo khi chỉ tiêu rơi vào mức này — lưu snapshot vào ChiTietKiemTra lúc chấm điểm. */
   HanhDongKhuyenCao?: string | null;
+  /** Tình trạng của mức: Tốt / Khá / Trung bình / Xấu (lưu riêng, không nằm trong khuyến cáo). */
+  TinhTrang?: string | null;
 }
 export interface CreateNguongDto {
   ID_ChiTieu: number;
@@ -258,6 +260,7 @@ export interface CreateNguongDto {
   BieuThuc_Logic?: string | null;
   MaKetQua?: string | null;
   HanhDongKhuyenCao?: string | null;
+  TinhTrang?: string | null;
 }
 export interface UpdateNguongDto extends CreateNguongDto {}
 
@@ -279,6 +282,8 @@ export interface PhieuKiemTra {
   TongDiem_Soqt?: number;
   CapDoCanhBao?: string;
   GhiChuChung?: string;
+  /** 0 = Nháp (chưa tính điểm), 1 = Đã tính điểm. */
+  TrangThai?: number;
 }
 
 export interface PhieuKiemTraDetailDto extends PhieuKiemTra {
@@ -295,6 +300,8 @@ export interface CreatePhieuKiemTraDto {
   NgayKiemTra?: string;
   NguoiKiemTra?: string;
   GhiChuChung?: string;
+  /** true (mặc định) = Lưu và tính điểm; false = Lưu nháp, không tính điểm. */
+  TinhDiem?: boolean;
   ChiTiets: CreateChiTietKiemTraDto[];
 }
 
@@ -326,6 +333,8 @@ export interface ChiTietKiemTra {
   Diem_Si_DatDuoc?: number;
   /** Snapshot khuyến cáo tại thời điểm chấm điểm — giữ nguyên dù sau này sửa lại nội dung gốc. */
   HanhDongKhuyenCao?: string | null;
+  /** Snapshot tình trạng (Tốt/Khá/Trung bình/Xấu) tại thời điểm chấm điểm. */
+  TinhTrang?: string | null;
   GhiChu?: string;
   /** Giá trị Input thô khi chỉ tiêu dùng Rule/Formula nhiều biến — trống nếu chỉ tiêu nhập 1 giá trị đơn. */
   DanhSachInput?: ChiTietInputValueDto[];
@@ -339,6 +348,7 @@ export interface LichSuChiTieu {
   GiaTriNhap_Chu?: string;
   Diem_Si_DatDuoc?: number;
   HanhDongKhuyenCao?: string | null;
+  TinhTrang?: string | null;
   DanhSachInput?: ChiTietInputValueDto[];
 }
 

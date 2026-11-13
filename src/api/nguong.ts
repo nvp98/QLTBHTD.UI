@@ -15,9 +15,10 @@ type NguongApiRaw = Partial<Nguong> & {
   bieuThuc_Logic?: string | null;
   maKetQua?: string | null;
   hanhDongKhuyenCao?: string | null;
+  tinhTrang?: string | null;
 };
 
-const toNguong = (raw: NguongApiRaw): Nguong => ({
+export const toNguong = (raw: NguongApiRaw): Nguong => ({
   ID_Nguong:      Number(raw.ID_Nguong  ?? raw.iD_Nguong  ?? 0),
   ID_ChiTieu:     Number(raw.ID_ChiTieu ?? raw.iD_ChiTieu ?? 0),
   TenChiTieu:     raw.TenChiTieu ?? raw.tenChiTieu,
@@ -29,6 +30,7 @@ const toNguong = (raw: NguongApiRaw): Nguong => ({
   BieuThuc_Logic: raw.BieuThuc_Logic ?? raw.bieuThuc_Logic ?? null,
   MaKetQua:       raw.MaKetQua ?? raw.maKetQua ?? null,
   HanhDongKhuyenCao: raw.HanhDongKhuyenCao ?? raw.hanhDongKhuyenCao ?? null,
+  TinhTrang: raw.TinhTrang ?? raw.tinhTrang ?? null,
 });
 
 type PagedRaw = PagedResult<NguongApiRaw>;
